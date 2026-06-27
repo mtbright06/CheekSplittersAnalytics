@@ -9,6 +9,20 @@ class PitcherLoader:
         PitcherLoader._apply_team_data(game.away)
         PitcherLoader._apply_team_data(game.home)
 
+        if not game.game_url:
+            return
+
+        details = KBODataProvider.get_game_details(game.game_url)
+
+        away = details["away"]
+        home = details["home"]
+
+        game.away.pitcher.name = away["name"]
+        game.away.pitcher.era = float(away["era"])
+
+        game.home.pitcher.name = home["name"]
+        game.home.pitcher.era = float(home["era"])
+
     @staticmethod
     def _apply_team_data(team):
 

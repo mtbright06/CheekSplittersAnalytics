@@ -16,8 +16,11 @@ class KBOProvider(Provider):
 
             games.append(
                 Game(
-                    game["away"],
-                    game["home"]
+                    away=game["away"],
+                    home=game["home"],
+                    game_url=game.get("url"),
+                    venue=game.get("venue"),
+                    start_time=game.get("time"),
                 )
             )
 

@@ -1,27 +1,12 @@
-import requests
-from bs4 import BeautifulSoup
-
 from providers.base_provider import BaseProvider
+
+from parsers.schedule_parser import ScheduleParser
+from parsers.game_parser import GameParser
 
 
 class KBODataProvider(BaseProvider):
 
     NAME = "KBO Provider"
-    URL = "https://mykbostats.com/"
-
-    TEAM_NAME_MAP = {
-        ("Hanwha", "Eagles"): "Hanwha Eagles",
-        ("SSG", "Landers"): "SSG Landers",
-        ("Kia", "Tigers"): "KIA Tigers",
-        ("KIA", "Tigers"): "KIA Tigers",
-        ("Doosan", "Bears"): "Doosan Bears",
-        ("KT", "Wiz"): "KT Wiz",
-        ("Samsung", "Lions"): "Samsung Lions",
-        ("LG", "Twins"): "LG Twins",
-        ("Lotte", "Giants"): "Lotte Giants",
-        ("Kiwoom", "Heroes"): "Kiwoom Heroes",
-        ("NC", "Dinos"): "NC Dinos",
-    }
 
     MOCK_TEAMS = {
         "Hanwha Eagles": {
@@ -67,52 +52,16 @@ class KBODataProvider(BaseProvider):
     }
 
     @classmethod
+    def get_schedule(cls):
+        return ScheduleParser.load()
+
+    @classmethod
+    def get_game_details(cls, url):
+        return GameParser.load(url)
+
+    @classmethod
     def get_team_data(cls, team_name):
         return cls.MOCK_TEAMS.get(team_name)
-
-    @classmethod
-    def get_schedule(cls):
-        response = requests.get(cls.URL, timeout=15)
-        response.raise_for_status()
-
-        soup = BeautifulSoup(response.text, "html.parser")
-        lines = [
-            line.strip()
-            for line in soup.get_text("\n", strip=True).splitlines()
-            if line.strip()
-        ]
-
-        start = lines.index("Today’s")
-        games_index = start + 3
-
-        games = []
-        i = games_index
-
-        while i < len(lines):
-            if lines[i] == "Yesterday’s":
-                break
-
-            away = cls._normalize_team(lines[i], lines[i + 1])
-            game_time = lines[i + 2]
-            venue = lines[i + 3]
-            home = cls._normalize_team(lines[i + 4], lines[i + 5])
-
-            games.append(
-                {
-                    "away": away,
-                    "home": home,
-                    "time": game_time,
-                    "venue": venue,
-                }
-            )
-
-            i += 6
-
-        return games
-
-    @classmethod
-    def _normalize_team(cls, first, second):
-        return cls.TEAM_NAME_MAP.get((first, second), f"{first} {second}")
 
     def get_odds(self, game):
         raise NotImplementedError

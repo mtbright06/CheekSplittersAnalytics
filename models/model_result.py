@@ -10,4 +10,9 @@ class ModelResult:
         self.confidence = None
 
         self.recommendation = None
+
+        # Human-readable explanations
         self.reasons = []
+
+        # Numeric contribution from each calculator
+        self.signals = []

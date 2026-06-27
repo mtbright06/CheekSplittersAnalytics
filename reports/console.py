@@ -19,6 +19,7 @@ class ConsoleReport:
         logger.write(f"{best.result.play} ({best.result.market})")
         logger.write(f"Edge: {best.result.edge}%")
         logger.write(f"Confidence: {best.result.confidence}/100")
+        logger.write(self._play_rating(best.result.edge))
         logger.write("")
 
         logger.write("=" * 60)
@@ -44,13 +45,32 @@ class ConsoleReport:
             logger.write(f"Confidence: {game.result.confidence}/100")
             logger.write(f"{game.result.recommendation}")
 
+            logger.write("")
+            logger.write(self._play_rating(game.result.edge))
+
             if game.result.reasons:
 
                 logger.write("")
-                logger.write("Reasoning:")
+                logger.write("Why SharpStack likes this play:")
 
                 for reason in game.result.reasons:
 
                     logger.write(f"  ✓ {reason}")
 
             logger.write("-" * 60)
+
+    def _play_rating(self, edge):
+
+        if edge >= 10:
+            return "★★★★★ ELITE PLAY"
+
+        if edge >= 7:
+            return "★★★★☆ STRONG PLAY"
+
+        if edge >= 5:
+            return "★★★☆☆ PLAYABLE"
+
+        if edge >= 2:
+            return "★★☆☆☆ LEAN"
+
+        return "★☆☆☆☆ PASS"

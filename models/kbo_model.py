@@ -48,13 +48,21 @@ class KBOModel:
             for calculator in self.calculators:
 
                 score = calculator.score(game, i)
+                contribution = round(score * calculator.WEIGHT, 2)
 
-                weighted_score += score * calculator.WEIGHT
+                result.signals.append(
+                    (calculator.NAME, contribution)
+                )
+
+                weighted_score += contribution
 
                 if score > 0:
                     result.reasons.append(
                         f"{calculator.NAME} +{score}"
                     )
+
+                for reason in calculator.reasons(game, i):
+                    result.reasons.append(reason)
 
             result.model_probability = round(
                 50 + (weighted_score * 8),

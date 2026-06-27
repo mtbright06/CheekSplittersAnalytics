@@ -1,4 +1,9 @@
-class KBOProvider:
+from providers.base_provider import BaseProvider
+
+
+class KBOProvider(BaseProvider):
+
+    NAME = "KBO Provider"
 
     MOCK_TEAMS = {
         "Hanwha Eagles": {
@@ -46,3 +51,9 @@ class KBOProvider:
     @classmethod
     def get_team_data(cls, team_name):
         return cls.MOCK_TEAMS.get(team_name)
+
+    def get_schedule(self):
+        raise NotImplementedError
+
+    def get_odds(self, game):
+        raise NotImplementedError

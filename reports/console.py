@@ -28,14 +28,14 @@ class ConsoleReport:
 
             logger.write("")
             logger.write(f"{game.away.name} @ {game.home.name}")
+
+            away_pitcher = self._format_pitcher(game.away.pitcher)
+            home_pitcher = self._format_pitcher(game.home.pitcher)
+
             logger.write(
-                f"Pitching: "
-                f"{game.away.pitcher.name} "
-                f"({game.away.pitcher.era}) "
-                f"vs "
-                f"{game.home.pitcher.name} "
-                f"({game.home.pitcher.era})"
+                f"Pitching: {away_pitcher} vs {home_pitcher}"
             )
+
             logger.write(f"Market: {game.result.market}")
             logger.write(f"Play: {game.result.play}")
             logger.write(f"Odds: {game.odds.moneyline}")
@@ -58,6 +58,13 @@ class ConsoleReport:
                     logger.write(f"  ✓ {reason}")
 
             logger.write("-" * 60)
+
+    def _format_pitcher(self, pitcher):
+
+        if pitcher.record:
+            return f"{pitcher.name} ({pitcher.record}, {pitcher.era:.2f})"
+
+        return f"{pitcher.name} ({pitcher.era:.2f})"
 
     def _play_rating(self, edge):
 

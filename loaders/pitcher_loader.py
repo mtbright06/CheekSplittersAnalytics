@@ -19,9 +19,11 @@ class PitcherLoader:
 
         game.away.pitcher.name = away["name"]
         game.away.pitcher.era = float(away["era"])
+        game.away.pitcher.record = away["record"]
 
         game.home.pitcher.name = home["name"]
         game.home.pitcher.era = float(home["era"])
+        game.home.pitcher.record = home["record"]
 
     @staticmethod
     def _apply_team_data(team):

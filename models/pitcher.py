@@ -4,7 +4,7 @@ class Pitcher:
 
         self.name = None
         self.throws = None
-
+        self.record = None
         self.era = None
         self.whip = None
 

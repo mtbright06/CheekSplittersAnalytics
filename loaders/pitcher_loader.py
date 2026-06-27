@@ -1,4 +1,4 @@
-from providers.kbo_provider import KBOProvider
+from providers.kbo_data_provider import KBODataProvider
 
 
 class PitcherLoader:
@@ -12,7 +12,7 @@ class PitcherLoader:
     @staticmethod
     def _apply_team_data(team):
 
-        data = KBOProvider.get_team_data(team.name)
+        data = KBODataProvider.get_team_data(team.name)
 
         if data is None:
             team.pitcher.name = "Unknown Starter"

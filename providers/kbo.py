@@ -1,17 +1,24 @@
 from engine.provider import Provider
 from models.game import Game
 
+from providers.kbo_data_provider import KBODataProvider
+
 
 class KBOProvider(Provider):
 
     def load(self):
 
-        return [
+        live_games = KBODataProvider.get_schedule()
 
-            Game("Hanwha Eagles","SSG Landers"),
-            Game("KIA Tigers","Doosan Bears"),
-            Game("KT Wiz","Samsung Lions"),
-            Game("LG Twins","Lotte Giants"),
-            Game("Kiwoom Heroes","NC Dinos")
+        games = []
 
-        ]
+        for game in live_games:
+
+            games.append(
+                Game(
+                    game["away"],
+                    game["home"]
+                )
+            )
+
+        return games

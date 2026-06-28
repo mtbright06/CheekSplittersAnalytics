@@ -4,7 +4,6 @@ from calculators.base import BaseCalculator
 class StartingPitchingCalculator(BaseCalculator):
 
     NAME = "Starting Pitching"
-
     WEIGHT = 0.35
 
     def score(self, game, index):
@@ -36,7 +35,6 @@ class StartingPitchingCalculator(BaseCalculator):
         ]
 
         for label, away_value, home_value, direction in comparisons:
-
             reason = self._comparison_reason(
                 label,
                 away.name,
@@ -121,31 +119,17 @@ class StartingPitchingCalculator(BaseCalculator):
             return None
 
         if direction == "lower":
-
             if away_value < home_value:
-                return (
-                    f"{away_name} has the {label} advantage "
-                    f"({away_value:.2f} vs {home_value:.2f})"
-                )
+                return f"{away_name} has the {label} advantage ({away_value:.2f} vs {home_value:.2f})"
 
             if home_value < away_value:
-                return (
-                    f"{home_name} has the {label} advantage "
-                    f"({home_value:.2f} vs {away_value:.2f})"
-                )
+                return f"{home_name} has the {label} advantage ({home_value:.2f} vs {away_value:.2f})"
 
         if direction == "higher":
-
             if away_value > home_value:
-                return (
-                    f"{away_name} has the {label} advantage "
-                    f"({away_value:.2f} vs {home_value:.2f})"
-                )
+                return f"{away_name} has the {label} advantage ({away_value:.2f} vs {home_value:.2f})"
 
             if home_value > away_value:
-                return (
-                    f"{home_name} has the {label} advantage "
-                    f"({home_value:.2f} vs {away_value:.2f})"
-                )
+                return f"{home_name} has the {label} advantage ({home_value:.2f} vs {away_value:.2f})"
 
         return None

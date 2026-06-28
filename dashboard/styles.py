@@ -1,4 +1,35 @@
 CSS = """
+
+.pitcher-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 12px;
+}
+
+.mini-tag {
+    display: inline-block;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.10);
+    color: #d8e3f5;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.mini-good {
+    background: rgba(29, 97, 51, 0.42);
+    border-color: rgba(156,255,176,0.28);
+    color: #9cffb0;
+}
+
+.mini-bad {
+    background: rgba(120, 45, 45, 0.42);
+    border-color: rgba(255,120,120,0.28);
+    color: #ffb0b0;
+}
+
 <style>
 .stApp {
     background:

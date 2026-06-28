@@ -33,6 +33,55 @@ def stat(value):
     return str(value)
 
 
+def pitcher_tag(label, value, kind):
+    if value is None:
+        return ""
+
+    good = False
+    bad = False
+
+    if kind == "era":
+        good = value <= 3.75
+        bad = value >= 5.00
+    elif kind == "whip":
+        good = value <= 1.25
+        bad = value >= 1.45
+    elif kind == "k9":
+        good = value >= 8.5
+        bad = value <= 5.5
+    elif kind == "bb9":
+        good = value <= 2.5
+        bad = value >= 4.0
+    elif kind == "hr9":
+        good = value <= 0.8
+        bad = value >= 1.4
+
+    css = "mini-tag"
+    if good:
+        css += " mini-good"
+    elif bad:
+        css += " mini-bad"
+
+    return f'<span class="{css}">{label}: {stat(value)}</span>'
+
+
+def pitcher_insights(pitcher):
+    tags = [
+        pitcher_tag("ERA", pitcher.get("era"), "era"),
+        pitcher_tag("WHIP", pitcher.get("whip"), "whip"),
+        pitcher_tag("K/9", pitcher.get("k_rate"), "k9"),
+        pitcher_tag("BB/9", pitcher.get("bb_rate"), "bb9"),
+        pitcher_tag("HR/9", pitcher.get("hr9"), "hr9"),
+    ]
+
+    tags = [tag for tag in tags if tag]
+
+    if not tags:
+        return '<span class="mini-tag">No profile data</span>'
+
+    return " ".join(tags)
+
+
 def pitcher_line(pitcher):
     name = pitcher.get("name") or "Unknown Starter"
     pieces = []
@@ -59,6 +108,7 @@ def render_pitcher_card(title, pitcher):
             <div class="small-label">{title}</div>
             <div class="pitcher-name">{pitcher.get("name") or "Unknown Starter"}</div>
             <div class="muted">{pitcher_line(pitcher)}</div>
+            <div class="pitcher-tags">{pitcher_insights(pitcher)}</div>
         </div>
         """,
         unsafe_allow_html=True,

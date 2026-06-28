@@ -2,6 +2,16 @@ class ConsoleReport:
 
     def print_schedule(self, games, logger):
 
+        if not games:
+            logger.write("=" * 60)
+            logger.write("🔥 SHARPSTACK DAILY CARD")
+            logger.write("=" * 60)
+            logger.write("")
+            logger.write("No confirmed KBO games with listed starters found.")
+            logger.write("No card generated.")
+            logger.write("=" * 60)
+            return
+
         games = sorted(
             games,
             key=lambda g: g.result.edge,
@@ -61,10 +71,36 @@ class ConsoleReport:
 
     def _format_pitcher(self, pitcher):
 
-        if pitcher.record:
-            return f"{pitcher.name} ({pitcher.record}, {pitcher.era:.2f})"
+        if not pitcher.name:
+            return "Unknown Starter"
 
-        return f"{pitcher.name} ({pitcher.era:.2f})"
+        parts = []
+
+        if pitcher.throws:
+            parts.append(f"{pitcher.throws}HP")
+
+        if pitcher.record:
+            parts.append(pitcher.record)
+
+        if pitcher.era is not None:
+            parts.append(f"{pitcher.era:.2f} ERA")
+
+        if pitcher.whip is not None:
+            parts.append(f"{pitcher.whip:.2f} WHIP")
+
+        if pitcher.k_rate is not None:
+            parts.append(f"{pitcher.k_rate:.2f} K/9")
+
+        if pitcher.bb_rate is not None:
+            parts.append(f"{pitcher.bb_rate:.2f} BB/9")
+
+        if pitcher.hr9 is not None:
+            parts.append(f"{pitcher.hr9:.2f} HR/9")
+
+        if parts:
+            return f"{pitcher.name} ({' | '.join(parts)})"
+
+        return pitcher.name
 
     def _play_rating(self, edge):
 

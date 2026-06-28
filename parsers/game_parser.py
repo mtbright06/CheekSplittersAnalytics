@@ -17,7 +17,10 @@ class GameParser:
         )
 
         if len(starters) != 2:
-            raise Exception("Unable to locate both starting pitchers.")
+            return {
+                "away": cls._unknown_pitcher(),
+                "home": cls._unknown_pitcher(),
+            }
 
         return {
             "away": cls._parse_pitcher(starters[0]),
@@ -27,13 +30,16 @@ class GameParser:
     @classmethod
     def _parse_pitcher(cls, starter):
 
+        links = starter.select("a.player-link[href]")
+        name_link = links[-1] if links else None
+
+        name = name_link.get_text(strip=True) if name_link else "Unknown Starter"
+
         lines = [
             line.strip()
             for line in starter.get_text("\n", strip=True).splitlines()
             if line.strip()
         ]
-
-        name = lines[0]
 
         record = None
         era = None
@@ -42,7 +48,7 @@ class GameParser:
 
             if line == "Season:":
 
-                if i + 2 < len(lines):
+                if i + 1 < len(lines):
                     record = lines[i + 1]
 
                 if i + 3 < len(lines):
@@ -50,8 +56,29 @@ class GameParser:
 
                 break
 
+        profile_url = None
+
+        if name_link:
+            href = name_link["href"]
+
+            if href.startswith("http"):
+                profile_url = href
+            else:
+                profile_url = f"https://mykbostats.com{href}"
+
         return {
             "name": name,
             "record": record,
             "era": era,
+            "profile_url": profile_url,
+        }
+
+    @classmethod
+    def _unknown_pitcher(cls):
+
+        return {
+            "name": "Unknown Starter",
+            "record": None,
+            "era": None,
+            "profile_url": None,
         }

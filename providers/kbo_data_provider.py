@@ -2,6 +2,7 @@ from providers.base_provider import BaseProvider
 
 from parsers.schedule_parser import ScheduleParser
 from parsers.game_parser import GameParser
+from parsers.pitcher_parser import PitcherParser
 
 
 class KBODataProvider(BaseProvider):
@@ -58,6 +59,10 @@ class KBODataProvider(BaseProvider):
     @classmethod
     def get_game_details(cls, url):
         return GameParser.load(url)
+
+    @classmethod
+    def get_pitcher_details(cls, url):
+        return PitcherParser.load(url)
 
     @classmethod
     def get_team_data(cls, team_name):

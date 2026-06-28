@@ -7,37 +7,46 @@ class OffenseCalculator(BaseCalculator):
 
     WEIGHT = 0.25
 
-    def score(self, game, index=None):
+    def score(self, game, index):
 
         away = game.away
         home = game.home
 
-        score = 0
+        if (
+            away.offense.runs_per_game is None or
+            home.offense.runs_per_game is None
+        ):
+            return 0
 
         if away.offense.runs_per_game > home.offense.runs_per_game:
-            score += 1
-        elif home.offense.runs_per_game > away.offense.runs_per_game:
-            score -= 1
+            return 1
 
-        return score
+        if home.offense.runs_per_game > away.offense.runs_per_game:
+            return -1
 
-    def reasons(self, game, index=None):
+        return 0
 
-        reasons = []
+    def reasons(self, game, index):
 
         away = game.away
         home = game.home
 
+        if (
+            away.offense.runs_per_game is None or
+            home.offense.runs_per_game is None
+        ):
+            return ["Offense data unavailable"]
+
         if away.offense.runs_per_game > home.offense.runs_per_game:
-            reasons.append(
+            return [
                 f"{away.name} scores more runs per game "
-                f"({away.offense.runs_per_game:.1f} vs {home.offense.runs_per_game:.1f})"
-            )
+                f"({away.offense.runs_per_game} vs {home.offense.runs_per_game})"
+            ]
 
-        elif home.offense.runs_per_game > away.offense.runs_per_game:
-            reasons.append(
+        if home.offense.runs_per_game > away.offense.runs_per_game:
+            return [
                 f"{home.name} scores more runs per game "
-                f"({home.offense.runs_per_game:.1f} vs {away.offense.runs_per_game:.1f})"
-            )
+                f"({home.offense.runs_per_game} vs {away.offense.runs_per_game})"
+            ]
 
-        return reasons
+        return []

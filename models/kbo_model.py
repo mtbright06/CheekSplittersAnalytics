@@ -28,11 +28,16 @@ class KBOModel:
 
     def score(self, games):
 
+        scored_games = []
+
         for i, game in enumerate(games):
 
             self.odds.apply(game, i)
 
             PitcherLoader.load(game)
+
+            if self._should_skip_game(game):
+                continue
 
             result = ModelResult()
 
@@ -85,4 +90,20 @@ class KBOModel:
 
             game.result = result
 
-        return games
+            scored_games.append(game)
+
+        return scored_games
+
+    def _should_skip_game(self, game):
+
+        away_unknown = (
+            game.away.pitcher.name is None or
+            game.away.pitcher.name == "Unknown Starter"
+        )
+
+        home_unknown = (
+            game.home.pitcher.name is None or
+            game.home.pitcher.name == "Unknown Starter"
+        )
+
+        return away_unknown and home_unknown

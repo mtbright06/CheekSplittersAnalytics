@@ -17,13 +17,44 @@ class PitcherLoader:
         away = details["away"]
         home = details["home"]
 
-        game.away.pitcher.name = away["name"]
-        game.away.pitcher.era = float(away["era"])
-        game.away.pitcher.record = away["record"]
+        PitcherLoader._apply_live_pitcher(game.away.pitcher, away)
+        PitcherLoader._apply_live_pitcher(game.home.pitcher, home)
 
-        game.home.pitcher.name = home["name"]
-        game.home.pitcher.era = float(home["era"])
-        game.home.pitcher.record = home["record"]
+    @staticmethod
+    def _apply_live_pitcher(pitcher, summary):
+
+        if summary["name"] == "Unknown Starter":
+            PitcherLoader._clear_pitcher(pitcher)
+            pitcher.name = "Unknown Starter"
+            return
+
+        pitcher.name = summary["name"]
+        pitcher.record = summary["record"]
+        pitcher.era = PitcherLoader._to_float(summary["era"])
+
+        profile_url = summary.get("profile_url")
+
+        if not profile_url:
+            return
+
+        details = KBODataProvider.get_pitcher_details(profile_url)
+
+        pitcher.throws = details.get("throws")
+        pitcher.bats = details.get("bats")
+        pitcher.whip = details.get("whip")
+        pitcher.ip = details.get("ip")
+        pitcher.so = details.get("so")
+        pitcher.bb = details.get("bb")
+        pitcher.hr_allowed = details.get("hr_allowed")
+        pitcher.k_rate = details.get("k_rate")
+        pitcher.bb_rate = details.get("bb_rate")
+        pitcher.hr9 = details.get("hr9")
+
+        if details.get("record"):
+            pitcher.record = details.get("record")
+
+        if details.get("era") is not None:
+            pitcher.era = details.get("era")
 
     @staticmethod
     def _apply_team_data(team):
@@ -31,17 +62,37 @@ class PitcherLoader:
         data = KBODataProvider.get_team_data(team.name)
 
         if data is None:
-            team.pitcher.name = "Unknown Starter"
-            team.pitcher.era = None
-            team.pitcher.whip = None
+            PitcherLoader._clear_pitcher(team.pitcher)
             team.offense.runs_per_game = None
             return
 
-        pitcher = data["pitcher"]
         offense = data["offense"]
-
-        team.pitcher.name = pitcher["name"]
-        team.pitcher.era = pitcher["era"]
-        team.pitcher.whip = pitcher["whip"]
-
         team.offense.runs_per_game = offense["runs_per_game"]
+
+    @staticmethod
+    def _clear_pitcher(pitcher):
+
+        pitcher.name = None
+        pitcher.throws = None
+        pitcher.bats = None
+        pitcher.record = None
+        pitcher.era = None
+        pitcher.whip = None
+        pitcher.ip = None
+        pitcher.so = None
+        pitcher.bb = None
+        pitcher.hr_allowed = None
+        pitcher.k_rate = None
+        pitcher.bb_rate = None
+        pitcher.hr9 = None
+
+    @staticmethod
+    def _to_float(value):
+
+        if value is None or value == "":
+            return None
+
+        try:
+            return float(value)
+        except ValueError:
+            return None

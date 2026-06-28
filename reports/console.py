@@ -38,14 +38,25 @@ class ConsoleReport:
 
             logger.write("")
             logger.write(f"{game.away.name} @ {game.home.name}")
+            logger.write("")
+            logger.write("STARTING PITCHING")
+            logger.write("")
 
-            away_pitcher = self._format_pitcher(game.away.pitcher)
-            home_pitcher = self._format_pitcher(game.home.pitcher)
-
-            logger.write(
-                f"Pitching: {away_pitcher} vs {home_pitcher}"
+            self._write_pitcher_block(
+                logger,
+                game.away.name,
+                game.away.pitcher
             )
 
+            logger.write("")
+
+            self._write_pitcher_block(
+                logger,
+                game.home.name,
+                game.home.pitcher
+            )
+
+            logger.write("")
             logger.write(f"Market: {game.result.market}")
             logger.write(f"Play: {game.result.play}")
             logger.write(f"Odds: {game.odds.moneyline}")
@@ -69,7 +80,27 @@ class ConsoleReport:
 
             logger.write("-" * 60)
 
-    def _format_pitcher(self, pitcher):
+    def _write_pitcher_block(self, logger, team_name, pitcher):
+
+        logger.write(f"{team_name}: {self._pitcher_name_line(pitcher)}")
+
+        if pitcher.name is None or pitcher.name == "Unknown Starter":
+            logger.write("  Data unavailable")
+            return
+
+        logger.write(f"  Throws/Bats: {self._value(pitcher.throws)}/{self._value(pitcher.bats)}")
+        logger.write(f"  Record: {self._value(pitcher.record)}")
+        logger.write(f"  ERA: {self._number(pitcher.era)}")
+        logger.write(f"  WHIP: {self._number(pitcher.whip)}")
+        logger.write(f"  IP: {self._number(pitcher.ip)}")
+        logger.write(f"  SO: {self._value(pitcher.so)}")
+        logger.write(f"  BB: {self._value(pitcher.bb)}")
+        logger.write(f"  HR Allowed: {self._value(pitcher.hr_allowed)}")
+        logger.write(f"  K/9: {self._number(pitcher.k_rate)}")
+        logger.write(f"  BB/9: {self._number(pitcher.bb_rate)}")
+        logger.write(f"  HR/9: {self._number(pitcher.hr9)}")
+
+    def _pitcher_name_line(self, pitcher):
 
         if not pitcher.name:
             return "Unknown Starter"
@@ -88,19 +119,24 @@ class ConsoleReport:
         if pitcher.whip is not None:
             parts.append(f"{pitcher.whip:.2f} WHIP")
 
-        if pitcher.k_rate is not None:
-            parts.append(f"{pitcher.k_rate:.2f} K/9")
-
-        if pitcher.bb_rate is not None:
-            parts.append(f"{pitcher.bb_rate:.2f} BB/9")
-
-        if pitcher.hr9 is not None:
-            parts.append(f"{pitcher.hr9:.2f} HR/9")
-
         if parts:
             return f"{pitcher.name} ({' | '.join(parts)})"
 
         return pitcher.name
+
+    def _number(self, value):
+
+        if value is None:
+            return "N/A"
+
+        return f"{value:.2f}"
+
+    def _value(self, value):
+
+        if value is None:
+            return "N/A"
+
+        return str(value)
 
     def _play_rating(self, edge):
 

@@ -12,9 +12,7 @@ class GameParser:
 
         soup = BeautifulSoup(response.text, "html.parser")
 
-        starters = soup.select(
-            "div.away-starter, div.home-starter"
-        )
+        starters = cls._find_starters(soup)
 
         if len(starters) != 2:
             return {
@@ -28,12 +26,28 @@ class GameParser:
         }
 
     @classmethod
+    def _find_starters(cls, soup):
+
+        starters = soup.select(
+            ".away-starter, .home-starter"
+        )
+
+        if len(starters) == 2:
+            return starters
+
+        possible = []
+
+        for div in soup.find_all("div"):
+            classes = div.get("class", [])
+            class_text = " ".join(classes)
+
+            if "starter" in class_text:
+                possible.append(div)
+
+        return possible[:2]
+
+    @classmethod
     def _parse_pitcher(cls, starter):
-
-        links = starter.select("a.player-link[href]")
-        name_link = links[-1] if links else None
-
-        name = name_link.get_text(strip=True) if name_link else "Unknown Starter"
 
         lines = [
             line.strip()
@@ -41,8 +55,25 @@ class GameParser:
             if line.strip()
         ]
 
+        name = "Unknown Starter"
         record = None
         era = None
+
+        links = starter.find_all("a", href=True)
+
+        player_link = None
+
+        for link in links:
+            href = link["href"]
+            if "/players/" in href:
+                player_link = link
+                break
+
+        if player_link:
+            name = player_link.get_text(strip=True)
+
+        elif lines:
+            name = lines[0]
 
         for i, line in enumerate(lines):
 
@@ -58,8 +89,8 @@ class GameParser:
 
         profile_url = None
 
-        if name_link:
-            href = name_link["href"]
+        if player_link:
+            href = player_link["href"]
 
             if href.startswith("http"):
                 profile_url = href

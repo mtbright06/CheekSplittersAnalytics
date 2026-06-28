@@ -14,11 +14,15 @@ class PitcherLoader:
 
         details = KBODataProvider.get_game_details(game.game_url)
 
-        away = details["away"]
-        home = details["home"]
+        PitcherLoader._apply_live_pitcher(
+            game.away.pitcher,
+            details["away"]
+        )
 
-        PitcherLoader._apply_live_pitcher(game.away.pitcher, away)
-        PitcherLoader._apply_live_pitcher(game.home.pitcher, home)
+        PitcherLoader._apply_live_pitcher(
+            game.home.pitcher,
+            details["home"]
+        )
 
     @staticmethod
     def _apply_live_pitcher(pitcher, summary):
@@ -29,40 +33,41 @@ class PitcherLoader:
             return
 
         pitcher.name = summary["name"]
-        pitcher.record = summary["record"]
-        pitcher.era = PitcherLoader._to_float(summary["era"])
+        pitcher.record = summary.get("record")
+        pitcher.era = PitcherLoader._to_float(summary.get("era"))
 
         profile_url = summary.get("profile_url")
 
         if not profile_url:
             return
 
-        details = KBODataProvider.get_pitcher_details(profile_url)
+        profile = KBODataProvider.get_pitcher_details(profile_url)
 
-        pitcher.throws = details.get("throws")
-        pitcher.bats = details.get("bats")
-        pitcher.whip = details.get("whip")
-        pitcher.ip = details.get("ip")
-        pitcher.so = details.get("so")
-        pitcher.bb = details.get("bb")
-        pitcher.hr_allowed = details.get("hr_allowed")
-        pitcher.k_rate = details.get("k_rate")
-        pitcher.bb_rate = details.get("bb_rate")
-        pitcher.hr9 = details.get("hr9")
+        pitcher.throws = profile.get("throws")
+        pitcher.bats = profile.get("bats")
+        pitcher.whip = profile.get("whip")
+        pitcher.ip = profile.get("ip")
+        pitcher.so = profile.get("so")
+        pitcher.bb = profile.get("bb")
+        pitcher.hr_allowed = profile.get("hr_allowed")
+        pitcher.k_rate = profile.get("k_rate")
+        pitcher.bb_rate = profile.get("bb_rate")
+        pitcher.hr9 = profile.get("hr9")
 
-        if details.get("record"):
-            pitcher.record = details.get("record")
+        if profile.get("record"):
+            pitcher.record = profile.get("record")
 
-        if details.get("era") is not None:
-            pitcher.era = details.get("era")
+        if profile.get("era") is not None:
+            pitcher.era = profile.get("era")
 
     @staticmethod
     def _apply_team_data(team):
 
         data = KBODataProvider.get_team_data(team.name)
 
+        PitcherLoader._clear_pitcher(team.pitcher)
+
         if data is None:
-            PitcherLoader._clear_pitcher(team.pitcher)
             team.offense.runs_per_game = None
             return
 

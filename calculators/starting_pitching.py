@@ -37,75 +37,115 @@ class StartingPitchingCalculator(BaseCalculator):
 
         for label, away_value, home_value, direction in comparisons:
 
-            if away_value is None or home_value is None:
-                continue
+            reason = self._comparison_reason(
+                label,
+                away.name,
+                away_value,
+                home.name,
+                home_value,
+                direction,
+            )
 
-            if direction == "lower":
-                if away_value < home_value:
-                    reasons.append(
-                        f"{away.name} has the {label} advantage "
-                        f"({away_value:.2f} vs {home_value:.2f})"
-                    )
-                elif home_value < away_value:
-                    reasons.append(
-                        f"{home.name} has the {label} advantage "
-                        f"({home_value:.2f} vs {away_value:.2f})"
-                    )
+            if reason:
+                reasons.append(reason)
 
-            if direction == "higher":
-                if away_value > home_value:
-                    reasons.append(
-                        f"{away.name} has the {label} advantage "
-                        f"({away_value:.2f} vs {home_value:.2f})"
-                    )
-                elif home_value > away_value:
-                    reasons.append(
-                        f"{home.name} has the {label} advantage "
-                        f"({home_value:.2f} vs {away_value:.2f})"
-                    )
+        if not reasons:
+            reasons.append("Starting pitching data unavailable or even")
 
         return reasons
 
     def _pitcher_score(self, pitcher):
 
+        if pitcher.name is None or pitcher.name == "Unknown Starter":
+            return 0
+
         score = 0
 
-        if pitcher.era is not None:
-            if pitcher.era <= 3.25:
-                score += 2
-            elif pitcher.era <= 4.00:
-                score += 1
-            elif pitcher.era >= 5.00:
-                score -= 2
-            elif pitcher.era >= 4.50:
-                score -= 1
-
-        if pitcher.whip is not None:
-            if pitcher.whip <= 1.15:
-                score += 2
-            elif pitcher.whip <= 1.30:
-                score += 1
-            elif pitcher.whip >= 1.50:
-                score -= 2
-            elif pitcher.whip >= 1.40:
-                score -= 1
-
-        if pitcher.k_rate is not None:
-            if pitcher.k_rate >= 9.0:
-                score += 1
-            elif pitcher.k_rate <= 5.5:
-                score -= 1
-
-        if pitcher.bb_rate is not None:
-            if pitcher.bb_rate <= 2.2:
-                score += 1
-            elif pitcher.bb_rate >= 4.0:
-                score -= 1
-
-        if pitcher.hr9 is not None:
-            if pitcher.hr9 <= 0.7:
-                score += 1
-            elif pitcher.hr9 >= 1.4:
-                score -= 1
+        score += self._lower_score(pitcher.era, 3.25, 4.00, 4.50, 5.00, 2)
+        score += self._lower_score(pitcher.whip, 1.15, 1.30, 1.40, 1.50, 2)
+        score += self._higher_score(pitcher.k_rate, 9.0, 7.5, 5.5, 4.5, 1)
+        score += self._lower_score(pitcher.bb_rate, 2.2, 3.0, 4.0, 5.0, 1)
+        score += self._lower_score(pitcher.hr9, 0.7, 1.0, 1.4, 1.8, 1)
 
         return score
+
+    def _lower_score(self, value, elite, good, bad, awful, points):
+
+        if value is None:
+            return 0
+
+        if value <= elite:
+            return points
+
+        if value <= good:
+            return max(points - 1, 1)
+
+        if value >= awful:
+            return -points
+
+        if value >= bad:
+            return -max(points - 1, 1)
+
+        return 0
+
+    def _higher_score(self, value, elite, good, bad, awful, points):
+
+        if value is None:
+            return 0
+
+        if value >= elite:
+            return points
+
+        if value >= good:
+            return max(points - 1, 1)
+
+        if value <= awful:
+            return -points
+
+        if value <= bad:
+            return -max(points - 1, 1)
+
+        return 0
+
+    def _comparison_reason(
+        self,
+        label,
+        away_name,
+        away_value,
+        home_name,
+        home_value,
+        direction,
+    ):
+
+        if away_value is None or home_value is None:
+            return None
+
+        if direction == "lower":
+
+            if away_value < home_value:
+                return (
+                    f"{away_name} has the {label} advantage "
+                    f"({away_value:.2f} vs {home_value:.2f})"
+                )
+
+            if home_value < away_value:
+                return (
+                    f"{home_name} has the {label} advantage "
+                    f"({home_value:.2f} vs {away_value:.2f})"
+                )
+
+        if direction == "higher":
+
+            if away_value > home_value:
+                return (
+                    f"{away_name} has the {label} advantage "
+                    f"({away_value:.2f} vs {home_value:.2f})"
+                )
+
+            if home_value > away_value:
+                return (
+                    f"{home_name} has the {label} advantage "
+                    f"({home_value:.2f} vs {away_value:.2f})"
+                )
+
+        return None

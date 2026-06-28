@@ -1,4 +1,5 @@
 from engine.logger import Logger
+from exporters.json_exporter import JsonExporter
 
 
 class Pipeline:
@@ -27,5 +28,14 @@ class Pipeline:
         games = self.model.score(games)
 
         self.report.print_schedule(games, logger)
+
+        output_path = JsonExporter.export(
+            games,
+            sport=sport,
+            version=version
+        )
+
+        logger.write("")
+        logger.write(f"JSON export saved to: {output_path}")
 
         logger.save()

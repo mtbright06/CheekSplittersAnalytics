@@ -1,5 +1,12 @@
 import streamlit as st
 
+from components.pitcher_grade import (
+    grade_pitcher,
+    grade_icon,
+    grade_color,
+    pitcher_tags,
+)
+
 
 def grade_label(edge):
     if edge is None:
@@ -33,57 +40,21 @@ def stat(value):
     return str(value)
 
 
-def pitcher_tag(label, value, kind):
-    if value is None:
-        return ""
+def display_pitcher_name(pitcher):
+    name = pitcher.get("name")
 
-    good = False
-    bad = False
+    if not name or name == "Unknown Starter":
+        return "Starter Pending"
 
-    if kind == "era":
-        good = value <= 3.75
-        bad = value >= 5.00
-    elif kind == "whip":
-        good = value <= 1.25
-        bad = value >= 1.45
-    elif kind == "k9":
-        good = value >= 8.5
-        bad = value <= 5.5
-    elif kind == "bb9":
-        good = value <= 2.5
-        bad = value >= 4.0
-    elif kind == "hr9":
-        good = value <= 0.8
-        bad = value >= 1.4
-
-    css = "mini-tag"
-    if good:
-        css += " mini-good"
-    elif bad:
-        css += " mini-bad"
-
-    return f'<span class="{css}">{label}: {stat(value)}</span>'
-
-
-def pitcher_insights(pitcher):
-    tags = [
-        pitcher_tag("ERA", pitcher.get("era"), "era"),
-        pitcher_tag("WHIP", pitcher.get("whip"), "whip"),
-        pitcher_tag("K/9", pitcher.get("k_rate"), "k9"),
-        pitcher_tag("BB/9", pitcher.get("bb_rate"), "bb9"),
-        pitcher_tag("HR/9", pitcher.get("hr9"), "hr9"),
-    ]
-
-    tags = [tag for tag in tags if tag]
-
-    if not tags:
-        return '<span class="mini-tag">No profile data</span>'
-
-    return " ".join(tags)
+    return name
 
 
 def pitcher_line(pitcher):
-    name = pitcher.get("name") or "Unknown Starter"
+    name = display_pitcher_name(pitcher)
+
+    if name == "Starter Pending":
+        return "Awaiting official starter confirmation"
+
     pieces = []
 
     if pitcher.get("throws"):
@@ -101,14 +72,61 @@ def pitcher_line(pitcher):
     return name
 
 
+def render_pitcher_grade(pitcher):
+    if not pitcher.get("name") or pitcher.get("name") == "Unknown Starter":
+        return """
+        <span class="pitcher-grade pending-grade">
+            ⏳ PENDING
+        </span>
+        """
+
+    grade = grade_pitcher(pitcher)
+    color = grade_color(grade)
+    icon = grade_icon(grade)
+
+    return f"""
+    <span class="pitcher-grade"
+          style="background:{color}22; border-color:{color}; color:{color};">
+        {icon} {grade}
+    </span>
+    """
+
+
+def render_pitcher_tags(pitcher):
+    if not pitcher.get("name") or pitcher.get("name") == "Unknown Starter":
+        return '<span class="mini-tag">Awaiting lineup data</span>'
+
+    tags = pitcher_tags(pitcher)
+
+    if not tags:
+        return '<span class="mini-tag">Neutral profile</span>'
+
+    html = []
+
+    for text, kind in tags:
+        css = "mini-good" if kind == "good" else "mini-bad"
+        html.append(f'<span class="mini-tag {css}">{text}</span>')
+
+    return " ".join(html)
+
+
 def render_pitcher_card(title, pitcher):
+    name = display_pitcher_name(pitcher)
+
     st.markdown(
         f"""
         <div class="pitcher-box">
             <div class="small-label">{title}</div>
-            <div class="pitcher-name">{pitcher.get("name") or "Unknown Starter"}</div>
+            <div class="pitcher-name">
+                {name}
+            </div>
             <div class="muted">{pitcher_line(pitcher)}</div>
-            <div class="pitcher-tags">{pitcher_insights(pitcher)}</div>
+            <div style="margin-top: 10px;">
+                {render_pitcher_grade(pitcher)}
+            </div>
+            <div class="pitcher-tags">
+                {render_pitcher_tags(pitcher)}
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -128,7 +146,10 @@ def render_pitcher_card(title, pitcher):
 
 def render_signals(signals):
     if not signals:
-        st.markdown('<div class="muted">No signals available.</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="muted">No signals available.</div>',
+            unsafe_allow_html=True,
+        )
         return
 
     for signal in signals:
@@ -145,11 +166,17 @@ def render_signals(signals):
 
 def render_reasons(reasons):
     if not reasons:
-        st.markdown('<div class="muted">No reasons available.</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="muted">No reasons available.</div>',
+            unsafe_allow_html=True,
+        )
         return
 
     for reason in reasons:
-        st.markdown(f'<div class="reason">✅ {reason}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="reason">✅ {reason}</div>',
+            unsafe_allow_html=True,
+        )
 
 
 def render_game(game):

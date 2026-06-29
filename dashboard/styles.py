@@ -31,6 +31,7 @@ div.stButton > button:hover {
     position: relative;
     overflow: visible;
     padding: 22px 330px 18px 26px;
+    min-height: 225px;
     border-radius: 24px;
     background:
         linear-gradient(135deg, rgba(25, 36, 54, 0.97), rgba(10, 14, 22, 0.97)),
@@ -44,7 +45,7 @@ div.stButton > button:hover {
 .brand-row {
     display: flex;
     align-items: center;
-    gap: 18px;
+    gap: 22px;
 }
 
 .logo-badge {
@@ -63,23 +64,23 @@ div.stButton > button:hover {
 }
 
 .logo-img {
-    width: 200px;
-    height: 200px;
-    object-fit: cover;
-    border-radius: 22px;
-    border: 1px solid rgba(255,255,255,0.20);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    width: 150px;
+    height: auto;
+    object-fit: contain;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
 }
 
 .mascot-img {
     position: absolute;
-    top: -40px;
-    right: 20px;
+    top: -34px;
+    right: -8px;
     width: 420px;
     height: auto;
     z-index: 10;
     pointer-events: none;
-    filter: drop-shadow(0 10px 24px rgba(0,0,0,.45));
+    filter: drop-shadow(0 14px 28px rgba(0,0,0,.50));
 }
 
 .brand-title {
@@ -363,6 +364,22 @@ div.stButton > button:hover {
     padding: 10px;
     border-radius: 14px;
     border: 1px solid rgba(255,255,255,0.06);
+}
+
+.pitcher-grade {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.20);
+    font-size: 13px;
+    font-weight: 950;
+    letter-spacing: .4px;
+}
+
+.pending-grade {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.16);
+    color: #aebbd0;
 }
 </style>
 """

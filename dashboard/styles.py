@@ -1,35 +1,4 @@
 CSS = """
-
-.pitcher-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    margin-top: 12px;
-}
-
-.mini-tag {
-    display: inline-block;
-    padding: 5px 9px;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.10);
-    color: #d8e3f5;
-    font-size: 12px;
-    font-weight: 850;
-}
-
-.mini-good {
-    background: rgba(29, 97, 51, 0.42);
-    border-color: rgba(156,255,176,0.28);
-    color: #9cffb0;
-}
-
-.mini-bad {
-    background: rgba(120, 45, 45, 0.42);
-    border-color: rgba(255,120,120,0.28);
-    color: #ffb0b0;
-}
-
 <style>
 .stApp {
     background:
@@ -59,7 +28,9 @@ div.stButton > button:hover {
 }
 
 .app-header {
-    padding: 22px 26px 18px 26px;
+    position: relative;
+    overflow: visible;
+    padding: 22px 330px 18px 26px;
     border-radius: 24px;
     background:
         linear-gradient(135deg, rgba(25, 36, 54, 0.97), rgba(10, 14, 22, 0.97)),
@@ -67,6 +38,7 @@ div.stButton > button:hover {
     border: 1px solid rgba(160, 190, 230, 0.20);
     box-shadow: 0 18px 55px rgba(0,0,0,0.42);
     margin-bottom: 16px;
+    min-height: 185px;
 }
 
 .brand-row {
@@ -91,12 +63,23 @@ div.stButton > button:hover {
 }
 
 .logo-img {
-    width: 78px;
-    height: 78px;
+    width: 200px;
+    height: 200px;
     object-fit: cover;
     border-radius: 22px;
     border: 1px solid rgba(255,255,255,0.20);
     box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+.mascot-img {
+    position: absolute;
+    top: -40px;
+    right: 20px;
+    width: 420px;
+    height: auto;
+    z-index: 10;
+    pointer-events: none;
+    filter: drop-shadow(0 10px 24px rgba(0,0,0,.45));
 }
 
 .brand-title {
@@ -125,6 +108,22 @@ div.stButton > button:hover {
     color: #8ee6a3;
     font-weight: 900;
     font-size: 13px;
+}
+
+.logo-strip {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 22px 0 6px 0;
+}
+
+.sport-chip {
+    padding: 8px 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.055);
+    border: 1px solid rgba(160,190,230,0.14);
+    font-weight: 900;
+    color: #eaf1ff;
 }
 
 .section-title {
@@ -231,20 +230,132 @@ div.stButton > button:hover {
     margin-bottom: 4px;
 }
 
-.logo-strip {
+.pitcher-tags {
     display: flex;
-    gap: 10px;
     flex-wrap: wrap;
-    margin: 12px 0 6px 0;
+    gap: 7px;
+    margin-top: 12px;
 }
 
-.sport-chip {
-    padding: 8px 12px;
-    border-radius: 14px;
-    background: rgba(255,255,255,0.055);
-    border: 1px solid rgba(160,190,230,0.14);
+.mini-tag {
+    display: inline-block;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.10);
+    color: #d8e3f5;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.mini-good {
+    background: rgba(29, 97, 51, 0.42);
+    border-color: rgba(156,255,176,0.28);
+    color: #9cffb0;
+}
+
+.mini-bad {
+    background: rgba(120, 45, 45, 0.42);
+    border-color: rgba(255,120,120,0.28);
+    color: #ffb0b0;
+}
+
+.feature-card {
+    min-height: 155px;
+    padding: 18px;
+    border-radius: 18px;
+    background:
+        linear-gradient(135deg, rgba(18, 28, 42, 0.92), rgba(9, 13, 20, 0.92));
+    border: 1px solid rgba(160, 190, 230, 0.13);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    margin-bottom: 16px;
+}
+
+.feature-icon {
+    font-size: 30px;
+    margin-bottom: 10px;
+}
+
+.feature-title {
+    font-size: 18px;
+    font-weight: 950;
+    color: #f8fbff;
+    margin-bottom: 6px;
+}
+
+.feature-body {
+    color: #aebbd0;
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+.lab-hero {
+    margin: 20px 0;
+    padding: 26px;
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(255, 214, 118, 0.16), transparent 36%),
+        linear-gradient(135deg, rgba(28, 42, 63, 0.94), rgba(8, 12, 18, 0.94));
+    border: 1px solid rgba(255, 214, 118, 0.22);
+    box-shadow: 0 18px 55px rgba(0,0,0,0.34);
+}
+
+.lab-title {
+    font-size: 38px;
+    font-weight: 1000;
+    color: #f8fbff;
+    letter-spacing: -1px;
+}
+
+.lab-subtitle {
+    margin-top: 8px;
+    color: #b9c7dc;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.lab-badge {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 7px 13px;
+    border-radius: 999px;
+    background: rgba(255, 214, 118, 0.12);
+    border: 1px solid rgba(255, 214, 118, 0.26);
+    color: #ffd976;
+    font-size: 13px;
+    font-weight: 950;
+}
+
+.hof-card {
+    margin: 20px 0;
+    padding: 26px;
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(142, 230, 163, 0.14), transparent 36%),
+        linear-gradient(135deg, rgba(18, 35, 26, 0.94), rgba(8, 12, 18, 0.94));
+    border: 1px solid rgba(142, 230, 163, 0.22);
+    box-shadow: 0 18px 55px rgba(0,0,0,0.34);
+}
+
+.hof-title {
+    color: #9dadc5;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
     font-weight: 900;
-    color: #eaf1ff;
+}
+
+.hof-big {
+    margin-top: 8px;
+    font-size: 34px;
+    font-weight: 1000;
+    color: #f8fbff;
+}
+
+.hof-muted {
+    margin-top: 8px;
+    color: #aebbd0;
+    font-size: 15px;
 }
 
 .stMetric {

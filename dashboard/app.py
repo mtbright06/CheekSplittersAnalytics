@@ -71,3 +71,6 @@ if card is None:
     st.stop()
 
 render_page(card)
+
+from components.footer import render_footer
+render_footer()

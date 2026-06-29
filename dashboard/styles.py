@@ -446,29 +446,40 @@ div.stButton > button:hover {
 .team-title {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 16px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.035);
+    font-size: 24px;
+    font-weight: 900;
+    color: #f8fbff;
+}
+
+.team-title span {
+    font-size: 24px;
+    font-weight: 900;
+    color: #f8fbff;
 }
 
 .team-logo,
 .team-logo-placeholder {
-    width: 34px;
-    height: 34px;
-    border-radius: 999px;
+    width: 72px;
+    height: 72px;
+    min-width: 72px;
+    min-height: 72px;
     object-fit: contain;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    flex-shrink: 0;
 }
 
 .team-logo-placeholder {
     background: rgba(255,255,255,0.07);
     border: 1px solid rgba(255,255,255,0.12);
-    font-size: 18px;
+    font-size: 24px;
 }
 
 .matchup-at {
     color: #9dadc5;
-    font-size: 18px;
+    font-size: 24px;
     font-weight: 900;
 }
 
@@ -656,18 +667,94 @@ div.stButton > button:hover {
 
     align-items:center;
 
-    gap:12px;
+    gap:16px;
 
-    padding:8px 10px;
+    padding:12px 16px;
 
-    border-radius:12px;
+    border-radius:14px;
 
-    background:rgba(255,255,255,.03);
+    background:rgba(255,255,255,.035);
 
     .matchup-at {
     color: #9dadc5;
     font-size: 18px;
     font-weight: 900;
+}
+
+.version-chip{
+
+position:absolute;
+
+right:26px;
+
+bottom:18px;
+
+padding:10px 14px;
+
+border-radius:14px;
+
+background:rgba(255,255,255,.05);
+
+border:1px solid rgba(255,255,255,.12);
+
+text-align:center;
+
+font-weight:900;
+
+font-size:13px;
+
+color:#d8e3f5;
+
+backdrop-filter:blur(8px);
+
+}
+
+.header-status-row{
+
+display:flex;
+
+gap:10px;
+
+margin-top:14px;
+
+flex-wrap:wrap;
+
+}
+
+.status-pill{
+
+padding:7px 11px;
+
+border-radius:999px;
+
+font-size:12px;
+
+font-weight:900;
+
+}
+
+.status-pill.good{
+
+background:rgba(40,140,70,.28);
+
+color:#9cffb0;
+
+}
+
+.status-pill.warn{
+
+background:rgba(150,110,25,.30);
+
+color:#ffd976;
+
+}
+
+.status-pill.off{
+
+background:rgba(255,255,255,.08);
+
+color:#b7c2d8;
+
 }
 
 }

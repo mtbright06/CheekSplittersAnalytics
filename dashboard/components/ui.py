@@ -1,58 +1,74 @@
-import base64
 from pathlib import Path
+import base64
 
 import streamlit as st
 
+from version import VERSION, BUILD, SPORT
+
 
 ROOT = Path(__file__).resolve().parents[2]
-ASSETS = ROOT / "assets"
-
-LOGO_PATH = ASSETS / "logo.png"
-MASCOT_PATH = ASSETS / "mascot.png"
 
 
-def image64(path: Path):
+def image64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
 
-def logo_html():
-    if LOGO_PATH.exists():
-        return f"<img src='data:image/png;base64,{image64(LOGO_PATH)}' class='logo-img' />"
+def load_logo():
+    logo = ROOT / "assets" / "logo.png"
 
-    return "<div class='logo-badge'>🍑⚾</div>"
+    if logo.exists():
+        return image64(logo)
 
-
-def mascot_html():
-    if MASCOT_PATH.exists():
-        return f"<img src='data:image/png;base64,{image64(MASCOT_PATH)}' class='mascot-img' />"
-
-    return ""
+    return None
 
 
-def nav_button(label, page):
-    if st.button(label, use_container_width=True, key=f"nav_{page}"):
-        st.session_state.page = page
+def load_splitter():
+    mascot = ROOT / "assets" / "mascot.png"
+
+    if mascot.exists():
+        return image64(mascot)
+
+    return None
 
 
 def render_header():
+    logo = load_logo()
+    splitter = load_splitter()
+
+    logo_html = ""
+    if logo:
+        logo_html = (
+            f"<img src='data:image/png;base64,{logo}' "
+            "class='logo-img'>"
+        )
+
+    mascot_html = ""
+    if splitter:
+        mascot_html = (
+            f"<img src='data:image/png;base64,{splitter}' "
+            "class='mascot-img'>"
+        )
+
     header_html = (
         "<div class='app-header'>"
+        f"{mascot_html}"
+        "<div class='version-chip'>"
+        f"v{VERSION}<br>Build {BUILD}"
+        "</div>"
         "<div class='brand-row'>"
-        f"{logo_html()}"
+        f"{logo_html}"
         "<div>"
-        "<div class='brand-title'>SHARPSTACK</div>"
-        "<div class='brand-subtitle'>Cheek Splitters Decision Support System</div>"
-        "<div class='brand-tagline'>We split cheeks, not bankrolls.</div>"
+        "<div class='brand-title'>SharpStack</div>"
+        "<div class='brand-subtitle'>Sports Analytics Platform</div>"
+        "<div class='header-status-row'>"
+        f"<span class='status-pill good'>🟢 {SPORT}</span>"
+        "<span class='status-pill good'>🟢 Model Ready</span>"
+        "<span class='status-pill warn'>🟡 Odds Soon</span>"
+        "<span class='status-pill off'>⚫ Weather Phase 3</span>"
         "</div>"
         "</div>"
-        "<div class='logo-strip'>"
-        "<span class='sport-chip'>ESPN-ish Command Center</span>"
-        "<span class='sport-chip'>PrizePicks Energy</span>"
-        "<span class='sport-chip'>FanDuel Edge</span>"
-        "<span class='sport-chip'>Cheeks Included</span>"
         "</div>"
-        f"{mascot_html()}"
         "</div>"
     )
 
@@ -72,7 +88,8 @@ def render_header():
 
     for column, (label, page) in zip(nav, pages):
         with column:
-            nav_button(label, page)
+            if st.button(label, use_container_width=True, key=f"nav_{page}"):
+                st.session_state.page = page
 
 
 def render_sidebar(card):

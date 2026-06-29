@@ -32,19 +32,24 @@ def team_key(team_name):
 
 
 def team_logo_path(team_name, sport="kbo"):
-    filename = f"{team_key(team_name)}.png"
-    return LOGO_ROOT / sport.lower() / filename
+    return LOGO_ROOT / sport.lower() / f"{team_key(team_name)}.png"
 
 
 def team_logo_html(team_name, sport="kbo"):
     path = team_logo_path(team_name, sport)
 
-    if not path.exists():
-        return "<div class='team-logo-placeholder'>🏟️</div>"
+    if path.exists():
+        return (
+            f"<img src='data:image/png;base64,{image64(path)}' "
+            f"class='team-logo' />"
+        )
+
+    initials = "".join(word[0] for word in team_name.split()[:2]).upper()
 
     return (
-        f"<img src='data:image/png;base64,{image64(path)}' "
-        f"class='team-logo' />"
+        f"<div class='team-logo-placeholder' "
+        f"style='border-color:{team_color(team_name)};'>"
+        f"{initials}</div>"
     )
 
 

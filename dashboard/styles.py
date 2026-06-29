@@ -432,5 +432,107 @@ div.stButton > button:hover {
     color: #d8e3f5;
     font-weight: 850;
 }
+
+.matchup-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 24px;
+    font-weight: 950;
+    color: #f8fbff;
+}
+
+.team-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.team-logo,
+.team-logo-placeholder {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    object-fit: contain;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.team-logo-placeholder {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    font-size: 18px;
+}
+
+.matchup-at {
+    color: #9dadc5;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.play-hero {
+    margin: 18px 0 10px 0;
+    padding: 20px;
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at top right, rgba(142, 230, 163, 0.12), transparent 38%),
+        linear-gradient(135deg, rgba(18, 28, 42, 0.94), rgba(9, 13, 20, 0.94));
+    border: 1px solid rgba(142, 230, 163, 0.18);
+    box-shadow: 0 14px 36px rgba(0,0,0,0.28);
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: center;
+}
+
+.play-title {
+    font-size: 34px;
+    line-height: 1.05;
+    font-weight: 1000;
+    color: #f8fbff;
+    letter-spacing: -0.8px;
+    margin-top: 5px;
+}
+
+.play-hero-metrics {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.play-hero-metrics div {
+    min-width: 112px;
+    padding: 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.play-hero-metrics span {
+    display: block;
+    color: #9dadc5;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 900;
+}
+
+.play-hero-metrics strong {
+    display: block;
+    margin-top: 5px;
+    color: #8ee6a3;
+    font-size: 28px;
+    font-weight: 1000;
+}
+
+.play-hero-footer {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 8px;
+}
 </style>
 """

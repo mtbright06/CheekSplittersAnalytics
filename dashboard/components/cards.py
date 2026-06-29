@@ -2,13 +2,15 @@ import streamlit as st
 
 from components.badges import play_badge_class, play_grade
 from components.commentary import splitter_commentary
+from components.logos import matchup_title_html
 from components.pitcher_grade import (
     grade_pitcher,
     grade_icon,
     grade_color,
     pitcher_tags,
 )
-from components.progress import render_progress_bar, render_score_bar
+from components.play_summary import render_play_summary
+from components.progress import render_score_bar
 
 
 def stat(value):
@@ -150,32 +152,15 @@ def render_reasons(reasons):
 
 def render_game(game):
     matchup = game["matchup"]
-    model = game["model"]
-    pitching = game["pitching"]
-    odds = game["odds"]
-
-    edge = model.get("edge")
-    confidence = model.get("confidence")
 
     st.markdown("<div class='sharp-card'>", unsafe_allow_html=True)
 
-    top = st.columns([3, 1, 1, 1])
-    top[0].markdown(f"### {matchup['away']} @ {matchup['home']}")
-    top[1].metric("Play", model.get("play"))
-    top[2].metric("Edge", f"{edge}%")
-    top[3].metric("Confidence", f"{confidence}/100")
-
     st.markdown(
-        (
-            f"<span class='{play_badge_class(edge)}'>{play_grade(edge)}</span>"
-            f"<span class='muted'>&nbsp; {model.get('market')} · "
-            f"Odds: {odds.get('moneyline')} · "
-            f"Book: {odds.get('book_probability')}%</span>"
-        ),
+        matchup_title_html(matchup["away"], matchup["home"], sport="kbo"),
         unsafe_allow_html=True,
     )
 
-    render_progress_bar("Confidence", confidence or 0)
+    render_play_summary(game)
 
     st.markdown(
         f"<div class='splitter-comment'>{splitter_commentary(game)}</div>",
@@ -184,6 +169,7 @@ def render_game(game):
 
     st.markdown("---")
 
+    pitching = game["pitching"]
     left, right = st.columns(2)
 
     with left:
@@ -194,6 +180,7 @@ def render_game(game):
 
     st.markdown("---")
 
+    model = game["model"]
     signal_col, reason_col = st.columns(2)
 
     with signal_col:

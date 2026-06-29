@@ -534,5 +534,81 @@ div.stButton > button:hover {
     align-items: center;
     margin-bottom: 8px;
 }
+
+.value-meter {
+    margin: 12px 0;
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(255,255,255,0.07);
+}
+
+.value-title {
+    color: #f8fbff;
+    font-size: 15px;
+    font-weight: 950;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.value-row {
+    display: grid;
+    grid-template-columns: 120px 1fr 64px;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.value-label {
+    color: #aebbd0;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.value-track {
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+}
+
+.value-fill {
+    height: 100%;
+    border-radius: 999px;
+}
+
+.book-fill {
+    background: rgba(174,187,208,0.55);
+}
+
+.value-number {
+    color: #d8e3f5;
+    font-size: 13px;
+    font-weight: 900;
+    text-align: right;
+}
+
+.value-edge {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.value-edge span {
+    color: #9dadc5;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 900;
+}
+
+.value-edge strong {
+    font-size: 30px;
+    font-weight: 1000;
+}
 </style>
 """

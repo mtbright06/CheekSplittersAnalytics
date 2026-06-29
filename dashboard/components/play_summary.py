@@ -2,6 +2,7 @@ import streamlit as st
 
 from components.badges import play_grade, play_badge_class
 from components.progress import render_progress_bar
+from components.value_meter import render_value_meter
 
 
 def render_play_summary(game):
@@ -17,7 +18,7 @@ def render_play_summary(game):
     html = (
         "<div class='play-hero'>"
         "<div>"
-        f"<div class='small-label'>Recommended Play</div>"
+        "<div class='small-label'>Recommended Play</div>"
         f"<div class='play-title'>🔥 {play} {market}</div>"
         f"<div class='muted'>{matchup['away']} @ {matchup['home']}</div>"
         "</div>"
@@ -34,4 +35,6 @@ def render_play_summary(game):
     )
 
     st.markdown(html, unsafe_allow_html=True)
+
+    render_value_meter(game)
     render_progress_bar("Confidence", confidence)

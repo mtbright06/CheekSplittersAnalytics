@@ -44,8 +44,6 @@ def render_engine_status(card):
     confirmed, total = count_confirmed_pitchers(card)
 
     pitcher_status = "good" if total and confirmed == total else "warn"
-    odds_status = "warn"
-    weather_status = "off"
 
     st.markdown(
         """
@@ -55,12 +53,13 @@ def render_engine_status(card):
         unsafe_allow_html=True,
     )
 
-    render_status_row("Model", card.get("version") or "N/A", "good")
+    render_status_row("Model", "SharpStack Core", "good")
+    render_status_row("Version", card.get("version") or "v0.8 Alpha", "good")
     render_status_row("Sport", card.get("sport") or "N/A", "good")
     render_status_row("Games Loaded", len(games), "good" if games else "warn")
     render_status_row("Confirmed SP", f"{confirmed}/{total}", pitcher_status)
-    render_status_row("Odds Feed", "Placeholder", odds_status)
-    render_status_row("Weather", "Not Connected", weather_status)
+    render_status_row("Odds Feed", "Coming Soon", "warn")
+    render_status_row("Weather", "Phase 3", "off")
     render_status_row("JSON", "Healthy", "good")
 
     st.markdown("</div>", unsafe_allow_html=True)

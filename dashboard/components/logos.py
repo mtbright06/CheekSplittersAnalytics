@@ -1,22 +1,24 @@
 import base64
 from pathlib import Path
 
+from components.team_colors import team_color
+
 
 ROOT = Path(__file__).resolve().parents[2]
 LOGO_ROOT = ROOT / "assets" / "logos"
 
 
 TEAM_ALIASES = {
-    "LG Twins": "LG",
-    "Doosan Bears": "DOOSAN",
-    "KIA Tigers": "KIA",
-    "Kiwoom Heroes": "KIWOOM",
-    "KT Wiz": "KT",
-    "Lotte Giants": "LOTTE",
-    "NC Dinos": "NC",
-    "Samsung Lions": "SAMSUNG",
-    "SSG Landers": "SSG",
-    "Hanwha Eagles": "HANWHA",
+    "LG Twins": "lg",
+    "Doosan Bears": "doosan",
+    "KIA Tigers": "kia",
+    "Kiwoom Heroes": "kiwoom",
+    "KT Wiz": "kt",
+    "Lotte Giants": "lotte",
+    "NC Dinos": "nc",
+    "Samsung Lions": "samsung",
+    "SSG Landers": "ssg",
+    "Hanwha Eagles": "hanwha",
 }
 
 
@@ -25,9 +27,12 @@ def image64(path: Path):
         return base64.b64encode(f.read()).decode()
 
 
+def team_key(team_name):
+    return TEAM_ALIASES.get(team_name, team_name.lower().replace(" ", "_"))
+
+
 def team_logo_path(team_name, sport="kbo"):
-    key = TEAM_ALIASES.get(team_name, team_name)
-    filename = f"{key}.png"
+    filename = f"{team_key(team_name)}.png"
     return LOGO_ROOT / sport.lower() / filename
 
 
@@ -35,7 +40,7 @@ def team_logo_html(team_name, sport="kbo"):
     path = team_logo_path(team_name, sport)
 
     if not path.exists():
-        return "<div class='team-logo-placeholder'>⚾</div>"
+        return "<div class='team-logo-placeholder'>🏟️</div>"
 
     return (
         f"<img src='data:image/png;base64,{image64(path)}' "
@@ -43,17 +48,22 @@ def team_logo_html(team_name, sport="kbo"):
     )
 
 
+def team_title_html(team_name, sport="kbo"):
+    color = team_color(team_name)
+
+    return (
+        f"<div class='team-title' style='border-left:4px solid {color};'>"
+        f"{team_logo_html(team_name, sport)}"
+        f"<span>{team_name}</span>"
+        "</div>"
+    )
+
+
 def matchup_title_html(away, home, sport="kbo"):
     return (
         "<div class='matchup-title'>"
-        "<div class='team-title'>"
-        f"{team_logo_html(away, sport)}"
-        f"<span>{away}</span>"
-        "</div>"
+        f"{team_title_html(away, sport)}"
         "<span class='matchup-at'>@</span>"
-        "<div class='team-title'>"
-        f"{team_logo_html(home, sport)}"
-        f"<span>{home}</span>"
-        "</div>"
+        f"{team_title_html(home, sport)}"
         "</div>"
     )

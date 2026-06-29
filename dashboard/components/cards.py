@@ -11,6 +11,7 @@ from components.pitcher_grade import (
 )
 from components.play_summary import render_play_summary
 from components.progress import render_score_bar
+from components.team_colors import team_color
 
 
 def stat(value):
@@ -152,8 +153,15 @@ def render_reasons(reasons):
 
 def render_game(game):
     matchup = game["matchup"]
+    away_team = matchup["away"]
 
-    st.markdown("<div class='sharp-card'>", unsafe_allow_html=True)
+    st.markdown(
+        (
+            f"<div class='sharp-card' "
+            f"style='border-left:6px solid {team_color(away_team)};'>"
+        ),
+        unsafe_allow_html=True,
+    )
 
     st.markdown(
         matchup_title_html(matchup["away"], matchup["home"], sport="kbo"),

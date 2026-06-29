@@ -649,5 +649,27 @@ div.stButton > button:hover {
     font-weight: 950;
     text-align: right;
 }
+
+.team-title{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+    padding:8px 10px;
+
+    border-radius:12px;
+
+    background:rgba(255,255,255,.03);
+
+    .matchup-at {
+    color: #9dadc5;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+}
 </style>
 """

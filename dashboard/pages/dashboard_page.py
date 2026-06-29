@@ -2,6 +2,7 @@ import streamlit as st
 
 from components.cards import grade_label, render_game
 from components.dashboard_metrics import render_dashboard_metrics
+from components.engine_status import render_engine_status
 from components.model_health import render_model_health
 
 
@@ -16,7 +17,7 @@ def render_dashboard(card):
         st.info("No confirmed plays today. The cheeks remain unclapped.")
 
         with st.container(border=True):
-            render_model_health()
+            render_engine_status(card)
 
         return
 
@@ -67,8 +68,7 @@ def render_dashboard(card):
         st.markdown("</div>", unsafe_allow_html=True)
 
     with right:
-        with st.container(border=True):
-            render_model_health()
+        render_engine_status(card)
 
     st.markdown(
         '<div class="section-title">Today’s Card</div>',

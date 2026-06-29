@@ -610,5 +610,44 @@ div.stButton > button:hover {
     font-size: 30px;
     font-weight: 1000;
 }
+
+.engine-status-card {
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(14, 21, 32, 0.90);
+    border: 1px solid rgba(160, 190, 230, 0.13);
+    box-shadow: 0 14px 36px rgba(0,0,0,0.28);
+    margin-top: 20px;
+}
+
+.engine-title {
+    color: #f8fbff;
+    font-size: 15px;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+}
+
+.engine-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    color: #aebbd0;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.engine-row:last-child {
+    border-bottom: none;
+}
+
+.engine-row strong {
+    color: #f8fbff;
+    font-weight: 950;
+    text-align: right;
+}
 </style>
 """

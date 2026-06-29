@@ -381,5 +381,56 @@ div.stButton > button:hover {
     border-color: rgba(255,255,255,0.16);
     color: #aebbd0;
 }
+
+.badge-red {
+    background: rgba(120, 45, 45, 0.45);
+    color: #ffb0b0;
+    border-color: rgba(255,120,120,0.30);
+}
+
+.progress-wrap {
+    margin: 14px 0;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.compact-progress {
+    margin: 8px 0;
+}
+
+.progress-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #d8e3f5;
+    font-size: 13px;
+    font-weight: 850;
+    margin-bottom: 8px;
+}
+
+.progress-track {
+    width: 100%;
+    height: 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 999px;
+}
+
+.splitter-comment {
+    margin: 12px 0 4px 0;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(124, 181, 255, 0.08);
+    border: 1px solid rgba(124, 181, 255, 0.18);
+    color: #d8e3f5;
+    font-weight: 850;
+}
 </style>
 """

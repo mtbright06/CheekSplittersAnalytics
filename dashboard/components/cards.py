@@ -1,35 +1,14 @@
 import streamlit as st
 
+from components.badges import play_badge_class, play_grade
+from components.commentary import splitter_commentary
 from components.pitcher_grade import (
     grade_pitcher,
     grade_icon,
     grade_color,
     pitcher_tags,
 )
-
-
-def grade_label(edge):
-    if edge is None:
-        return "NO DATA"
-    if edge >= 10:
-        return "CHEEK RIPPER 🔥"
-    if edge >= 7:
-        return "STRONG PLAY"
-    if edge >= 5:
-        return "PLAYABLE"
-    if edge >= 2:
-        return "LEAN"
-    return "PASS"
-
-
-def badge_class(edge):
-    if edge is None:
-        return "badge"
-    if edge >= 7:
-        return "badge badge-green"
-    if edge >= 2:
-        return "badge badge-gold"
-    return "badge"
+from components.progress import render_progress_bar, render_score_bar
 
 
 def stat(value):
@@ -40,19 +19,19 @@ def stat(value):
     return str(value)
 
 
-def display_pitcher_name(pitcher):
+def is_pending_pitcher(pitcher):
     name = pitcher.get("name")
+    return not name or name == "Unknown Starter"
 
-    if not name or name == "Unknown Starter":
+
+def display_pitcher_name(pitcher):
+    if is_pending_pitcher(pitcher):
         return "Starter Pending"
-
-    return name
+    return pitcher.get("name")
 
 
 def pitcher_line(pitcher):
-    name = display_pitcher_name(pitcher)
-
-    if name == "Starter Pending":
+    if is_pending_pitcher(pitcher):
         return "Awaiting official starter confirmation"
 
     pieces = []
@@ -66,34 +45,26 @@ def pitcher_line(pitcher):
     if pitcher.get("whip") is not None:
         pieces.append(f"{pitcher.get('whip'):.2f} WHIP")
 
-    if pieces:
-        return f"{name} ({' | '.join(pieces)})"
-
-    return name
+    return " | ".join(pieces) if pieces else "Profile data limited"
 
 
-def render_pitcher_grade(pitcher):
-    if not pitcher.get("name") or pitcher.get("name") == "Unknown Starter":
-        return """
-        <span class="pitcher-grade pending-grade">
-            ⏳ PENDING
-        </span>
-        """
+def pitcher_grade_html(pitcher):
+    if is_pending_pitcher(pitcher):
+        return '<span class="pitcher-grade pending-grade">⏳ PENDING</span>'
 
     grade = grade_pitcher(pitcher)
     color = grade_color(grade)
     icon = grade_icon(grade)
 
-    return f"""
-    <span class="pitcher-grade"
-          style="background:{color}22; border-color:{color}; color:{color};">
-        {icon} {grade}
-    </span>
-    """
+    return (
+        f'<span class="pitcher-grade" '
+        f'style="background:{color}22; border-color:{color}; color:{color};">'
+        f'{icon} {grade}</span>'
+    )
 
 
-def render_pitcher_tags(pitcher):
-    if not pitcher.get("name") or pitcher.get("name") == "Unknown Starter":
+def pitcher_tags_html(pitcher):
+    if is_pending_pitcher(pitcher):
         return '<span class="mini-tag">Awaiting lineup data</span>'
 
     tags = pitcher_tags(pitcher)
@@ -112,25 +83,23 @@ def render_pitcher_tags(pitcher):
 
 def render_pitcher_card(title, pitcher):
     name = display_pitcher_name(pitcher)
+    line = pitcher_line(pitcher)
+    grade = pitcher_grade_html(pitcher)
+    tags = pitcher_tags_html(pitcher)
 
-    st.markdown(
-        f"""
-        <div class="pitcher-box">
-            <div class="small-label">{title}</div>
-            <div class="pitcher-name">
-                {name}
-            </div>
-            <div class="muted">{pitcher_line(pitcher)}</div>
-            <div style="margin-top: 10px;">
-                {render_pitcher_grade(pitcher)}
-            </div>
-            <div class="pitcher-tags">
-                {render_pitcher_tags(pitcher)}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    pitcher_html = (
+        "<div class='pitcher-box'>"
+        f"<div class='small-label'>{title}</div>"
+        f"<div class='pitcher-name'>{name}</div>"
+        f"<div class='muted'>{line}</div>"
+        "<div style='margin-top: 10px;'>"
+        f"{grade}"
+        "</div>"
+        f"<div class='pitcher-tags'>{tags}</div>"
+        "</div>"
     )
+
+    st.markdown(pitcher_html, unsafe_allow_html=True)
 
     cols = st.columns(4)
     cols[0].metric("IP", stat(pitcher.get("ip")))
@@ -152,15 +121,15 @@ def render_signals(signals):
         )
         return
 
+    max_value = max(
+        [abs(float(signal.get("value") or 0)) for signal in signals] + [1]
+    )
+
     for signal in signals:
-        st.markdown(
-            f"""
-            <div class="signal-row">
-                <span>{signal.get("name")}</span>
-                <strong>{signal.get("value")}</strong>
-            </div>
-            """,
-            unsafe_allow_html=True,
+        render_score_bar(
+            signal.get("name"),
+            signal.get("value") or 0,
+            max_value=max_value,
         )
 
 
@@ -174,7 +143,7 @@ def render_reasons(reasons):
 
     for reason in reasons:
         st.markdown(
-            f'<div class="reason">✅ {reason}</div>',
+            f"<div class='reason'>✅ {reason}</div>",
             unsafe_allow_html=True,
         )
 
@@ -188,7 +157,7 @@ def render_game(game):
     edge = model.get("edge")
     confidence = model.get("confidence")
 
-    st.markdown('<div class="sharp-card">', unsafe_allow_html=True)
+    st.markdown("<div class='sharp-card'>", unsafe_allow_html=True)
 
     top = st.columns([3, 1, 1, 1])
     top[0].markdown(f"### {matchup['away']} @ {matchup['home']}")
@@ -197,10 +166,19 @@ def render_game(game):
     top[3].metric("Confidence", f"{confidence}/100")
 
     st.markdown(
-        f"""
-        <span class="{badge_class(edge)}">{grade_label(edge)}</span>
-        <span class="muted">&nbsp; {model.get('market')} · Odds: {odds.get('moneyline')} · Book: {odds.get('book_probability')}%</span>
-        """,
+        (
+            f"<span class='{play_badge_class(edge)}'>{play_grade(edge)}</span>"
+            f"<span class='muted'>&nbsp; {model.get('market')} · "
+            f"Odds: {odds.get('moneyline')} · "
+            f"Book: {odds.get('book_probability')}%</span>"
+        ),
+        unsafe_allow_html=True,
+    )
+
+    render_progress_bar("Confidence", confidence or 0)
+
+    st.markdown(
+        f"<div class='splitter-comment'>{splitter_commentary(game)}</div>",
         unsafe_allow_html=True,
     )
 
@@ -227,3 +205,7 @@ def render_game(game):
         render_reasons(model.get("reasons", []))
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+
+grade_label = play_grade
+badge_class = play_badge_class

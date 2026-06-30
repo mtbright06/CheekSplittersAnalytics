@@ -34,12 +34,17 @@ def normalize_game(game, sport):
 
 
 def normalize_new_game(game, sport):
-    model = get_value(game, "model", {})
+    teams = get_value(game, "teams", {})
 
     return {
         **to_dict(game),
         "sport": (get_value(game, "sport") or sport).lower(),
-        "model": normalize_model(model),
+        "matchup": get_value(game, "matchup", {}),
+        "teams": {
+            "away": normalize_team(get_value(teams, "away", {})),
+            "home": normalize_team(get_value(teams, "home", {})),
+        },
+        "model": normalize_model(get_value(game, "model", {})),
         "pitching": {
             "away": normalize_pitcher(get_value(get_value(game, "pitching", {}), "away", {})),
             "home": normalize_pitcher(get_value(get_value(game, "pitching", {}), "home", {})),
@@ -72,8 +77,8 @@ def normalize_legacy_kbo_game(game, sport):
             "home": normalize_pitcher(get_value(home, "pitcher", {})),
         },
         "teams": {
-            "away": to_dict(away),
-            "home": to_dict(home),
+            "away": normalize_team(away),
+            "home": normalize_team(home),
         },
         "model": normalize_model({
             "market": get_value(result, "market") or "Moneyline",
@@ -90,6 +95,17 @@ def normalize_legacy_kbo_game(game, sport):
     }
 
 
+def normalize_team(team):
+    return {
+        **to_dict(team),
+        "name": get_value(team, "name"),
+        "record": get_value(team, "record"),
+        "form": get_value(team, "form"),
+        "offense": normalize_offense(get_value(team, "offense", {})),
+        "bullpen": get_value(team, "bullpen", {}),
+    }
+
+
 def normalize_model(model):
     return {
         "market": get_value(model, "market") or "Moneyline",
@@ -100,6 +116,7 @@ def normalize_model(model):
         "recommendation": get_value(model, "recommendation"),
         "reasons": get_value(model, "reasons", []),
         "signals": normalize_signals(get_value(model, "signals", [])),
+        "component_scores": get_value(model, "component_scores", {}),
     }
 
 
@@ -119,6 +136,25 @@ def normalize_pitcher(pitcher):
         "k_rate": get_value(pitcher, "k_rate"),
         "bb_rate": get_value(pitcher, "bb_rate"),
         "hr9": get_value(pitcher, "hr9"),
+    }
+
+
+def normalize_offense(offense):
+    return {
+        "runs_per_game": get_value(offense, "runs_per_game"),
+        "avg": get_value(offense, "avg"),
+        "obp": get_value(offense, "obp"),
+        "slg": get_value(offense, "slg"),
+        "ops": get_value(offense, "ops"),
+        "hr": get_value(offense, "hr"),
+        "hr_per_game": get_value(offense, "hr_per_game"),
+        "bb": get_value(offense, "bb"),
+        "so": get_value(offense, "so"),
+        "bb_rate": get_value(offense, "bb_rate"),
+        "k_rate": get_value(offense, "k_rate"),
+        "iso": get_value(offense, "iso"),
+        "woba": get_value(offense, "woba"),
+        "wrc_plus": get_value(offense, "wrc_plus"),
     }
 
 

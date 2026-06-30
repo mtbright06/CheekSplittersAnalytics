@@ -3,4 +3,4 @@ __pycache__/
 history/
 output/
 .env
-.venv/
+.venv/.env

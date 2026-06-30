@@ -2,6 +2,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from engine.contracts.sharpstack_card import normalize_card
+
 
 class JsonExporter:
 
@@ -17,12 +19,17 @@ class JsonExporter:
 
         sport_name = (sport or "unknown").lower()
 
-        payload = {
+        raw_payload = {
             "sport": sport,
             "version": version,
             "generated_at": datetime.now().isoformat(timespec="seconds"),
-            "games": [JsonExporter.game_to_dict(game, sport_name) for game in games],
+            "games": [
+                JsonExporter.game_to_dict(game)
+                for game in games
+            ],
         }
+
+        payload = normalize_card(raw_payload)
 
         sport_path = cards_dir / f"{sport_name}_card.json"
         legacy_path = output_dir / "sharpstack_card.json"
@@ -36,14 +43,14 @@ class JsonExporter:
         return sport_path
 
     @staticmethod
-    def game_to_dict(game, sport_name):
+    def game_to_dict(game):
         if isinstance(game, dict):
-            game["sport"] = game.get("sport") or sport_name
             return game
 
-        data = game.__dict__.copy()
-        data["sport"] = data.get("sport") or sport_name
-        return data
+        if hasattr(game, "__dict__"):
+            return game.__dict__
+
+        return {}
 
     @staticmethod
     def default_serializer(obj):

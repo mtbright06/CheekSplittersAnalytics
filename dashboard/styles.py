@@ -1122,5 +1122,77 @@ letter-spacing:1px;
     letter-spacing: .8px;
 }
 
+.compact-pick {
+    display: grid;
+    grid-template-columns: 72px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px;
+    border-radius: 18px;
+    background: rgba(14, 21, 32, 0.92);
+    border: 1px solid rgba(160, 190, 230, 0.13);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+    margin-bottom: 12px;
+}
+
+.compact-logo .team-logo,
+.compact-logo .team-logo-placeholder {
+    width: 58px;
+    height: 58px;
+    min-width: 58px;
+    min-height: 58px;
+}
+
+.compact-title {
+    color: #f8fbff;
+    font-size: 24px;
+    font-weight: 1000;
+    line-height: 1;
+}
+
+.compact-subtitle {
+    color: #aebbd0;
+    font-size: 13px;
+    font-weight: 800;
+    margin: 5px 0 8px 0;
+}
+
+.compact-metrics {
+    display: flex;
+    gap: 10px;
+}
+
+.compact-metrics div {
+    min-width: 74px;
+    padding: 10px;
+    border-radius: 13px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.compact-metrics span {
+    display: block;
+    color: #9dadc5;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 900;
+}
+
+.compact-metrics strong {
+    display: block;
+    color: #8ee6a3;
+    margin-top: 4px;
+    font-size: 18px;
+    font-weight: 1000;
+}
+
+.sport-section-title {
+    margin: 18px 0 10px 0;
+    color: #f8fbff;
+    font-size: 22px;
+    font-weight: 1000;
+}
+
 </style>
 """

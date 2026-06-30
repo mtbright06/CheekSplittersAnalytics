@@ -6,7 +6,16 @@ from engine.mlb.game_builder import build_mlb_card
 
 
 ROOT = Path(__file__).resolve().parent
-OUTPUT = ROOT / "output" / "sharpstack_card.json"
+OUTPUT_DIR = ROOT / "output" / "cards"
+OUTPUT = OUTPUT_DIR / "mlb_card.json"
+LEGACY_OUTPUT = ROOT / "output" / "sharpstack_card.json"
+
+
+def write_json(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
 
 
 def main():
@@ -15,12 +24,11 @@ def main():
 
     card = build_mlb_card(raw_games)
 
-    OUTPUT.parent.mkdir(exist_ok=True)
+    write_json(OUTPUT, card)
+    write_json(LEGACY_OUTPUT, card)
 
-    with open(OUTPUT, "w", encoding="utf-8") as f:
-        json.dump(card, f, indent=2)
-
-    print(f"MLB SharpStack card written to {OUTPUT}")
+    print(f"MLB card written to {OUTPUT}")
+    print(f"Legacy dashboard card written to {LEGACY_OUTPUT}")
     print(f"Games loaded: {len(card.get('games', []))}")
 
 

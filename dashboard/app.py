@@ -1,8 +1,6 @@
-import json
-from pathlib import Path
-
 import streamlit as st
 
+from card_loader import combined_dashboard_card, load_sport_card
 from components.ui import render_header, render_sidebar
 from pages.dashboard_page import render_dashboard
 from pages.placeholder_pages import (
@@ -14,10 +12,7 @@ from pages.placeholder_pages import (
     render_settings,
 )
 from styles import CSS
-
-
-ROOT = Path(__file__).resolve().parents[1]
-CARD_PATH = ROOT / "output" / "sharpstack_card.json"
+from components.footer import render_footer
 
 
 st.set_page_config(
@@ -34,23 +29,23 @@ if "page" not in st.session_state:
 st.markdown(CSS, unsafe_allow_html=True)
 
 
-def load_card():
-    if not CARD_PATH.exists():
-        return None
-
-    with open(CARD_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def render_page(card):
+def render_page():
     page = st.session_state.page
 
     if page == "Dashboard":
-        render_dashboard(card)
+        render_dashboard(combined_dashboard_card())
     elif page == "MLB":
-        render_mlb()
+        mlb_card = load_sport_card("mlb")
+        if mlb_card:
+            render_dashboard(mlb_card)
+        else:
+            render_mlb()
     elif page == "KBO":
-        render_kbo()
+        kbo_card = load_sport_card("kbo")
+        if kbo_card:
+            render_dashboard(kbo_card)
+        else:
+            render_kbo()
     elif page == "Bomb Lab":
         render_bomb_lab()
     elif page == "Props":
@@ -61,16 +56,13 @@ def render_page(card):
         render_settings()
 
 
-card = load_card()
+dashboard_card = combined_dashboard_card()
 
 render_header()
-render_sidebar(card)
+render_sidebar(dashboard_card)
 
-if card is None:
-    st.warning("No JSON card found. Run `python cheek_splitters_engine.py` first.")
-    st.stop()
+if not dashboard_card.get("games"):
+    st.warning("No cards found. Run an engine/build script first.")
 
-render_page(card)
-
-from components.footer import render_footer
+render_page()
 render_footer()

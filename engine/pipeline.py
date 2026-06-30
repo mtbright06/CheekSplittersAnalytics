@@ -1,3 +1,6 @@
+from venv import logger
+
+from engine.enrichers.odds_enricher import OddsEnricher
 from engine.logger import Logger
 from exporters.json_exporter import JsonExporter
 
@@ -26,6 +29,18 @@ class Pipeline:
         games = self.provider.load()
 
         games = self.model.score(games)
+
+        from engine.enrichers.odds_enricher import OddsEnricher
+
+        try:
+
+            enricher = OddsEnricher(sport)
+
+            games = enricher.enrich(games)
+
+        except Exception as ex:
+
+            logger.write(f"Odds enrichment skipped: {ex}")
 
         self.report.print_schedule(games, logger)
 

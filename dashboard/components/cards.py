@@ -11,7 +11,6 @@ from components.pitcher_grade import (
 )
 from components.play_summary import render_play_summary
 from components.progress import render_score_bar
-from components.team_colors import team_color
 
 
 def stat(value):
@@ -153,9 +152,9 @@ def render_reasons(reasons):
 
 def render_game(game):
     matchup = game["matchup"]
-    away_team = matchup["away"]
+    sport = game.get("sport", "kbo").lower()
 
-    render_matchup_hero(matchup, sport="kbo")
+    render_matchup_hero(matchup, sport=sport)
 
     render_play_summary(game)
 
@@ -187,6 +186,7 @@ def render_game(game):
     with reason_col:
         st.markdown("#### Why We Like It")
         render_reasons(model.get("reasons", []))
+
 
 grade_label = play_grade
 badge_class = play_badge_class

@@ -10,6 +10,7 @@ from components.value_meter import render_value_meter
 def render_best_pick(game):
     matchup = game["matchup"]
     model = game["model"]
+    sport = game.get("sport", "kbo").lower()
 
     play = model.get("play") or "No Play"
     market = model.get("market") or "Market"
@@ -22,7 +23,7 @@ def render_best_pick(game):
         f"<div class='daily-lock-card' style='border-left:7px solid {accent};'>"
         "<div class='daily-lock-layout'>"
         "<div class='daily-lock-logo-wrap'>"
-        f"{team_logo_html(play, sport='kbo')}"
+        f"{team_logo_html(play, sport=sport)}"
         "</div>"
         "<div class='daily-lock-content'>"
         "<div class='daily-lock-kicker'>🍑 Splitter Pick of the Day</div>"

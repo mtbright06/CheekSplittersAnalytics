@@ -9,6 +9,7 @@ LOGO_ROOT = ROOT / "assets" / "logos"
 
 
 TEAM_ALIASES = {
+    # KBO
     "LG Twins": "lg",
     "Doosan Bears": "doosan",
     "KIA Tigers": "kia",
@@ -19,6 +20,38 @@ TEAM_ALIASES = {
     "Samsung Lions": "samsung",
     "SSG Landers": "ssg",
     "Hanwha Eagles": "hanwha",
+
+    # MLB
+    "Arizona Diamondbacks": "diamondbacks",
+    "Athletics": "athletics",
+    "Atlanta Braves": "braves",
+    "Baltimore Orioles": "orioles",
+    "Boston Red Sox": "red_sox",
+    "Chicago Cubs": "cubs",
+    "Chicago White Sox": "white_sox",
+    "Cincinnati Reds": "reds",
+    "Cleveland Guardians": "guardians",
+    "Colorado Rockies": "rockies",
+    "Detroit Tigers": "tigers",
+    "Houston Astros": "astros",
+    "Kansas City Royals": "royals",
+    "Los Angeles Angels": "angels",
+    "Los Angeles Dodgers": "dodgers",
+    "Miami Marlins": "marlins",
+    "Milwaukee Brewers": "brewers",
+    "Minnesota Twins": "twins",
+    "New York Mets": "mets",
+    "New York Yankees": "yankees",
+    "Philadelphia Phillies": "phillies",
+    "Pittsburgh Pirates": "pirates",
+    "San Diego Padres": "padres",
+    "San Francisco Giants": "giants",
+    "Seattle Mariners": "mariners",
+    "St. Louis Cardinals": "cardinals",
+    "Tampa Bay Rays": "rays",
+    "Texas Rangers": "rangers",
+    "Toronto Blue Jays": "blue_jays",
+    "Washington Nationals": "nationals",
 }
 
 

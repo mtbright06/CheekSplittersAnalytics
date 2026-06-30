@@ -1,6 +1,5 @@
 import os
 import requests
-from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -12,12 +11,12 @@ from engine.odds.provider import OddsProvider
 
 load_dotenv()
 
-ROOT = Path(__file__).resolve().parents[2]
 BASE_URL = "https://api.the-odds-api.com/v4/sports"
 
 
 SPORT_KEYS = {
     "MLB": "baseball_mlb",
+    "KBO": "baseball_kbo",
 }
 
 
@@ -31,7 +30,7 @@ class TheOddsApiProvider(OddsProvider):
             raise RuntimeError("Missing ODDS_API_KEY in .env")
 
     def get_moneylines(self, league="MLB"):
-        league = league.upper()
+        league = (league or "MLB").upper()
         sport_key = SPORT_KEYS.get(league)
 
         if not sport_key:
@@ -68,7 +67,6 @@ class TheOddsApiProvider(OddsProvider):
         print("Last request cost:", response.headers.get("x-requests-last"))
 
         response.raise_for_status()
-
         return response.json()
 
     def _normalize_moneylines(self, events, league):

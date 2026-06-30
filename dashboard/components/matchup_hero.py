@@ -24,8 +24,6 @@ def render_matchup_hero(matchup, sport="kbo"):
     away = matchup["away"]
     home = matchup["home"]
 
-    st.markdown("<div class='matchup-hero'>", unsafe_allow_html=True)
-
     left, middle, right = st.columns([5, 1, 5])
 
     with left:
@@ -36,5 +34,3 @@ def render_matchup_hero(matchup, sport="kbo"):
 
     with right:
         render_team_block(home, "Home", sport)
-
-    st.markdown("</div>", unsafe_allow_html=True)

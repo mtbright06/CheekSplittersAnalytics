@@ -12,7 +12,6 @@ def render_dashboard(card):
 
     render_dashboard_metrics(card)
 
-    st.markdown("---")
 
     if not games:
         st.info("No confirmed plays today. The cheeks remain unclapped.")

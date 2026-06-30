@@ -155,14 +155,6 @@ def render_game(game):
     matchup = game["matchup"]
     away_team = matchup["away"]
 
-    st.markdown(
-        (
-            f"<div class='sharp-card' "
-            f"style='border-left:6px solid {team_color(away_team)};'>"
-        ),
-        unsafe_allow_html=True,
-    )
-
     render_matchup_hero(matchup, sport="kbo")
 
     render_play_summary(game)
@@ -195,9 +187,6 @@ def render_game(game):
     with reason_col:
         st.markdown("#### Why We Like It")
         render_reasons(model.get("reasons", []))
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
 
 grade_label = play_grade
 badge_class = play_badge_class

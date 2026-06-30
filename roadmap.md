@@ -59,3 +59,56 @@ Version 0.9
 Version 1.0
 
 Daily production model.
+
+# SharpStack Roadmap
+
+## Epic 1
+Foundation ✅
+
+## Epic 2
+Product Experience 🚧
+
+- Dashboard
+- Branding
+- Team Logos
+- Sidebar
+- Matchup Hero
+- Status
+- Hall
+- Bomb Lab
+- Props
+
+## Epic 3
+MLB Foundation
+
+- Schedule
+- Pitchers
+- Records
+- Team Stats
+- JSON
+
+## Epic 4
+Market Intelligence
+
+- Odds
+- Line Movement
+- Consensus
+- CLV
+
+## Epic 5
+Baseball Intelligence
+
+- Weather
+- Bullpens
+- Travel
+- Park Factors
+- Injuries
+
+## Epic 6
+Explainable AI
+
+## Epic 7
+Bomb Lab
+
+## Epic 8
+Analytics

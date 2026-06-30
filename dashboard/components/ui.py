@@ -6,7 +6,6 @@ import streamlit as st
 from components.sidebar import render_sidebar
 from version import VERSION, BUILD, SPORT
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -16,58 +15,75 @@ def image64(path):
 
 
 def load_logo():
-    logo = ROOT / "assets" / "logo.png"
-    if logo.exists():
-        return image64(logo)
-    return None
+    path = ROOT / "assets" / "logo.png"
+    return image64(path) if path.exists() else None
 
 
 def load_splitter():
-    mascot = ROOT / "assets" / "mascot.png"
-    if mascot.exists():
-        return image64(mascot)
-    return None
+    path = ROOT / "assets" / "mascot.png"
+    return image64(path) if path.exists() else None
 
 
 def render_header():
     logo = load_logo()
-    splitter = load_splitter()
+    mascot = load_splitter()
 
-    logo_html = ""
-    if logo:
-        logo_html = f"<img src='data:image/png;base64,{logo}' class='logo-img'>"
+    html = f"""
+<div class="app-header">
 
-    mascot_html = ""
-    if splitter:
-        mascot_html = f"<img src='data:image/png;base64,{splitter}' class='mascot-img'>"
+{"<img src='data:image/png;base64,"+mascot+"' class='mascot-img'>" if mascot else ""}
 
-    header_html = (
-        "<div class='app-header'>"
-        f"{mascot_html}"
-        "<div class='version-chip'>"
-        f"v{VERSION}<br>Build {BUILD}"
-        "</div>"
-        "<div class='brand-row'>"
-        f"{logo_html}"
-        "<div>"
-        "<div class='brand-title'>SharpStack</div>"
-        "<div class='brand-subtitle'>Sports Analytics Platform</div>"
-        "<div class='header-status-row'>"
-        f"<span class='status-pill good'>🟢 {SPORT}</span>"
-        "<span class='status-pill good'>🟢 Model Ready</span>"
-        "<span class='status-pill warn'>🟡 Odds Soon</span>"
-        "<span class='status-pill off'>⚫ Weather Phase 3</span>"
-        "</div>"
-        "</div>"
-        "</div>"
-        "</div>"
-    )
+<div class="version-chip">
+v{VERSION}<br>
+Build {BUILD}
+</div>
 
-    st.markdown(header_html, unsafe_allow_html=True)
+<div class="brand-row">
 
-    nav = st.columns(7)
+{"<img src='data:image/png;base64,"+logo+"' class='logo-img'>" if logo else ""}
 
-    pages = [
+<div>
+
+<div class="brand-title">
+SharpStack
+</div>
+
+<div class="brand-subtitle">
+Sports Analytics Platform
+</div>
+
+<div class="header-status-row">
+
+<span class="status-pill good">
+🟢 {SPORT}
+</span>
+
+<span class="status-pill good">
+🟢 Engine Ready
+</span>
+
+<span class="status-pill warn">
+🟡 Odds Soon
+</span>
+
+<span class="status-pill off">
+⚫ Weather Phase 3
+</span>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+"""
+
+    st.markdown(html, unsafe_allow_html=True)
+
+    cols = st.columns(7)
+
+    labels = [
         ("🏠 Dashboard", "Dashboard"),
         ("⚾ MLB", "MLB"),
         ("🇰🇷 KBO", "KBO"),
@@ -77,20 +93,35 @@ def render_header():
         ("⚙ Settings", "Settings"),
     ]
 
-    for column, (label, page) in zip(nav, pages):
-        with column:
-            if st.button(label, use_container_width=True, key=f"nav_{page}"):
-                st.session_state.page = page
+    for c, item in zip(cols, labels):
+        with c:
+            if st.button(item[0], use_container_width=True):
+                st.session_state.page = item[1]
 
 
 def render_placeholder(title, subtitle, body):
-    html = (
-        "<div class='placeholder-card'>"
-        f"<div class='section-title'>{title}</div>"
-        f"<div class='muted'>{subtitle}</div>"
-        "<br>"
-        f"<div>{body}</div>"
-        "</div>"
+
+    st.markdown(
+        f"""
+<div class="lab-hero">
+
+<div class="lab-title">
+{title}
+</div>
+
+<div class="lab-subtitle">
+{subtitle}
+</div>
+
+<div class="lab-badge">
+
+ROADMAP MODULE
+
+</div>
+
+</div>
+""",
+        unsafe_allow_html=True,
     )
 
-    st.markdown(html, unsafe_allow_html=True)
+    st.markdown(body)

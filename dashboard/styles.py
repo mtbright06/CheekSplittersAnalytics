@@ -1082,5 +1082,45 @@ letter-spacing:1px;
     color: #aebbd0;
 }
 
+.daily-lock-layout {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.daily-lock-logo-wrap {
+    width: 132px;
+    height: 132px;
+    min-width: 132px;
+    min-height: 132px;
+    border-radius: 28px;
+    background: rgba(255,255,255,0.055);
+    border: 1px solid rgba(255,255,255,0.10);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.daily-lock-logo-wrap .team-logo,
+.daily-lock-logo-wrap .team-logo-placeholder {
+    width: 108px;
+    height: 108px;
+    min-width: 108px;
+    min-height: 108px;
+}
+
+.daily-lock-content {
+    flex: 1;
+}
+
+.daily-lock-market {
+    margin-top: 6px;
+    color: #ffd976;
+    font-size: 18px;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+}
+
 </style>
 """

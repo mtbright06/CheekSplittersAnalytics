@@ -2,7 +2,7 @@ import streamlit as st
 
 from components.badges import play_badge_class, play_grade
 from components.commentary import splitter_commentary
-from components.logos import matchup_title_html
+from components.matchup_hero import render_matchup_hero
 from components.pitcher_grade import (
     grade_pitcher,
     grade_icon,
@@ -163,10 +163,7 @@ def render_game(game):
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        matchup_title_html(matchup["away"], matchup["home"], sport="kbo"),
-        unsafe_allow_html=True,
-    )
+    render_matchup_hero(matchup, sport="kbo")
 
     render_play_summary(game)
 

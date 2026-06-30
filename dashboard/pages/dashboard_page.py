@@ -1,9 +1,10 @@
 import streamlit as st
 
-from components.cards import grade_label, render_game
+from components.best_pick import render_best_pick
+from components.cards import render_game
 from components.dashboard_metrics import render_dashboard_metrics
 from components.engine_status import render_engine_status
-from components.model_health import render_model_health
+from components.pipeline_status import render_pipeline_status
 
 
 def render_dashboard(card):
@@ -16,8 +17,13 @@ def render_dashboard(card):
     if not games:
         st.info("No confirmed plays today. The cheeks remain unclapped.")
 
-        with st.container(border=True):
+        left, right = st.columns(2)
+
+        with left:
             render_engine_status(card)
+
+        with right:
+            render_pipeline_status(card)
 
         return
 
@@ -26,49 +32,13 @@ def render_dashboard(card):
         key=lambda g: g["model"].get("edge") or 0,
     )
 
-    left, right = st.columns([3, 1])
+    left, right = st.columns([2.5, 1])
 
     with left:
-        st.markdown(
-            '<div class="section-title">🔥 Cheek Splitter of the Day</div>',
-            unsafe_allow_html=True,
-        )
-
-        matchup = best_game["matchup"]
-        model = best_game["model"]
-
-        st.markdown('<div class="best-card">', unsafe_allow_html=True)
-
-        cols = st.columns([3, 1, 1])
-
-        cols[0].markdown(f"## {model.get('play')} ({model.get('market')})")
-        cols[0].caption(
-            f"{matchup['away']} @ {matchup['home']} · "
-            f"{grade_label(model.get('edge'))}"
-        )
-
-        cols[1].markdown(
-            '<div class="small-label">Edge</div>',
-            unsafe_allow_html=True,
-        )
-        cols[1].markdown(
-            f'<div class="big-number">{model.get("edge")}%</div>',
-            unsafe_allow_html=True,
-        )
-
-        cols[2].markdown(
-            '<div class="small-label">Confidence</div>',
-            unsafe_allow_html=True,
-        )
-        cols[2].markdown(
-            f'<div class="big-number">{model.get("confidence")}</div>',
-            unsafe_allow_html=True,
-        )
-
-        st.markdown("</div>", unsafe_allow_html=True)
+        render_best_pick(best_game)
 
     with right:
-        render_engine_status(card)
+        render_pipeline_status(card)
 
     st.markdown(
         '<div class="section-title">Today’s Card</div>',

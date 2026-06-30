@@ -758,5 +758,163 @@ color:#b7c2d8;
 }
 
 }
+
+.matchup-hero {
+    margin: 18px 0;
+    padding: 18px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, rgba(18,28,42,.95), rgba(8,12,18,.95));
+    border: 1px solid rgba(160,190,230,.14);
+}
+
+.matchup-team-block {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 18px;
+    border-radius: 18px;
+    background: rgba(255,255,255,.04);
+}
+
+.matchup-logo-wrap .team-logo,
+.matchup-logo-wrap .team-logo-placeholder {
+    width: 76px;
+    height: 76px;
+    min-width: 76px;
+    min-height: 76px;
+}
+
+.matchup-side-label {
+    color: #9dadc5;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.matchup-team-name {
+    color: #f8fbff;
+    font-size: 30px;
+    font-weight: 1000;
+    line-height: 1;
+}
+
+.matchup-vs {
+    height: 100%;
+    min-height: 108px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9dadc5;
+    font-size: 24px;
+    font-weight: 1000;
+}
+
+.daily-lock-card {
+    padding: 24px;
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(142, 230, 163, 0.16), transparent 38%),
+        linear-gradient(135deg, rgba(18, 28, 42, 0.96), rgba(8, 12, 18, 0.96));
+    border: 1px solid rgba(142, 230, 163, 0.22);
+    box-shadow: 0 18px 55px rgba(0,0,0,0.34);
+    margin-bottom: 14px;
+}
+
+.daily-lock-kicker {
+    color: #9cffb0;
+    font-size: 13px;
+    font-weight: 1000;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 8px;
+}
+
+.daily-lock-title {
+    color: #f8fbff;
+    font-size: 42px;
+    line-height: 1.02;
+    font-weight: 1000;
+    letter-spacing: -1px;
+}
+
+.daily-lock-subtitle {
+    color: #aebbd0;
+    margin-top: 8px;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.daily-lock-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.daily-lock-grid div {
+    padding: 14px;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.daily-lock-grid span {
+    display: block;
+    color: #9dadc5;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 900;
+}
+
+.daily-lock-grid strong {
+    display: block;
+    margin-top: 6px;
+    color: #8ee6a3;
+    font-size: 26px;
+    font-weight: 1000;
+}
+
+.pipeline-card {
+    padding: 18px;
+    border-radius: 20px;
+    background: rgba(14, 21, 32, 0.92);
+    border: 1px solid rgba(160, 190, 230, 0.14);
+    box-shadow: 0 14px 36px rgba(0,0,0,0.28);
+    margin-bottom: 16px;
+}
+
+.pipeline-title {
+    color: #f8fbff;
+    font-size: 15px;
+    font-weight: 1000;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 12px;
+}
+
+.pipeline-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    color: #aebbd0;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.pipeline-row:last-child {
+    border-bottom: none;
+}
+
+.pipeline-row strong {
+    color: #f8fbff;
+    text-align: right;
+    font-weight: 1000;
+}
+
+
 </style>
 """

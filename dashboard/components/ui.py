@@ -3,6 +3,7 @@ import base64
 
 import streamlit as st
 
+from components.sidebar import render_sidebar
 from version import VERSION, BUILD, SPORT
 
 
@@ -16,19 +17,15 @@ def image64(path):
 
 def load_logo():
     logo = ROOT / "assets" / "logo.png"
-
     if logo.exists():
         return image64(logo)
-
     return None
 
 
 def load_splitter():
     mascot = ROOT / "assets" / "mascot.png"
-
     if mascot.exists():
         return image64(mascot)
-
     return None
 
 
@@ -38,17 +35,11 @@ def render_header():
 
     logo_html = ""
     if logo:
-        logo_html = (
-            f"<img src='data:image/png;base64,{logo}' "
-            "class='logo-img'>"
-        )
+        logo_html = f"<img src='data:image/png;base64,{logo}' class='logo-img'>"
 
     mascot_html = ""
     if splitter:
-        mascot_html = (
-            f"<img src='data:image/png;base64,{splitter}' "
-            "class='mascot-img'>"
-        )
+        mascot_html = f"<img src='data:image/png;base64,{splitter}' class='mascot-img'>"
 
     header_html = (
         "<div class='app-header'>"
@@ -90,23 +81,6 @@ def render_header():
         with column:
             if st.button(label, use_container_width=True, key=f"nav_{page}"):
                 st.session_state.page = page
-
-
-def render_sidebar(card):
-    st.sidebar.markdown("## SHARPSTACK")
-    st.sidebar.caption("Cheeks operational.")
-
-    if card:
-        st.sidebar.metric("Sport", card.get("sport") or "N/A")
-        st.sidebar.metric("Version", card.get("version") or "N/A")
-        st.sidebar.write(f"Generated: {card.get('generated_at')}")
-    else:
-        st.sidebar.warning("No card loaded.")
-
-    st.sidebar.markdown("---")
-    st.sidebar.write("🍑 Mode: Professional Nonsense")
-    st.sidebar.write("🔥 Status: Online")
-    st.sidebar.write("🍺 Beer: Recommended")
 
 
 def render_placeholder(title, subtitle, body):

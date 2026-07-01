@@ -95,7 +95,7 @@ Sports Analytics Platform
 
     for c, item in zip(cols, labels):
         with c:
-            if st.button(item[0], use_container_width=True):
+            if st.button(item[0], use_container_width="content"):
                 st.session_state.page = item[1]
 
 

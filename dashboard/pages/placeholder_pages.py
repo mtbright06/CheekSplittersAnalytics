@@ -130,7 +130,8 @@ def render_bomb_lab():
 
         st.dataframe(
             df,
-            use_container_width=True,
+            
+            width="stretch",
             hide_index=True,
         )
 

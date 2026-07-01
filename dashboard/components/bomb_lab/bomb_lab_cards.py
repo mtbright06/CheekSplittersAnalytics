@@ -65,7 +65,8 @@ def render_bomb_pitcher_card(item):
         with st.expander("Side breakdown", expanded=False):
             st.dataframe(
                 side_breakdown,
-                use_container_width=True,
+                
+                width="stretch",
                 hide_index=True,
             )
 

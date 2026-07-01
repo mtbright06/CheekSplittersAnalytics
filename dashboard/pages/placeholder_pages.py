@@ -1,3 +1,7 @@
+import json
+from pathlib import Path
+
+import pandas as pd
 import streamlit as st
 
 from components.module_dashboard import render_module_dashboard
@@ -7,34 +11,34 @@ def render_mlb():
     render_module_dashboard(
         icon="⚾",
         title="MLB Command Center",
-        subtitle="The flagship league is next into the SharpStack engine.",
-        badge="NEXT MAJOR DATA EPIC",
+        subtitle="The flagship league is now inside the SharpStack engine.",
+        badge="LIVE ENGINE",
         sections=[
             {
                 "title": "Foundation",
                 "items": [
+                    ("Schedule Ingestion", "complete"),
                     ("Team Logo System", "complete"),
                     ("Team Colors", "complete"),
-                    ("Shared UI Components", "complete"),
                     ("Dashboard Ready", "complete"),
                 ],
             },
             {
                 "title": "Data Pipeline",
                 "items": [
-                    ("Schedule Ingestion", "next"),
-                    ("Probable Pitchers", "next"),
-                    ("Pitcher Stats", "planned"),
-                    ("Team Records", "planned"),
+                    ("Probable Pitchers", "complete"),
+                    ("Pitcher Stats", "complete"),
+                    ("Team Offense", "complete"),
+                    ("Bullpens", "planned"),
                 ],
             },
             {
                 "title": "Market Intelligence",
                 "items": [
-                    ("Live Odds", "planned"),
-                    ("Implied Probability", "planned"),
+                    ("Live Odds", "complete"),
+                    ("Implied Probability", "complete"),
+                    ("SharpScore", "complete"),
                     ("Line Movement", "planned"),
-                    ("Consensus Pricing", "planned"),
                 ],
             },
         ],
@@ -71,32 +75,73 @@ def render_kbo():
 
 
 def render_bomb_lab():
-    render_module_dashboard(
-        icon="💣",
-        title="Bomb Lab",
-        subtitle="Long ball intelligence for home run hunting.",
-        badge="AFTER MLB FOUNDATION",
-        sections=[
-            {
-                "title": "Core Inputs",
-                "items": [
-                    ("Batter Power Profiles", "planned"),
-                    ("Pitcher HR Risk", "planned"),
-                    ("Barrel Trends", "planned"),
-                    ("Platoon Splits", "planned"),
-                ],
-            },
-            {
-                "title": "Boosters",
-                "items": [
-                    ("Weather Boost", "planned"),
-                    ("Park Factor", "planned"),
-                    ("Lineup Context", "planned"),
-                    ("Odds Overlay", "planned"),
-                ],
-            },
-        ],
+    from components.bomb_lab.bomb_lab_cards import render_bomb_pitcher_card
+
+    root = Path(__file__).resolve().parents[2]
+    path = root / "output" / "cards" / "bomb_lab_card.json"
+
+    st.markdown(
+        '<div class="section-title">💣 Bomb Lab</div>',
+        unsafe_allow_html=True,
     )
+
+    if not path.exists():
+        st.warning("No Bomb Lab card found. Run `python tools_build_bomb_lab.py` first.")
+        return
+
+    with open(path, "r", encoding="utf-8") as f:
+        card = json.load(f)
+
+    summary = card.get("summary", {})
+    pitchers = card.get("pitchers", [])
+    table = card.get("table", [])
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Pitchers", summary.get("pitchers_loaded", 0))
+    c2.metric("Elite", summary.get("elite", 0))
+    c3.metric("Strong", summary.get("strong", 0))
+    c4.metric("Watch", summary.get("watch", 0))
+
+    st.markdown("### Quick Attack Board")
+
+    if table:
+        df = pd.DataFrame(table)
+
+        df = df.rename(
+            columns={
+                "tier": "Tier",
+                "bomb_score": "Bomb",
+                "confidence": "Conf",
+                "pitcher": "Pitcher",
+                "game": "Game",
+                "attack_side": "Side",
+                "pitcher_risk": "Risk",
+                "barrel_pct": "Barrel%",
+                "hard_hit_pct": "HH%",
+                "hr_per_bbe": "HR/BBE",
+                "park": "Park",
+                "bbe": "BBE",
+            }
+        )
+
+        for col in ["Barrel%", "HH%", "HR/BBE"]:
+            if col in df.columns:
+                df[col] = (pd.to_numeric(df[col], errors="coerce") * 100).round(1).astype(str) + "%"
+
+        st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    st.markdown("### Pitcher Detail Cards")
+
+    if not pitchers:
+        st.info(card.get("message", "No Bomb Lab pitchers available."))
+        return
+
+    for item in pitchers[:30]:
+        render_bomb_pitcher_card(item)
 
 
 def render_props():

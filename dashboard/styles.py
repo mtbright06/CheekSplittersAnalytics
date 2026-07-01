@@ -1194,5 +1194,94 @@ letter-spacing:1px;
     font-weight: 1000;
 }
 
+.bomb-card {
+    background: rgba(14, 21, 32, 0.94);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 22px;
+    padding: 18px;
+    margin: 16px 0 8px 0;
+    box-shadow: 0 12px 26px rgba(0,0,0,0.22);
+}
+
+.bomb-card-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: flex-start;
+}
+
+.bomb-tier {
+    color: #ffcf70;
+    font-size: 13px;
+    font-weight: 1000;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.bomb-title {
+    color: #f8fbff;
+    font-size: 28px;
+    font-weight: 1000;
+    line-height: 1.05;
+}
+
+.bomb-subtitle {
+    color: #aebbd0;
+    font-size: 14px;
+    font-weight: 800;
+    margin-top: 4px;
+}
+
+.bomb-score {
+    min-width: 88px;
+    text-align: center;
+    color: #ff7676;
+    font-size: 36px;
+    font-weight: 1000;
+    line-height: 1;
+}
+
+.bomb-grid,
+.bomb-stats {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.bomb-grid {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.bomb-stats {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+.bomb-grid div,
+.bomb-stats div {
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 10px;
+}
+
+.bomb-grid span,
+.bomb-stats span {
+    display: block;
+    color: #9dadc5;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 900;
+}
+
+.bomb-grid strong,
+.bomb-stats strong {
+    display: block;
+    color: #f8fbff;
+    margin-top: 4px;
+    font-size: 17px;
+    font-weight: 1000;
+}
+
 </style>
 """

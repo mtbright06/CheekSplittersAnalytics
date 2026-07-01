@@ -6,6 +6,18 @@ class ScheduleParser:
 
     URL = "https://mykbostats.com/"
 
+    HEADERS = {
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/126.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.google.com/",
+        "Connection": "keep-alive",
+    }
+
     TEAM_NAME_MAP = {
         ("Hanwha", "Eagles"): "Hanwha Eagles",
         ("SSG", "Landers"): "SSG Landers",
@@ -23,7 +35,13 @@ class ScheduleParser:
     @classmethod
     def load(cls):
 
-        response = requests.get(cls.URL, timeout=15)
+        session = requests.Session()
+
+        response = session.get(
+            cls.URL,
+            headers=cls.HEADERS,
+            timeout=15,
+        )
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, "html.parser")
@@ -39,7 +57,6 @@ class ScheduleParser:
             if not href.startswith("/games/"):
                 continue
 
-            # Skip yesterday/final games
             text = link.get_text(" ", strip=True)
             if "Final" in text:
                 continue
@@ -75,5 +92,5 @@ class ScheduleParser:
 
         return cls.TEAM_NAME_MAP.get(
             (first, second),
-            f"{first} {second}"
+            f"{first} {second}",
         )

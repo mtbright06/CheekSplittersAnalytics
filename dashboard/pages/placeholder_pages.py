@@ -176,31 +176,46 @@ def render_props():
 
 
 def render_hall():
-    render_module_dashboard(
-        icon="🏆",
-        title="Hall of Fame",
-        subtitle="Historical SharpStack greatness and model performance.",
-        badge="PERFORMANCE TRACKING",
-        sections=[
-            {
-                "title": "Leaderboards",
-                "items": [
-                    ("Biggest Edge", "planned"),
-                    ("Highest Confidence", "planned"),
-                    ("Largest Upset", "planned"),
-                    ("Longest Win Streak", "planned"),
-                ],
-            },
-            {
-                "title": "Analytics",
-                "items": [
-                    ("Lifetime ROI", "planned"),
-                    ("Win Rate by Confidence", "planned"),
-                    ("Closing Line Value", "planned"),
-                    ("Profit by Market", "planned"),
-                ],
-            },
-        ],
+    from engine.results.recommendation_tracker import load_results
+    from components.results.results_summary import render_results_summary
+
+    st.markdown(
+        '<div class="section-title">🏆 Model Results</div>',
+        unsafe_allow_html=True,
+    )
+
+    rows = load_results()
+
+    render_results_summary(rows)
+
+    st.markdown("### Recommendation Log")
+
+    if not rows:
+        st.info("No recommendations tracked yet. Run `python tools_track_recommendations.py` after building cards.")
+        return
+
+    df = pd.DataFrame(rows)
+
+    preferred = [
+        "date",
+        "sport",
+        "pick",
+        "game",
+        "market",
+        "recommendation",
+        "edge",
+        "confidence",
+        "odds",
+        "result",
+        "notes",
+    ]
+
+    available = [col for col in preferred if col in df.columns]
+
+    st.dataframe(
+        df[available].sort_values("date", ascending=False),
+        width="stretch",
+        hide_index=True,
     )
 
 

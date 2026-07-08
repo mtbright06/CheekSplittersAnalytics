@@ -76,6 +76,11 @@ def render_kbo():
 
 def render_bomb_lab():
     from components.bomb_lab.bomb_lab_cards import render_bomb_pitcher_card
+    from components.bomb_lab.decision_board import (
+        render_bomb_lab_header,
+        render_decision_board,
+        render_game_explorer,
+    )
 
     root = Path(__file__).resolve().parents[2]
     path = root / "output" / "cards" / "bomb_lab_card.json"
@@ -96,15 +101,52 @@ def render_bomb_lab():
     pitchers = card.get("pitchers", [])
     table = card.get("table", [])
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Pitchers", summary.get("pitchers_loaded", 0))
-    c2.metric("Elite", summary.get("elite", 0))
-    c3.metric("Strong", summary.get("strong", 0))
-    c4.metric("Watch", summary.get("watch", 0))
+    render_bomb_lab_header(summary)
 
-    st.markdown("### Quick Attack Board")
+    if not pitchers:
+        st.info(card.get("message", "No Bomb Lab pitchers available."))
+        return
 
-    if table:
+    tabs = st.tabs(
+        [
+            "Decision Board",
+            "Game Explorer",
+            "Pitcher Explorer",
+            "Metrics Lab",
+        ]
+    )
+
+    with tabs[0]:
+        render_decision_board(pitchers)
+
+    with tabs[1]:
+        options = {
+            f"{p.get('opponent')} attacking {p.get('pitcher')} ({p.get('pitching_team')})": i
+            for i, p in enumerate(pitchers[:20])
+        }
+
+        selected_label = st.selectbox(
+            "Choose an offense to inspect",
+            list(options.keys()),
+            index=0,
+        )
+
+        selected_index = options[selected_label]
+        render_game_explorer(pitchers[selected_index])
+
+    with tabs[2]:
+        st.markdown("### Pitcher Explorer")
+
+        for item in pitchers[:20]:
+            render_bomb_pitcher_card(item)
+
+    with tabs[3]:
+        st.markdown("### Metrics Lab")
+
+        if not table:
+            st.info("No metrics table available.")
+            return
+
         df = pd.DataFrame(table)
 
         df = df.rename(
@@ -113,6 +155,8 @@ def render_bomb_lab():
                 "bomb_score": "Bomb",
                 "confidence": "Conf",
                 "pitcher": "Pitcher",
+                "pitching_team": "Pitcher Team",
+                "target_offense": "Target Offense",
                 "game": "Game",
                 "attack_side": "Side",
                 "pitcher_risk": "Risk",
@@ -126,23 +170,16 @@ def render_bomb_lab():
 
         for col in ["Barrel%", "HH%", "HR/BBE"]:
             if col in df.columns:
-                df[col] = (pd.to_numeric(df[col], errors="coerce") * 100).round(1).astype(str) + "%"
+                df[col] = (
+                    pd.to_numeric(df[col], errors="coerce")
+                    * 100
+                ).round(1).astype(str) + "%"
 
         st.dataframe(
             df,
-            
             width="stretch",
             hide_index=True,
         )
-
-    st.markdown("### Pitcher Detail Cards")
-
-    if not pitchers:
-        st.info(card.get("message", "No Bomb Lab pitchers available."))
-        return
-
-    for item in pitchers[:30]:
-        render_bomb_pitcher_card(item)
 
 
 def render_props():

@@ -8,11 +8,21 @@ def pct(value):
         return "N/A"
 
 
-def value(value):
-    if value is None:
-        return "N/A"
+def safe(value, default="N/A"):
+    return value if value not in [None, "", "None"] else default
 
-    return value
+
+def side_label(side):
+    side = str(side or "ANY").upper()
+
+    if side == "L":
+        return "LEFTIES"
+    if side == "R":
+        return "RIGHTIES"
+    if side == "BOTH":
+        return "BOTH SIDES"
+
+    return side
 
 
 def render_bomb_pitcher_card(item):
@@ -20,56 +30,40 @@ def render_bomb_pitcher_card(item):
     tier = item.get("tier") or "PASS"
 
     html = f"""
-<div class="bomb-card">
+<div class="bomb-card compact">
   <div class="bomb-card-top">
     <div>
       <div class="bomb-tier">{tier}</div>
-      <div class="bomb-title">{item.get("pitcher")}</div>
+      <div class="bomb-title">
+        {safe(item.get("pitcher"))}
+        <span class="pitcher-team">({safe(item.get("pitching_team"))})</span>
+      </div>
       <div class="bomb-subtitle">
-        {item.get("pitching_team")} vs {item.get("opponent")} · {item.get("venue")}
+        Target offense: {safe(item.get("opponent"))} · {safe(item.get("venue"))}
       </div>
     </div>
     <div class="bomb-score">{score:.1f}</div>
   </div>
 
   <div class="bomb-grid">
-    <div><span>Target Side</span><strong>{item.get("target_side")}</strong></div>
-    <div><span>Pitcher Risk</span><strong>{item.get("pitcher_risk")}</strong></div>
-    <div><span>Environment</span><strong>{item.get("environment")}</strong></div>
-    <div><span>Sample</span><strong>{item.get("sample_confidence")}</strong></div>
+    <div><span>Attack Side</span><strong>{side_label(item.get("target_side"))}</strong></div>
+    <div><span>Pitcher Risk</span><strong>{safe(item.get("pitcher_risk"))}</strong></div>
+    <div><span>Environment</span><strong>{safe(item.get("environment"))}</strong></div>
+    <div><span>Sample</span><strong>{safe(item.get("sample_confidence"))}</strong></div>
   </div>
 
   <div class="bomb-stats">
     <div><span>HH%</span><strong>{pct(item.get("recent_hard_hit_pct"))}</strong></div>
     <div><span>Barrel%</span><strong>{pct(item.get("recent_barrel_pct"))}</strong></div>
-    <div><span>Avg EV</span><strong>{value(item.get("recent_avg_ev"))}</strong></div>
+    <div><span>Avg EV</span><strong>{safe(item.get("recent_avg_ev"))}</strong></div>
     <div><span>HR/BBE</span><strong>{pct(item.get("recent_hr_per_bbe"))}</strong></div>
-    <div><span>BBE</span><strong>{value(item.get("recent_batted_balls"))}</strong></div>
-  </div>
-
-  <div class="bomb-stats">
-    <div><span>Season HH%</span><strong>{pct(item.get("season_hard_hit_pct"))}</strong></div>
-    <div><span>Season Barrel%</span><strong>{pct(item.get("season_barrel_pct"))}</strong></div>
-    <div><span>Season EV</span><strong>{value(item.get("season_avg_ev"))}</strong></div>
-    <div><span>Season HR/BBE</span><strong>{pct(item.get("season_hr_per_bbe"))}</strong></div>
-    <div><span>Season BBE</span><strong>{value(item.get("season_batted_balls"))}</strong></div>
+    <div><span>BBE</span><strong>{safe(item.get("recent_batted_balls"))}</strong></div>
   </div>
 </div>
 """
-
     st.markdown(html, unsafe_allow_html=True)
 
-    side_breakdown = item.get("side_breakdown", [])
-
-    if side_breakdown:
-        with st.expander("Side breakdown", expanded=False):
-            st.dataframe(
-                side_breakdown,
-                width="stretch",
-                hide_index=True,
-            )
-
-    for reason in item.get("why", []):
+    for reason in item.get("why", [])[:3]:
         st.markdown(
             f"<div class='reason'>💣 {reason}</div>",
             unsafe_allow_html=True,

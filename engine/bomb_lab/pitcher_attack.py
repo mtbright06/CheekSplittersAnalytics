@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
+import time
 
 import pandas as pd
-from pybaseball import statcast, playerid_reverse_lookup
+from pybaseball import statcast
 
 from engine.bomb_lab.constants import PARK_FACTORS
+from engine.hitters.target_hitters import attach_target_hitters_to_pitchers
 from engine.mlb.schedule import fetch_mlb_schedule
 
 
@@ -37,32 +39,46 @@ def get_probables():
             away_team = away.get("team", {}).get("name")
             home_team = home.get("team", {}).get("name")
 
-            for side, team_blob, opponent in [
-                ("away", away, home_team),
-                ("home", home, away_team),
+            for team_blob, opponent in [
+                (away, home_team),
+                (home, away_team),
             ]:
                 pitcher = team_blob.get("probablePitcher")
                 if not pitcher:
                     continue
 
-                rows.append({
-                    "game_pk": game.get("gamePk"),
-                    "pitcher_id": pitcher.get("id"),
-                    "pitcher": pitcher.get("fullName"),
-                    "pitching_team": team_blob.get("team", {}).get("name"),
-                    "opponent": opponent,
-                    "game": f"{away_team} @ {home_team}",
-                    "venue": game.get("venue", {}).get("name"),
-                    "commence_time": game.get("gameDate"),
-                })
+                rows.append(
+                    {
+                        "game_pk": game.get("gamePk"),
+                        "pitcher_id": pitcher.get("id"),
+                        "pitcher": pitcher.get("fullName"),
+                        "pitching_team": team_blob.get("team", {}).get("name"),
+                        "opponent": opponent,
+                        "game": f"{away_team} @ {home_team}",
+                        "venue": game.get("venue", {}).get("name"),
+                        "commence_time": game.get("gameDate"),
+                    }
+                )
 
     return pd.DataFrame(rows)
 
 
-def get_statcast_data(days):
+def get_statcast_data(days, retries=3):
     end_date = datetime.today().strftime("%Y-%m-%d")
     start_date = (datetime.today() - timedelta(days=days)).strftime("%Y-%m-%d")
-    return statcast(start_dt=start_date, end_dt=end_date, verbose=False)
+
+    for attempt in range(1, retries + 1):
+        try:
+            return statcast(
+                start_dt=start_date,
+                end_dt=end_date,
+                verbose=False,
+            )
+        except Exception as ex:
+            print(f"Statcast pull failed for {days} days, attempt {attempt}/{retries}: {ex}")
+            time.sleep(3)
+
+    return pd.DataFrame()
 
 
 def build_split_stats(statcast_df, prefix):
@@ -77,11 +93,13 @@ def build_split_stats(statcast_df, prefix):
     df["hard_hit"] = (df["launch_speed"] >= 95).astype(int)
 
     df["barrel"] = (
-        ((df["launch_speed"] >= 98) & (df["launch_angle"].between(26, 30))) |
-        ((df["launch_speed"] >= 95) & (df["launch_angle"].between(8, 50)))
+        ((df["launch_speed"] >= 98) & (df["launch_angle"].between(26, 30)))
+        | ((df["launch_speed"] >= 95) & (df["launch_angle"].between(8, 50)))
     ).astype(int)
 
-    df["air_ball"] = df["bb_type"].isin(["fly_ball", "line_drive", "popup"]).astype(int)
+    df["air_ball"] = df["bb_type"].isin(
+        ["fly_ball", "line_drive", "popup"]
+    ).astype(int)
 
     grouped = (
         df.groupby(["pitcher", "stand"])
@@ -97,7 +115,9 @@ def build_split_stats(statcast_df, prefix):
         .rename(columns={"pitcher": "pitcher_id"})
     )
 
-    grouped["hr_per_bbe"] = grouped["hrs_allowed"] / grouped["batted_balls"].replace(0, pd.NA)
+    grouped["hr_per_bbe"] = grouped["hrs_allowed"] / grouped[
+        "batted_balls"
+    ].replace(0, pd.NA)
 
     rename = {
         col: f"{prefix}_{col}"
@@ -117,11 +137,11 @@ def build_split_stats(statcast_df, prefix):
 
 def pitcher_risk(hh, barrel, ev, hr_rate, air):
     score = (
-        safe_num(hh) * 32 +
-        safe_num(barrel) * 44 +
-        safe_num(hr_rate) * 140 +
-        max(safe_num(ev) - 87, 0) * 2.0 +
-        safe_num(air) * 10
+        safe_num(hh) * 32
+        + safe_num(barrel) * 44
+        + safe_num(hr_rate) * 140
+        + max(safe_num(ev) - 87, 0) * 2.0
+        + safe_num(air) * 10
     )
 
     return round(clamp(score), 1)
@@ -178,8 +198,11 @@ def tier(score):
 
 
 def target_side_label(rows):
+    if "stand" not in rows.columns or rows.empty:
+        return "ANY"
+
     if len(rows) < 2:
-        side = rows.iloc[0]["stand"]
+        side = rows.iloc[0].get("stand")
         return side if side in ["L", "R"] else "ANY"
 
     l_score = rows[rows["stand"] == "L"]["bomb_score"].max()
@@ -190,12 +213,10 @@ def target_side_label(rows):
 
     if l_score is None and r_score is None:
         return "ANY"
-
     if l_score is None:
         return "R"
     if r_score is None:
         return "L"
-
     if abs(l_score - r_score) <= 5:
         return "BOTH"
 
@@ -205,22 +226,30 @@ def target_side_label(rows):
 def build_why(row):
     why = []
 
-    if row["recent_barrel_pct"] >= 0.10:
-        why.append(f"Recent barrel rate allowed is dangerous ({row['recent_barrel_pct']:.1%}).")
+    if row.get("recent_barrel_pct", 0) >= 0.10:
+        why.append(
+            f"Recent barrel rate allowed is dangerous ({row['recent_barrel_pct']:.1%})."
+        )
 
-    if row["recent_hard_hit_pct"] >= 0.42:
-        why.append(f"Recent hard-hit allowed is elevated ({row['recent_hard_hit_pct']:.1%}).")
+    if row.get("recent_hard_hit_pct", 0) >= 0.42:
+        why.append(
+            f"Recent hard-hit allowed is elevated ({row['recent_hard_hit_pct']:.1%})."
+        )
 
-    if row["season_barrel_pct"] >= 0.09:
-        why.append(f"Season barrel baseline supports the trend ({row['season_barrel_pct']:.1%}).")
+    if row.get("season_barrel_pct", 0) >= 0.09:
+        why.append(
+            f"Season barrel baseline supports the trend ({row['season_barrel_pct']:.1%})."
+        )
 
-    if row["recent_hr_per_bbe"] >= 0.06:
-        why.append(f"Recent HR per batted ball is flashing ({row['recent_hr_per_bbe']:.1%}).")
+    if row.get("recent_hr_per_bbe", 0) >= 0.06:
+        why.append(
+            f"Recent HR per batted ball is flashing ({row['recent_hr_per_bbe']:.1%})."
+        )
 
-    if row["park_factor"] > 1.05:
+    if row.get("park_factor", 1.0) > 1.05:
         why.append("Park environment boosts home run upside.")
 
-    if row["sample_confidence"] < 55:
+    if row.get("sample_confidence", 100) < 55:
         why.append("Signal is volatile because the recent sample is thin.")
 
     if not why:
@@ -242,7 +271,20 @@ def build_bomb_lab_card():
         return empty_card("No Statcast pitcher data available.")
 
     merged = probables.merge(recent, on="pitcher_id", how="left")
-    merged = merged.merge(season, on=["pitcher_id", "stand"], how="left")
+
+    if season.empty:
+        for col in [
+            "season_hard_hit_pct",
+            "season_barrel_pct",
+            "season_avg_ev",
+            "season_hrs_allowed",
+            "season_batted_balls",
+            "season_air_pct",
+            "season_hr_per_bbe",
+        ]:
+            merged[col] = 0
+    else:
+        merged = merged.merge(season, on=["pitcher_id", "stand"], how="left")
 
     for col in merged.columns:
         if any(x in col for x in ["pct", "ev", "allowed", "balls", "bbe"]):
@@ -269,13 +311,19 @@ def build_bomb_lab_card():
 
         pitcher_score = round((recent_risk * 0.65) + (season_risk * 0.35), 1)
         park = park_score(row.get("opponent"))
-        confidence = sample_confidence(row.get("recent_batted_balls"), row.get("season_batted_balls"))
+        confidence = sample_confidence(
+            row.get("recent_batted_balls"),
+            row.get("season_batted_balls"),
+        )
 
-        score = round(clamp(
-            pitcher_score * 0.72 +
-            park * 0.18 +
-            confidence * 0.10
-        ), 1)
+        score = round(
+            clamp(
+                pitcher_score * 0.72
+                + park * 0.18
+                + confidence * 0.10
+            ),
+            1,
+        )
 
         park_factor = PARK_FACTORS.get(row.get("opponent"), 1.0)
 
@@ -323,17 +371,20 @@ def build_bomb_lab_card():
         group = group.sort_values("bomb_score", ascending=False)
         best = group.iloc[0].to_dict()
         best["target_side"] = target_side_label(group)
-        best["side_breakdown"] = group[[
-            "target_side",
-            "bomb_score",
-            "pitcher_risk",
-            "recent_barrel_pct",
-            "recent_hard_hit_pct",
-            "recent_batted_balls",
-        ]].to_dict("records")
+        best["side_breakdown"] = group[
+            [
+                "target_side",
+                "bomb_score",
+                "pitcher_risk",
+                "recent_barrel_pct",
+                "recent_hard_hit_pct",
+                "recent_batted_balls",
+            ]
+        ].to_dict("records")
         grouped.append(best)
 
     grouped = sorted(grouped, key=lambda x: x["bomb_score"], reverse=True)
+    grouped = attach_target_hitters_to_pitchers(grouped)
 
     table = [
         {
@@ -341,6 +392,8 @@ def build_bomb_lab_card():
             "bomb_score": x["bomb_score"],
             "confidence": x["sample_confidence"],
             "pitcher": x["pitcher"],
+            "pitching_team": x["pitching_team"],
+            "target_offense": x["opponent"],
             "game": x["game"],
             "attack_side": x["target_side"],
             "pitcher_risk": x["pitcher_risk"],
@@ -373,7 +426,12 @@ def empty_card(message):
         "sport": "MLB",
         "type": "bomb_lab",
         "generated_at": datetime.now().isoformat(timespec="seconds"),
-        "summary": {"pitchers_loaded": 0, "elite": 0, "strong": 0, "watch": 0},
+        "summary": {
+            "pitchers_loaded": 0,
+            "elite": 0,
+            "strong": 0,
+            "watch": 0,
+        },
         "table": [],
         "pitchers": [],
         "message": message,

@@ -38,10 +38,14 @@ def get_probables():
 
             away_team = away.get("team", {}).get("name")
             home_team = home.get("team", {}).get("name")
+            away_abbr = away.get("team", {}).get("abbreviation")
+            home_abbr = home.get("team", {}).get("abbreviation")
+            away_id = away.get("team", {}).get("id")
+            home_id = home.get("team", {}).get("id")
 
-            for team_blob, opponent in [
-                (away, home_team),
-                (home, away_team),
+            for team_blob, opponent_name, opponent_abbr, opponent_id in [
+                (away, home_team, home_abbr, home_id),
+                (home, away_team, away_abbr, away_id),
             ]:
                 pitcher = team_blob.get("probablePitcher")
                 if not pitcher:
@@ -53,7 +57,11 @@ def get_probables():
                         "pitcher_id": pitcher.get("id"),
                         "pitcher": pitcher.get("fullName"),
                         "pitching_team": team_blob.get("team", {}).get("name"),
-                        "opponent": opponent,
+                        "pitching_team_abbr": team_blob.get("team", {}).get("abbreviation"),
+                        "pitching_team_id": team_blob.get("team", {}).get("id"),
+                        "opponent": opponent_name,
+                        "opponent_abbr": opponent_abbr,
+                        "opponent_team_id": opponent_id,
                         "game": f"{away_team} @ {home_team}",
                         "venue": game.get("venue", {}).get("name"),
                         "commence_time": game.get("gameDate"),
@@ -110,6 +118,7 @@ def build_split_stats(statcast_df, prefix):
             hrs_allowed=("events", lambda x: (x == "home_run").sum()),
             batted_balls=("launch_speed", "count"),
             air_pct=("air_ball", "mean"),
+            pitcher_throw=("p_throws", lambda x: x.mode().iloc[0] if not x.mode().empty else None),
         )
         .reset_index()
         .rename(columns={"pitcher": "pitcher_id"})
@@ -133,7 +142,6 @@ def build_split_stats(statcast_df, prefix):
     }
 
     return grouped.rename(columns=rename)
-
 
 def pitcher_risk(hh, barrel, ev, hr_rate, air):
     score = (
@@ -264,8 +272,11 @@ def build_bomb_lab_card():
     if probables.empty:
         return empty_card("No probable pitchers found.")
 
-    recent = build_split_stats(get_statcast_data(RECENT_DAYS), "recent")
-    season = build_split_stats(get_statcast_data(SEASON_DAYS), "season")
+    recent_raw = get_statcast_data(RECENT_DAYS)
+    season_raw = get_statcast_data(SEASON_DAYS)
+
+    recent = build_split_stats(recent_raw, "recent")
+    season = build_split_stats(season_raw, "season")
 
     if recent.empty and season.empty:
         return empty_card("No Statcast pitcher data available.")
@@ -331,6 +342,10 @@ def build_bomb_lab_card():
             "stand": row.get("stand") or "ANY",
             "pitcher": row.get("pitcher"),
             "pitching_team": row.get("pitching_team"),
+            "pitching_team_abbr": row.get("pitching_team_abbr"),
+            "pitching_team_id": row.get("pitching_team_id"),
+            "opponent_abbr": row.get("opponent_abbr"),
+            "opponent_team_id": row.get("opponent_team_id"),
             "opponent": row.get("opponent"),
             "game": row.get("game"),
             "venue": row.get("venue"),
@@ -384,7 +399,7 @@ def build_bomb_lab_card():
         grouped.append(best)
 
     grouped = sorted(grouped, key=lambda x: x["bomb_score"], reverse=True)
-    grouped = attach_target_hitters_to_pitchers(grouped)
+    grouped = attach_target_hitters_to_pitchers(grouped, season_raw)
 
     table = [
         {

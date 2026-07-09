@@ -1,4 +1,5 @@
 import requests
+from scipy import stats
 
 
 BASE_URL = "https://statsapi.mlb.com/api/v1"
@@ -22,7 +23,13 @@ def fetch_pitcher_stats(person_id):
         return {}
 
     data = response.json()
-    splits = data.get("stats", [{}])[0].get("splits", [])
+
+    stats = data.get("stats", [])
+
+    if not stats:
+        return {}
+
+    splits = stats[0].get("splits", [])
 
     if not splits:
         return {}

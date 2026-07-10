@@ -13,6 +13,7 @@ REPORTS_DIR = ROOT / "output" / "reports"
 STEPS = [
     ("Build KBO", ["python", "cheek_splitters_engine.py"], False),
     ("Build MLB", ["python", "tools_build_mlb_card.py"], True),
+    ("Build First 5 Lab", [sys.executable, "tools_build_first5_card.py"],True,),
     ("Build Bomb Lab", ["python", "tools_build_bomb_lab.py"], True),
     ("Track Recommendations", ["python", "tools_track_recommendations.py"], False),
     ("Build Discord Report", ["python", "tools_build_discord_report.py"], False),

@@ -1299,5 +1299,156 @@ div.stButton > button:hover {
     }
 }
 
+/* First 5 Lab */
+
+.first5-hero {
+    padding: 22px;
+    margin: 14px 0 22px 0;
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at top right, rgba(124,181,255,0.16), transparent 40%),
+        linear-gradient(135deg, rgba(16,24,38,0.98), rgba(8,13,22,0.98));
+    border: 1px solid rgba(124,181,255,0.22);
+    box-shadow: 0 14px 28px rgba(0,0,0,0.25);
+}
+
+.first5-hero-kicker {
+    color: #8ee6a3;
+    font-size: 12px;
+    font-weight: 1000;
+    letter-spacing: 1.4px;
+}
+
+.first5-hero-title {
+    color: #f8fbff;
+    font-size: 34px;
+    font-weight: 1000;
+    line-height: 1.05;
+    margin-top: 4px;
+}
+
+.first5-hero-copy {
+    color: #aebbd0;
+    font-size: 14px;
+    font-weight: 750;
+    line-height: 1.45;
+    margin-top: 10px;
+}
+
+.first5-card {
+    background: rgba(13,20,31,0.96);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 20px;
+    padding: 16px;
+    margin: 14px 0 8px 0;
+    box-shadow: 0 12px 24px rgba(0,0,0,0.22);
+}
+
+.first5-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.first5-rank {
+    color: #8ee6a3;
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.first5-matchup {
+    color: #f8fbff;
+    font-size: 25px;
+    font-weight: 1000;
+}
+
+.first5-meta {
+    color: #9dadc5;
+    font-size: 13px;
+    font-weight: 800;
+    margin-top: 4px;
+}
+
+.first5-confidence {
+    min-width: 110px;
+    padding: 10px;
+    text-align: center;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+}
+
+.first5-confidence span,
+.first5-projections span,
+.first5-decisions span {
+    display: block;
+    color: #9dadc5;
+    font-size: 10px;
+    font-weight: 1000;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.first5-confidence strong {
+    display: block;
+    color: #8ee6a3;
+    font-size: 28px;
+    font-weight: 1000;
+    margin-top: 4px;
+}
+
+.first5-projections,
+.first5-decisions {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.first5-projections {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.first5-decisions {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.first5-projections div,
+.first5-decisions div {
+    padding: 12px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+}
+
+.first5-projections strong,
+.first5-decisions strong {
+    display: block;
+    color: #f8fbff;
+    font-size: 20px;
+    font-weight: 1000;
+    margin-top: 5px;
+}
+
+.first5-projections small,
+.first5-decisions small {
+    display: block;
+    color: #9dadc5;
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+    .first5-card-header {
+        flex-direction: column;
+    }
+
+    .first5-projections,
+    .first5-decisions {
+        grid-template-columns: 1fr;
+    }
+}
+
 </style>
 """

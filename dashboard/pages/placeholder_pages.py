@@ -181,6 +181,91 @@ def render_bomb_lab():
             hide_index=True,
         )
 
+def render_first5():
+    from components.first5.first5_cards import (
+        render_first5_game_card,
+        render_first5_summary,
+        render_first5_table,
+    )
+
+    root = Path(__file__).resolve().parents[2]
+    path = root / "output" / "cards" / "first5_card.json"
+
+    st.markdown(
+        '<div class="section-title">⚾ First 5 Lab</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+<div class="first5-hero">
+  <div class="first5-hero-kicker">SHARPSTACK FIRST 5</div>
+  <div class="first5-hero-title">Starter-Driven Baseball Decisions</div>
+  <div class="first5-hero-copy">
+    First 5 Lab compares the starting pitchers, offenses and park environment
+    without relying on bullpen performance. Use it for F5 moneylines and F5 totals.
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    if not path.exists():
+        st.warning(
+            "No First 5 card found. Run "
+            "`python tools_build_first5_card.py` first."
+        )
+        return
+
+    with open(path, "r", encoding="utf-8") as file:
+        card = json.load(file)
+
+    summary = card.get("summary", {})
+    games = card.get("games", [])
+
+    render_first5_summary(summary)
+
+    if not games:
+        st.info(card.get("message", "No First 5 games available."))
+        return
+
+    tabs = st.tabs(
+        [
+            "Top Leans",
+            "Full Slate",
+            "Game Explorer",
+        ]
+    )
+
+    with tabs[0]:
+        actionable = [
+            game
+            for game in games
+            if (
+                game.get("f5_ml", {}).get("lean") != "PASS"
+                or game.get("f5_total", {}).get("lean") != "PASS"
+            )
+        ]
+
+        for rank, game in enumerate(actionable[:8], start=1):
+            render_first5_game_card(game, rank)
+
+    with tabs[1]:
+        render_first5_table(games)
+
+    with tabs[2]:
+        labels = [
+            game.get("matchup", f"Game {index + 1}")
+            for index, game in enumerate(games)
+        ]
+
+        selected_label = st.selectbox(
+            "Choose a First 5 matchup",
+            labels,
+        )
+
+        selected_index = labels.index(selected_label)
+        render_first5_game_card(games[selected_index])
 
 def render_props():
     render_module_dashboard(

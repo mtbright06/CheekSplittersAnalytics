@@ -89,13 +89,14 @@ Sports Analytics Platform
         ("🇰🇷 KBO", "KBO"),
         ("💣 Bomb Lab", "Bomb Lab"),
         ("🎯 Props", "Props"),
+        ("🎯 First 5", "First 5"),
         ("🏆 Hall", "Hall"),
         ("⚙ Settings", "Settings"),
     ]
 
     for c, item in zip(cols, labels):
         with c:
-            if st.button(item[0], 
+            if st.button(item[0],
                          width="stretch"):
                 st.session_state.page = item[1]
 

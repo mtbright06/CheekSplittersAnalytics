@@ -11,12 +11,41 @@ REPORTS_DIR = ROOT / "output" / "reports"
 
 
 STEPS = [
-    ("Build KBO", [sys.executable, "cheek_splitters_engine.py"], False),
-    ("Build MLB", [sys.executable, "tools_build_mlb_card.py"], True),
-    ("Build First 5 Lab", [sys.executable, "tools_build_first5_card.py"],True,),
-    ("Build Bomb Lab", [sys.executable, "tools_build_bomb_lab.py"], True),
-    ("Track Recommendations", [sys.executable, "tools_track_recommendations.py"], False),
-    ("Build Discord Report", [sys.executable, "tools_build_discord_report.py"], False),
+    (
+        "Build KBO",
+        [sys.executable, "cheek_splitters_engine.py"],
+        False,
+    ),
+    (
+        "Build MLB",
+        [sys.executable, "tools_build_mlb_card.py"],
+        True,
+    ),
+    (
+        "Build First 5 Lab",
+        [sys.executable, "tools_build_first5_card.py"],
+        True,
+    ),
+    (
+        "Build First 5 Market Edge",
+        [sys.executable, "tools_build_first5_market_card.py"],
+        False,
+    ),
+    (
+        "Build Bomb Lab",
+        [sys.executable, "tools_build_bomb_lab.py"],
+        True,
+    ),
+    (
+        "Track Recommendations",
+        [sys.executable, "tools_track_recommendations.py"],
+        False,
+    ),
+    (
+        "Build Discord Report",
+        [sys.executable, "tools_build_discord_report.py"],
+        False,
+    ),
 ]
 
 
@@ -34,10 +63,16 @@ def run_step(name, command, required=True):
             cwd=ROOT,
             check=False,
         )
+    except KeyboardInterrupt:
+        print("")
+        print(f"Stopped: {name}")
+        return False
     except Exception as ex:
         print(f"❌ {name} failed to start: {ex}")
+
         if required:
             raise SystemExit(1)
+
         return False
 
     elapsed = round(time.time() - start, 1)
@@ -46,7 +81,10 @@ def run_step(name, command, required=True):
         print(f"✅ {name} completed in {elapsed}s")
         return True
 
-    print(f"⚠️ {name} exited with code {result.returncode} after {elapsed}s")
+    print(
+        f"⚠️ {name} exited with code "
+        f"{result.returncode} after {elapsed}s"
+    )
 
     if required:
         raise SystemExit(result.returncode)
@@ -60,35 +98,54 @@ def validate_outputs():
     print("Validating Outputs")
     print("=" * 60)
 
-    expected = [
+    required_outputs = [
         CARDS_DIR / "mlb_card.json",
+        CARDS_DIR / "first5_card.json",
         CARDS_DIR / "bomb_lab_card.json",
+    ]
+
+    optional_outputs = [
+        CARDS_DIR / "first5_market_card.json",
     ]
 
     all_good = True
 
-    for path in expected:
+    for path in required_outputs:
         if path.exists() and path.stat().st_size > 0:
             print(f"✅ {path.relative_to(ROOT)}")
         else:
             print(f"❌ Missing or empty: {path.relative_to(ROOT)}")
             all_good = False
 
+    for path in optional_outputs:
+        if path.exists() and path.stat().st_size > 0:
+            print(f"✅ {path.relative_to(ROOT)}")
+        else:
+            print(f"⚠️ Optional output missing: {path.relative_to(ROOT)}")
+
     latest_report = REPORTS_DIR / "discord_report_latest.md"
 
     if latest_report.exists() and latest_report.stat().st_size > 0:
         print(f"✅ {latest_report.relative_to(ROOT)}")
     else:
-        print(f"⚠️ Missing Discord report: {latest_report.relative_to(ROOT)}")
+        print(
+            f"⚠️ Missing Discord report: "
+            f"{latest_report.relative_to(ROOT)}"
+        )
 
     return all_good
 
 
-def print_summary():
+def print_summary(outputs_valid):
     print("")
     print("=" * 60)
     print("SharpStack Build Complete")
     print("=" * 60)
+
+    if outputs_valid:
+        print("✅ Required outputs are present.")
+    else:
+        print("⚠️ One or more required outputs are missing.")
 
     report = REPORTS_DIR / "discord_report_latest.md"
 
@@ -99,23 +156,54 @@ def print_summary():
 
     print("")
     print("Next:")
-    print("  python -m streamlit run dashboard/app.py")
+    print(
+        f"  {sys.executable} -m streamlit run dashboard/app.py"
+    )
 
 
 def main():
-    parser = argparse.ArgumentParser(description="SharpStack unified build runner.")
-    parser.add_argument("--skip-pull", action="store_true", help="Skip git pull.")
-    parser.add_argument("--launch", action="store_true", help="Launch Streamlit after build.")
-    parser.add_argument("--no-kbo", action="store_true", help="Skip KBO build.")
+    parser = argparse.ArgumentParser(
+        description="SharpStack unified build runner."
+    )
+
+    parser.add_argument(
+        "--skip-pull",
+        action="store_true",
+        help="Skip git pull.",
+    )
+
+    parser.add_argument(
+        "--launch",
+        action="store_true",
+        help="Launch Streamlit after build.",
+    )
+
+    parser.add_argument(
+        "--no-kbo",
+        action="store_true",
+        help="Skip KBO build.",
+    )
+
+    parser.add_argument(
+        "--no-market",
+        action="store_true",
+        help="Skip First 5 market edge build.",
+    )
+
     args = parser.parse_args()
 
     print("")
     print("==========================================")
     print("        SharpStack Unified Build")
     print("==========================================")
+    print(f"Python: {sys.executable}")
 
     if not args.skip_pull:
-        run_step("Pull Latest Code", ["git", "pull"], required=False)
+        run_step(
+            "Pull Latest Code",
+            ["git", "pull"],
+            required=False,
+        )
 
     for name, command, required in STEPS:
         if args.no_kbo and name == "Build KBO":
@@ -123,17 +211,42 @@ def main():
             print("Skipping KBO build.")
             continue
 
-        run_step(name, command, required=required)
+        if (
+            args.no_market
+            and name == "Build First 5 Market Edge"
+        ):
+            print("")
+            print("Skipping First 5 market edge build.")
+            continue
 
-    validate_outputs()
-    print_summary()
+        run_step(
+            name,
+            command,
+            required=required,
+        )
+
+    outputs_valid = validate_outputs()
+    print_summary(outputs_valid)
 
     if args.launch:
-        run_step(
-            "Launching Dashboard",
-            ["python", "-m", "streamlit", "run", "dashboard/app.py"],
-            required=True,
-        )
+        print("")
+        print("Launching dashboard. Press Ctrl+C to stop.")
+
+        try:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "streamlit",
+                    "run",
+                    "dashboard/app.py",
+                ],
+                cwd=ROOT,
+                check=False,
+            )
+        except KeyboardInterrupt:
+            print("")
+            print("SharpStack dashboard stopped cleanly.")
 
 
 if __name__ == "__main__":

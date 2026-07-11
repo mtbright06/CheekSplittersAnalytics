@@ -1450,5 +1450,136 @@ div.stButton > button:hover {
     }
 }
 
+
+/* First 5 Market Edge */
+
+.market-edge-card {
+    background:
+        radial-gradient(
+            circle at top right,
+            rgba(142,230,163,0.10),
+            transparent 35%
+        ),
+        rgba(13,20,31,0.97);
+    border: 1px solid rgba(142,230,163,0.18);
+    border-radius: 20px;
+    padding: 16px;
+    margin: 14px 0 8px 0;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.24);
+}
+
+.market-edge-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.market-edge-rank {
+    color: #8ee6a3;
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.market-edge-matchup {
+    color: #f8fbff;
+    font-size: 25px;
+    font-weight: 1000;
+}
+
+.market-edge-venue {
+    color: #9dadc5;
+    font-size: 13px;
+    font-weight: 800;
+    margin-top: 4px;
+}
+
+.market-edge-score {
+    min-width: 108px;
+    padding: 10px;
+    border-radius: 14px;
+    text-align: center;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.market-edge-score span,
+.market-primary span,
+.market-secondary span {
+    display: block;
+    color: #9dadc5;
+    font-size: 10px;
+    font-weight: 1000;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.market-edge-score strong {
+    display: block;
+    color: #8ee6a3;
+    font-size: 29px;
+    font-weight: 1000;
+    margin-top: 4px;
+}
+
+.market-primary,
+.market-secondary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.market-primary div,
+.market-secondary div {
+    padding: 12px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+}
+
+.market-primary strong {
+    display: block;
+    color: #8ee6a3;
+    font-size: 20px;
+    font-weight: 1000;
+    margin-top: 5px;
+}
+
+.market-secondary strong {
+    display: block;
+    color: #f8fbff;
+    font-size: 19px;
+    font-weight: 1000;
+    margin-top: 5px;
+}
+
+.market-primary small,
+.market-secondary small {
+    display: block;
+    color: #9dadc5;
+    font-size: 11px;
+    font-weight: 750;
+    margin-top: 4px;
+}
+
+@media (max-width: 1000px) {
+    .market-primary,
+    .market-secondary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 650px) {
+    .market-edge-header {
+        flex-direction: column;
+    }
+
+    .market-primary,
+    .market-secondary {
+        grid-template-columns: 1fr;
+    }
+}
+
 </style>
 """

@@ -21,10 +21,6 @@ echo "Python:"
 "$PYTHON" --version
 
 echo ""
-echo "Building Bomb Lab..."
-"$PYTHON" tools_build_bomb_lab.py
-
-echo ""
 echo "Building MLB..."
 "$PYTHON" tools_build_mlb_card.py
 
@@ -33,9 +29,18 @@ echo "Building First 5..."
 "$PYTHON" tools_build_first5_card.py
 
 echo ""
+echo "Building First 5 Market Edge..."
+"$PYTHON" tools_build_first5_market_card.py
+
+echo ""
+echo "Building Bomb Lab..."
+"$PYTHON" tools_build_bomb_lab.py
+
+echo ""
 echo "Building KBO..."
 if [ -f "cheek_splitters_engine.py" ]; then
-    "$PYTHON" cheek_splitters_engine.py || echo "KBO build skipped or returned no games."
+    "$PYTHON" cheek_splitters_engine.py || \
+        echo "KBO build skipped or returned no games."
 else
     echo "KBO engine file not found; skipping."
 fi

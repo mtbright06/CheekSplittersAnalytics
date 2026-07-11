@@ -188,8 +188,23 @@ def render_first5():
         render_first5_table,
     )
 
+    from components.first5.market_cards import (
+        render_market_edge_card,
+        render_market_summary,
+        render_market_table,
+    )
+
     root = Path(__file__).resolve().parents[2]
     path = root / "output" / "cards" / "first5_card.json"
+
+    market_path = root / "output" / "cards" / "first5_market_card.json"
+
+    market_card = {}
+
+    if market_path.exists():
+        with open(market_path, "r", encoding="utf-8") as file:
+            market_card = json.load(file)
+
 
     st.markdown(
         '<div class="section-title">⚾ First 5 Lab</div>',
@@ -231,6 +246,7 @@ def render_first5():
 
     tabs = st.tabs(
         [
+            "Market Edge",
             "Top Leans",
             "Full Slate",
             "Game Explorer",
@@ -238,6 +254,41 @@ def render_first5():
     )
 
     with tabs[0]:
+        market_games = market_card.get("games", [])
+        market_summary = market_card.get("summary", {})
+
+        if not market_games:
+            st.info(
+                "No market card found. Run "
+                "`python tools_build_first5_market_card.py`."
+            )
+        else:
+            render_market_summary(market_summary)
+
+            actionable = [
+                game
+                for game in market_games
+                if (
+                    game.get("best_market_side", {}).get("recommendation")
+                    not in {"PASS", "NO MARKET"}
+                    or game.get("f5_total_market", {}).get("lean")
+                    in {"OVER", "UNDER"}
+                )
+            ]
+
+            if actionable:
+                for rank, game in enumerate(actionable[:8], start=1):
+                    render_market_edge_card(game, rank)
+            else:
+                st.info(
+                    "Market data is loaded, but no actionable edges "
+                    "currently qualify."
+                )
+
+            st.markdown("### Full Market Board")
+            render_market_table(market_games)
+
+    with tabs[1]:
         actionable = [
             game
             for game in games
@@ -250,10 +301,10 @@ def render_first5():
         for rank, game in enumerate(actionable[:8], start=1):
             render_first5_game_card(game, rank)
 
-    with tabs[1]:
+    with tabs[2]:
         render_first5_table(games)
 
-    with tabs[2]:
+    with tabs[3]:
         labels = [
             game.get("matchup", f"Game {index + 1}")
             for index, game in enumerate(games)

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from engine.adapters import (
+    adapt_kbo_card,
     adapt_mlb_decision_card,
 )
 from engine.core import (
@@ -15,6 +16,11 @@ CARDS_DIR = ROOT / "output" / "cards"
 DECISION_CARD_PATH = (
     CARDS_DIR
     / "decision_card.json"
+)
+
+KBO_CARD_PATH = (
+    CARDS_DIR
+    / "kbo_card.json"
 )
 
 OUTPUT_PATH = (
@@ -55,14 +61,20 @@ def main():
         DECISION_CARD_PATH
     )
 
-    mlb_recommendations = (
+    kbo_card = load_json(
+        KBO_CARD_PATH
+    )
+
+    registry.extend(
         adapt_mlb_decision_card(
             decision_card
         )
     )
 
     registry.extend(
-        mlb_recommendations
+        adapt_kbo_card(
+            kbo_card
+        )
     )
 
     registry.save(

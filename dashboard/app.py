@@ -1,4 +1,5 @@
 import streamlit as st
+from pages.best_bets_page import render_best_bets
 
 from card_loader import (
     combined_dashboard_card,
@@ -47,6 +48,9 @@ def render_page():
         render_dashboard(
             combined_dashboard_card()
         )
+
+    elif page == "Best Bets":
+        render_best_bets()
 
     elif page == "Decisions":
         render_decisions()

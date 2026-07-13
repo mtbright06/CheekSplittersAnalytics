@@ -13,17 +13,26 @@ REPORTS_DIR = ROOT / "output" / "reports"
 STEPS = [
     (
         "Build KBO",
-        [sys.executable, "cheek_splitters_engine.py"],
+        [
+            sys.executable,
+            "cheek_splitters_engine.py",
+        ],
         False,
     ),
     (
         "Build MLB",
-        [sys.executable, "tools_build_mlb_card.py"],
+        [
+            sys.executable,
+            "tools_build_mlb_card.py",
+        ],
         True,
     ),
     (
         "Build First 5 Lab",
-        [sys.executable, "tools_build_first5_card.py"],
+        [
+            sys.executable,
+            "tools_build_first5_card.py",
+        ],
         True,
     ),
     (
@@ -36,12 +45,26 @@ STEPS = [
     ),
     (
         "Build Bomb Lab",
-        [sys.executable, "tools_build_bomb_lab.py"],
+        [
+            sys.executable,
+            "tools_build_bomb_lab.py",
+        ],
         True,
     ),
     (
         "Build Decision Engine",
-        [sys.executable, "tools_build_decision_card.py"],
+        [
+            sys.executable,
+            "tools_build_decision_card.py",
+        ],
+        True,
+    ),
+    (
+        "Build Recommendation Registry",
+        [
+            sys.executable,
+            "tools_build_recommendation_registry.py",
+        ],
         True,
     ),
     (
@@ -86,7 +109,10 @@ def run_step(
         print(f"Stopped: {name}")
         return False
     except Exception as ex:
-        print(f"❌ {name} failed to start: {ex}")
+        print(
+            f"❌ {name} failed to start: "
+            f"{ex}"
+        )
 
         if required:
             raise SystemExit(1)
@@ -119,6 +145,34 @@ def run_step(
     return False
 
 
+def validate_file(
+    path: Path,
+    *,
+    required: bool,
+) -> bool:
+    if (
+        path.exists()
+        and path.stat().st_size > 0
+    ):
+        print(
+            f"✅ {path.relative_to(ROOT)}"
+        )
+        return True
+
+    label = (
+        "❌"
+        if required
+        else "⚠️"
+    )
+
+    print(
+        f"{label} Missing or empty: "
+        f"{path.relative_to(ROOT)}"
+    )
+
+    return not required
+
+
 def validate_outputs():
     print("")
     print("=" * 60)
@@ -130,65 +184,51 @@ def validate_outputs():
         CARDS_DIR / "first5_card.json",
         CARDS_DIR / "bomb_lab_card.json",
         CARDS_DIR / "decision_card.json",
+        (
+            CARDS_DIR
+            / "recommendation_registry.json"
+        ),
     ]
 
     optional_outputs = [
-        CARDS_DIR / "first5_market_card.json",
+        (
+            CARDS_DIR
+            / "first5_market_card.json"
+        ),
+        CARDS_DIR / "kbo_card.json",
     ]
 
     all_good = True
 
     for path in required_outputs:
-        if (
-            path.exists()
-            and path.stat().st_size > 0
+        if not validate_file(
+            path,
+            required=True,
         ):
-            print(
-                f"✅ {path.relative_to(ROOT)}"
-            )
-        else:
-            print(
-                f"❌ Missing or empty: "
-                f"{path.relative_to(ROOT)}"
-            )
             all_good = False
 
     for path in optional_outputs:
-        if (
-            path.exists()
-            and path.stat().st_size > 0
-        ):
-            print(
-                f"✅ {path.relative_to(ROOT)}"
-            )
-        else:
-            print(
-                f"⚠️ Optional output missing: "
-                f"{path.relative_to(ROOT)}"
-            )
+        validate_file(
+            path,
+            required=False,
+        )
 
     latest_report = (
         REPORTS_DIR
         / "discord_report_latest.md"
     )
 
-    if (
-        latest_report.exists()
-        and latest_report.stat().st_size > 0
-    ):
-        print(
-            f"✅ {latest_report.relative_to(ROOT)}"
-        )
-    else:
-        print(
-            f"⚠️ Missing Discord report: "
-            f"{latest_report.relative_to(ROOT)}"
-        )
+    validate_file(
+        latest_report,
+        required=False,
+    )
 
     return all_good
 
 
-def print_summary(outputs_valid):
+def print_summary(
+    outputs_valid,
+):
     print("")
     print("=" * 60)
     print("SharpStack Build Complete")
@@ -218,7 +258,8 @@ def print_summary(outputs_valid):
     print("Next:")
     print(
         f"  {sys.executable} "
-        f"-m streamlit run dashboard/app.py"
+        f"-m streamlit run "
+        f"dashboard/app.py"
     )
 
 
@@ -238,7 +279,9 @@ def main():
     parser.add_argument(
         "--launch",
         action="store_true",
-        help="Launch Streamlit after build.",
+        help=(
+            "Launch Streamlit after build."
+        ),
     )
 
     parser.add_argument(
@@ -251,14 +294,26 @@ def main():
         "--no-market",
         action="store_true",
         help=(
-            "Skip First 5 market edge build."
+            "Skip First 5 market "
+            "edge build."
         ),
     )
 
     parser.add_argument(
         "--no-decision",
         action="store_true",
-        help="Skip Decision Engine build.",
+        help=(
+            "Skip Decision Engine build."
+        ),
+    )
+
+    parser.add_argument(
+        "--no-registry",
+        action="store_true",
+        help=(
+            "Skip Recommendation "
+            "Registry build."
+        ),
     )
 
     args = parser.parse_args()
@@ -272,7 +327,10 @@ def main():
     if not args.skip_pull:
         run_step(
             "Pull Latest Code",
-            ["git", "pull"],
+            [
+                "git",
+                "pull",
+            ],
             required=False,
         )
 
@@ -309,14 +367,31 @@ def main():
             )
             continue
 
+        if (
+            args.no_registry
+            and name
+            == "Build Recommendation Registry"
+        ):
+            print("")
+            print(
+                "Skipping Recommendation "
+                "Registry build."
+            )
+            continue
+
         run_step(
             name,
             command,
             required=required,
         )
 
-    outputs_valid = validate_outputs()
-    print_summary(outputs_valid)
+    outputs_valid = (
+        validate_outputs()
+    )
+
+    print_summary(
+        outputs_valid
+    )
 
     if args.launch:
         print("")

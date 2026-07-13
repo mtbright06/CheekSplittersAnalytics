@@ -85,6 +85,7 @@ Sports Analytics Platform
 
     labels = [
         ("🏠 Dashboard", "Dashboard"),
+        ("🏆Best Bets", "Best Bets"),
         ("🔨 Decisions", "Decisions"),
         ("⚾ MLB", "MLB"),
         ("🇰🇷 KBO", "KBO"),

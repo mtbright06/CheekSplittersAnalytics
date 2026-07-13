@@ -63,7 +63,6 @@ def build_market_quote(
         ),
     )
 
-
 def normalize_market(
     row: dict,
 ) -> str:

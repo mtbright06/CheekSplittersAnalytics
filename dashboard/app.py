@@ -1,9 +1,16 @@
 import streamlit as st
 
-from card_loader import combined_dashboard_card, load_sport_card
+from card_loader import (
+    combined_dashboard_card,
+    load_sport_card,
+)
 from components.footer import render_footer
-from components.ui import render_header, render_sidebar
+from components.ui import (
+    render_header,
+    render_sidebar,
+)
 from pages.dashboard_page import render_dashboard
+from pages.decision_page import render_decisions
 from pages.placeholder_pages import (
     render_bomb_lab,
     render_first5,
@@ -27,14 +34,22 @@ if "page" not in st.session_state:
     st.session_state.page = "Dashboard"
 
 
-st.markdown(CSS, unsafe_allow_html=True)
+st.markdown(
+    CSS,
+    unsafe_allow_html=True,
+)
 
 
 def render_page():
     page = st.session_state.page
 
     if page == "Dashboard":
-        render_dashboard(combined_dashboard_card())
+        render_dashboard(
+            combined_dashboard_card()
+        )
+
+    elif page == "Decisions":
+        render_decisions()
 
     elif page == "MLB":
         mlb_card = load_sport_card("mlb")
@@ -67,11 +82,6 @@ def render_page():
     elif page == "Settings":
         render_settings()
 
-    else:
-        st.warning(f"Unknown page: {page}")
-        st.session_state.page = "Dashboard"
-        st.rerun()
-
 
 dashboard_card = combined_dashboard_card()
 
@@ -79,7 +89,10 @@ render_header()
 render_sidebar(dashboard_card)
 
 if not dashboard_card.get("games"):
-    st.warning("No cards found. Run an engine/build script first.")
+    st.warning(
+        "No cards found. Run an "
+        "engine/build script first."
+    )
 
 render_page()
 render_footer()

@@ -28,7 +28,10 @@ STEPS = [
     ),
     (
         "Build First 5 Market Edge",
-        [sys.executable, "tools_build_first5_market_card.py"],
+        [
+            sys.executable,
+            "tools_build_first5_market_card.py",
+        ],
         False,
     ),
     (
@@ -37,19 +40,34 @@ STEPS = [
         True,
     ),
     (
+        "Build Decision Engine",
+        [sys.executable, "tools_build_decision_card.py"],
+        True,
+    ),
+    (
         "Track Recommendations",
-        [sys.executable, "tools_track_recommendations.py"],
+        [
+            sys.executable,
+            "tools_track_recommendations.py",
+        ],
         False,
     ),
     (
         "Build Discord Report",
-        [sys.executable, "tools_build_discord_report.py"],
+        [
+            sys.executable,
+            "tools_build_discord_report.py",
+        ],
         False,
     ),
 ]
 
 
-def run_step(name, command, required=True):
+def run_step(
+    name,
+    command,
+    required=True,
+):
     print("")
     print("=" * 60)
     print(name)
@@ -75,19 +93,28 @@ def run_step(name, command, required=True):
 
         return False
 
-    elapsed = round(time.time() - start, 1)
+    elapsed = round(
+        time.time() - start,
+        1,
+    )
 
     if result.returncode == 0:
-        print(f"✅ {name} completed in {elapsed}s")
+        print(
+            f"✅ {name} completed "
+            f"in {elapsed}s"
+        )
         return True
 
     print(
         f"⚠️ {name} exited with code "
-        f"{result.returncode} after {elapsed}s"
+        f"{result.returncode} "
+        f"after {elapsed}s"
     )
 
     if required:
-        raise SystemExit(result.returncode)
+        raise SystemExit(
+            result.returncode
+        )
 
     return False
 
@@ -102,6 +129,7 @@ def validate_outputs():
         CARDS_DIR / "mlb_card.json",
         CARDS_DIR / "first5_card.json",
         CARDS_DIR / "bomb_lab_card.json",
+        CARDS_DIR / "decision_card.json",
     ]
 
     optional_outputs = [
@@ -111,22 +139,46 @@ def validate_outputs():
     all_good = True
 
     for path in required_outputs:
-        if path.exists() and path.stat().st_size > 0:
-            print(f"✅ {path.relative_to(ROOT)}")
+        if (
+            path.exists()
+            and path.stat().st_size > 0
+        ):
+            print(
+                f"✅ {path.relative_to(ROOT)}"
+            )
         else:
-            print(f"❌ Missing or empty: {path.relative_to(ROOT)}")
+            print(
+                f"❌ Missing or empty: "
+                f"{path.relative_to(ROOT)}"
+            )
             all_good = False
 
     for path in optional_outputs:
-        if path.exists() and path.stat().st_size > 0:
-            print(f"✅ {path.relative_to(ROOT)}")
+        if (
+            path.exists()
+            and path.stat().st_size > 0
+        ):
+            print(
+                f"✅ {path.relative_to(ROOT)}"
+            )
         else:
-            print(f"⚠️ Optional output missing: {path.relative_to(ROOT)}")
+            print(
+                f"⚠️ Optional output missing: "
+                f"{path.relative_to(ROOT)}"
+            )
 
-    latest_report = REPORTS_DIR / "discord_report_latest.md"
+    latest_report = (
+        REPORTS_DIR
+        / "discord_report_latest.md"
+    )
 
-    if latest_report.exists() and latest_report.stat().st_size > 0:
-        print(f"✅ {latest_report.relative_to(ROOT)}")
+    if (
+        latest_report.exists()
+        and latest_report.stat().st_size > 0
+    ):
+        print(
+            f"✅ {latest_report.relative_to(ROOT)}"
+        )
     else:
         print(
             f"⚠️ Missing Discord report: "
@@ -143,11 +195,19 @@ def print_summary(outputs_valid):
     print("=" * 60)
 
     if outputs_valid:
-        print("✅ Required outputs are present.")
+        print(
+            "✅ Required outputs are present."
+        )
     else:
-        print("⚠️ One or more required outputs are missing.")
+        print(
+            "⚠️ One or more required "
+            "outputs are missing."
+        )
 
-    report = REPORTS_DIR / "discord_report_latest.md"
+    report = (
+        REPORTS_DIR
+        / "discord_report_latest.md"
+    )
 
     if report.exists():
         print("")
@@ -157,13 +217,16 @@ def print_summary(outputs_valid):
     print("")
     print("Next:")
     print(
-        f"  {sys.executable} -m streamlit run dashboard/app.py"
+        f"  {sys.executable} "
+        f"-m streamlit run dashboard/app.py"
     )
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="SharpStack unified build runner."
+        description=(
+            "SharpStack unified build runner."
+        )
     )
 
     parser.add_argument(
@@ -187,7 +250,15 @@ def main():
     parser.add_argument(
         "--no-market",
         action="store_true",
-        help="Skip First 5 market edge build.",
+        help=(
+            "Skip First 5 market edge build."
+        ),
+    )
+
+    parser.add_argument(
+        "--no-decision",
+        action="store_true",
+        help="Skip Decision Engine build.",
     )
 
     args = parser.parse_args()
@@ -206,17 +277,36 @@ def main():
         )
 
     for name, command, required in STEPS:
-        if args.no_kbo and name == "Build KBO":
+        if (
+            args.no_kbo
+            and name == "Build KBO"
+        ):
             print("")
             print("Skipping KBO build.")
             continue
 
         if (
             args.no_market
-            and name == "Build First 5 Market Edge"
+            and name
+            == "Build First 5 Market Edge"
         ):
             print("")
-            print("Skipping First 5 market edge build.")
+            print(
+                "Skipping First 5 "
+                "market edge build."
+            )
+            continue
+
+        if (
+            args.no_decision
+            and name
+            == "Build Decision Engine"
+        ):
+            print("")
+            print(
+                "Skipping Decision "
+                "Engine build."
+            )
             continue
 
         run_step(
@@ -230,7 +320,10 @@ def main():
 
     if args.launch:
         print("")
-        print("Launching dashboard. Press Ctrl+C to stop.")
+        print(
+            "Launching dashboard. "
+            "Press Ctrl+C to stop."
+        )
 
         try:
             subprocess.run(
@@ -246,7 +339,10 @@ def main():
             )
         except KeyboardInterrupt:
             print("")
-            print("SharpStack dashboard stopped cleanly.")
+            print(
+                "SharpStack dashboard "
+                "stopped cleanly."
+            )
 
 
 if __name__ == "__main__":

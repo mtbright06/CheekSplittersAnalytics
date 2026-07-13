@@ -85,6 +85,7 @@ Sports Analytics Platform
 
     labels = [
         ("🏠 Dashboard", "Dashboard"),
+        ("🔨 Decisions", "Decisions"),
         ("⚾ MLB", "MLB"),
         ("🇰🇷 KBO", "KBO"),
         ("💣 Bomb Lab", "Bomb Lab"),

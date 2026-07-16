@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from engine.core.consensus import (
+    ConsensusSignal,
+    build_consensus,
+)
+
 from typing import Any
 
 from engine.core import (
@@ -7,6 +12,99 @@ from engine.core import (
     Recommendation,
 )
 
+
+def score_supports(
+    value: Any,
+    threshold: float = 60.0,
+) -> bool | None:
+    number = safe_float(value)
+
+    if number is None:
+        return None
+
+    return number >= threshold
+
+
+def build_kbo_consensus(
+    row: dict,
+):
+    signals = [
+        ConsensusSignal(
+            name="KBO Model",
+            supports=score_supports(
+                extract_hammer_score(row)
+            ),
+            score=extract_hammer_score(
+                row
+            ),
+            weight=1.4,
+            source="kbo_model",
+        ),
+        ConsensusSignal(
+            name="Starter",
+            supports=score_supports(
+                row.get(
+                    "starter_score"
+                )
+            ),
+            score=row.get(
+                "starter_score"
+            ),
+            weight=1.2,
+            source="starter",
+        ),
+        ConsensusSignal(
+            name="Offense",
+            supports=score_supports(
+                row.get(
+                    "offense_score"
+                )
+            ),
+            score=row.get(
+                "offense_score"
+            ),
+            weight=1.0,
+            source="offense",
+        ),
+        ConsensusSignal(
+            name="Bullpen",
+            supports=score_supports(
+                row.get(
+                    "bullpen_score"
+                )
+            ),
+            score=row.get(
+                "bullpen_score"
+            ),
+            weight=0.8,
+            source="bullpen",
+        ),
+        ConsensusSignal(
+            name="Recent Form",
+            supports=score_supports(
+                row.get(
+                    "recent_score"
+                )
+                or row.get(
+                    "recent_form_score"
+                )
+            ),
+            score=(
+                row.get(
+                    "recent_score"
+                )
+                or row.get(
+                    "recent_form_score"
+                )
+            ),
+            weight=0.7,
+            source="recent_form",
+        ),
+    ]
+
+    return build_consensus(
+        signals
+    )
 
 def safe_float(
     value: Any,
@@ -52,24 +150,101 @@ def extract_games(card: dict) -> list[dict]:
     return []
 
 
+def looks_like_time_or_venue(
+    value: str,
+) -> bool:
+    text = str(value or "").strip().lower()
+
+    if not text:
+        return False
+
+    time_markers = [
+        "am",
+        "pm",
+        ":",
+    ]
+
+    venue_markers = [
+        "stadium",
+        "park",
+        "field",
+        "dome",
+        "munhak",
+        "jamsil",
+        "suwon",
+        "gocheok",
+        "changwon",
+        "daejeon",
+        "daegu",
+        "gwangju",
+        "busan",
+        "incheon",
+    ]
+
+    has_time = (
+        any(marker in text for marker in time_markers)
+        and any(character.isdigit() for character in text)
+    )
+
+    has_venue = any(
+        marker in text
+        for marker in venue_markers
+    )
+
+    return has_time or has_venue
+
 def team_name(
     row: dict,
     side: str,
 ) -> str:
-    blob = row.get(side)
+    nested_keys = [
+        side,
+        f"{side}_team",
+        f"{side}Team",
+    ]
 
-    if isinstance(blob, dict):
-        return str(
-            blob.get("team")
-            or blob.get("name")
-            or ""
-        )
+    for key in nested_keys:
+        blob = row.get(key)
 
-    return str(
-        row.get(f"{side}_team")
-        or row.get(f"{side}_name")
-        or ""
-    )
+        if isinstance(blob, dict):
+            for name_key in [
+                "team_name",
+                "team",
+                "name",
+                "display_name",
+                "displayName",
+                "short_name",
+                "shortName",
+            ]:
+                value = blob.get(name_key)
+
+                if value:
+                    return str(value).strip()
+
+        elif isinstance(blob, str):
+            value = blob.strip()
+
+            if value and not looks_like_time_or_venue(value):
+                return value
+
+    flat_keys = [
+        f"{side}_team_name",
+        f"{side}_name",
+        f"{side}_team",
+        f"{side}TeamName",
+        f"{side}Name",
+    ]
+
+    for key in flat_keys:
+        value = row.get(key)
+
+        if value:
+            value = str(value).strip()
+
+            if not looks_like_time_or_venue(value):
+                return value
+
+    return ""
 
 
 def matchup_text(row: dict) -> str:
@@ -91,28 +266,64 @@ def matchup_text(row: dict) -> str:
 
 
 def extract_selection(row: dict) -> str:
-    selection = (
-        row.get("selection")
-        or row.get("pick")
-        or row.get("recommended_team")
-        or row.get("recommendation")
-    )
-
-    if not selection:
-        return ""
-
-    selection_text = str(selection)
+    candidates = [
+        row.get("selection"),
+        row.get("pick"),
+        row.get("recommended_team"),
+        row.get("recommended_side"),
+        row.get("bet_team"),
+        row.get("team_pick"),
+    ]
 
     away = team_name(row, "away")
     home = team_name(row, "home")
 
-    if away and away.lower() in selection_text.lower():
+    for candidate in candidates:
+        if not candidate:
+            continue
+
+        selection_text = str(candidate).strip()
+
+        if looks_like_time_or_venue(selection_text):
+            continue
+
+        if away and (
+            away.lower() in selection_text.lower()
+            or selection_text.lower() in away.lower()
+        ):
+            return away
+
+        if home and (
+            home.lower() in selection_text.lower()
+            or selection_text.lower() in home.lower()
+        ):
+            return home
+
+    recommendation_text = str(
+        row.get("recommendation")
+        or ""
+    ).strip()
+
+    if recommendation_text:
+        if away and away.lower() in recommendation_text.lower():
+            return away
+
+        if home and home.lower() in recommendation_text.lower():
+            return home
+
+    selected_side = str(
+        row.get("side")
+        or row.get("recommended_side")
+        or ""
+    ).strip().lower()
+
+    if selected_side == "away":
         return away
 
-    if home and home.lower() in selection_text.lower():
+    if selected_side == "home":
         return home
 
-    return selection_text
+    return ""
 
 
 def extract_model_probability(
@@ -204,6 +415,21 @@ def build_market_quote(row: dict) -> MarketQuote:
         or row.get("odds")
         or row.get("moneyline")
     )
+
+    sportsbook_text = str(
+        sportsbook or ""
+    ).strip()
+
+    is_mock = sportsbook_text.lower() in {
+        "mock odds",
+        "mock",
+        "test book",
+        "synthetic",
+    }
+
+    if is_mock:
+        sportsbook = None
+        odds = None
 
     return MarketQuote(
         sportsbook=sportsbook,
@@ -313,6 +539,10 @@ def adapt_kbo_row(
         or "moneyline"
     ).lower()
 
+    consensus = build_kbo_consensus(
+        row
+    )
+
     recommendation = Recommendation(
         sport="BASEBALL",
         league="KBO",
@@ -375,10 +605,14 @@ def adapt_kbo_row(
                 "market_score"
             ),
         },
+
         source_signals={
             "source": "kbo_card",
             "original_recommendation": (
                 row.get("recommendation")
+            ),
+            "consensus": (
+                consensus.to_dict()
             ),
         },
         tags=[

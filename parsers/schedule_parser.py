@@ -1,9 +1,13 @@
+from __future__ import annotations
+
+import re
+from typing import Any
+
 import requests
 from bs4 import BeautifulSoup
 
 
 class ScheduleParser:
-
     URL = "https://mykbostats.com/"
 
     HEADERS = {
@@ -12,7 +16,10 @@ class ScheduleParser:
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/126.0.0.0 Safari/537.36"
         ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept": (
+            "text/html,application/xhtml+xml,"
+            "application/xml;q=0.9,*/*;q=0.8"
+        ),
         "Accept-Language": "en-US,en;q=0.9",
         "Referer": "https://www.google.com/",
         "Connection": "keep-alive",
@@ -32,9 +39,13 @@ class ScheduleParser:
         ("NC", "Dinos"): "NC Dinos",
     }
 
-    @classmethod
-    def load(cls):
+    TIME_PATTERN = re.compile(
+        r"^\d{1,2}:\d{2}\s*(?:am|pm)?$",
+        re.IGNORECASE,
+    )
 
+    @classmethod
+    def load(cls) -> list[dict[str, Any]]:
         session = requests.Session()
 
         response = session.get(
@@ -44,53 +55,145 @@ class ScheduleParser:
         )
         response.raise_for_status()
 
-        soup = BeautifulSoup(response.text, "html.parser")
+        soup = BeautifulSoup(
+            response.text,
+            "html.parser",
+        )
 
-        games = []
+        games: list[dict[str, Any]] = []
+        seen_urls: set[str] = set()
 
-        links = soup.find_all("a", href=True)
-
-        for link in links:
-
-            href = link["href"]
+        for link in soup.find_all("a", href=True):
+            href = str(link.get("href") or "").strip()
 
             if not href.startswith("/games/"):
                 continue
 
-            text = link.get_text(" ", strip=True)
+            full_url = f"https://mykbostats.com{href}"
+
+            if full_url in seen_urls:
+                continue
+
+            text = link.get_text(
+                " ",
+                strip=True,
+            )
+
             if "Final" in text:
                 continue
 
             lines = [
-                x.strip()
-                for x in link.get_text("\n", strip=True).splitlines()
-                if x.strip()
+                value.strip()
+                for value in link.get_text(
+                    "\n",
+                    strip=True,
+                ).splitlines()
+                if value.strip()
             ]
 
-            if len(lines) < 6:
+            game = cls._parse_game_lines(
+                lines=lines,
+                href=href,
+            )
+
+            if game is None:
+                print(
+                    "Skipping malformed KBO schedule row:",
+                    lines,
+                )
                 continue
 
-            away = cls._normalize(lines[0], lines[1])
-            game_time = lines[2]
-            venue = lines[3]
-            home = cls._normalize(lines[4], lines[5])
+            game["url"] = full_url
 
-            games.append(
-                {
-                    "away": away,
-                    "home": home,
-                    "time": game_time,
-                    "venue": venue,
-                    "url": f"https://mykbostats.com{href}",
-                }
-            )
+            games.append(game)
+            seen_urls.add(full_url)
 
         return games
 
     @classmethod
-    def _normalize(cls, first, second):
+    def _parse_game_lines(
+        cls,
+        lines: list[str],
+        href: str,
+    ) -> dict[str, Any] | None:
+        """
+        Current MyKBOStats layout:
+
+        0: away team first word
+        1: away team second word
+        2: home team first word
+        3: home team second word
+        4: game time
+        5: venue
+        """
+
+        if len(lines) < 6:
+            return None
+
+        away = cls._normalize(
+            lines[0],
+            lines[1],
+        )
+
+        home = cls._normalize(
+            lines[2],
+            lines[3],
+        )
+
+        game_time = lines[4].strip()
+        venue = lines[5].strip()
+
+        if not cls._valid_team_name(away):
+            return None
+
+        if not cls._valid_team_name(home):
+            return None
+
+        if not cls._looks_like_time(game_time):
+            print(
+                "Unexpected KBO game time:",
+                game_time,
+                "for",
+                href,
+            )
+
+        return {
+            "away": away,
+            "home": home,
+            "time": game_time,
+            "venue": venue,
+        }
+
+    @classmethod
+    def _normalize(
+        cls,
+        first: str,
+        second: str,
+    ) -> str:
+        first = str(first or "").strip()
+        second = str(second or "").strip()
 
         return cls.TEAM_NAME_MAP.get(
             (first, second),
-            f"{first} {second}",
+            f"{first} {second}".strip(),
+        )
+
+    @classmethod
+    def _valid_team_name(
+        cls,
+        value: str,
+    ) -> bool:
+        return value in set(
+            cls.TEAM_NAME_MAP.values()
+        )
+
+    @classmethod
+    def _looks_like_time(
+        cls,
+        value: str,
+    ) -> bool:
+        return bool(
+            cls.TIME_PATTERN.match(
+                str(value or "").strip()
+            )
         )

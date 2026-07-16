@@ -184,6 +184,7 @@ def validate_outputs():
         CARDS_DIR / "first5_card.json",
         CARDS_DIR / "bomb_lab_card.json",
         CARDS_DIR / "decision_card.json",
+        CARDS_DIR / "play_of_day.json",
         (
             CARDS_DIR
             / "recommendation_registry.json"

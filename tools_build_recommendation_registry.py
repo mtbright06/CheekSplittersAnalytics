@@ -7,6 +7,8 @@ from engine.adapters import (
 )
 from engine.core import (
     RecommendationRegistry,
+    calculate_ranking_score,
+    select_play_of_day,
 )
 
 
@@ -28,6 +30,11 @@ OUTPUT_PATH = (
     / "recommendation_registry.json"
 )
 
+PLAY_OF_DAY_PATH = (
+    CARDS_DIR
+    / "play_of_day.json"
+)
+
 
 def load_json(
     path: Path,
@@ -47,6 +54,27 @@ def load_json(
         json.JSONDecodeError,
     ):
         return {}
+
+
+def save_json(
+    path: Path,
+    data: dict,
+) -> None:
+    path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    with open(
+        path,
+        "w",
+        encoding="utf-8",
+    ) as file:
+        json.dump(
+            data,
+            file,
+            indent=2,
+        )
 
 
 def main():
@@ -81,9 +109,30 @@ def main():
         OUTPUT_PATH
     )
 
+    all_recommendations = (
+        registry.all()
+    )
+
+    play_of_day = (
+        select_play_of_day(
+            all_recommendations,
+            require_real_market=False,
+            minimum_hammer_score=74,
+        )
+    )
+
+    save_json(
+        PLAY_OF_DAY_PATH,
+        play_of_day.to_dict(),
+    )
+
     summary = registry.summary()
 
-    print(f"Output: {OUTPUT_PATH}")
+    print(f"Registry: {OUTPUT_PATH}")
+    print(
+        f"Play of Day: "
+        f"{PLAY_OF_DAY_PATH}"
+    )
     print(
         f"Recommendations: "
         f"{summary.get('recommendations', 0)}"
@@ -100,22 +149,12 @@ def main():
         f"Model only: "
         f"{summary.get('model_only', 0)}"
     )
-    print(
-        f"Sports: "
-        f"{summary.get('sports', [])}"
-    )
-    print(
-        f"Leagues: "
-        f"{summary.get('leagues', [])}"
-    )
-    print(
-        f"Markets: "
-        f"{summary.get('markets', [])}"
-    )
 
-    ranked = registry.ranked(
-        limit=10
-    )
+    ranked = sorted(
+        all_recommendations,
+        key=calculate_ranking_score,
+        reverse=True,
+    )[:10]
 
     if ranked:
         print("")
@@ -126,6 +165,13 @@ def main():
             ranked,
             start=1,
         ):
+            consensus = (
+                item.source_signals.get(
+                    "consensus",
+                    {},
+                )
+            )
+
             print(
                 f"{index:>2}. "
                 f"{item.league} | "
@@ -133,12 +179,46 @@ def main():
                 f"{item.selection} | "
                 f"{item.recommendation} | "
                 f"Hammer {item.hammer_score:.1f} | "
-                f"Rank {item.ranking_score:.1f}"
+                f"Rank "
+                f"{calculate_ranking_score(item):.1f} | "
+                f"Consensus "
+                f"{consensus.get('support_count', 0)}/"
+                f"{consensus.get('available_count', 0)}"
             )
     else:
         print("")
         print(
             "No recommendations available."
+        )
+
+    print("")
+    print("Play of the Day")
+    print("-" * 64)
+
+    if play_of_day.recommendation:
+        item = (
+            play_of_day.recommendation
+        )
+
+        print(
+            f"{item.league} | "
+            f"{item.market} | "
+            f"{item.selection}"
+        )
+        print(
+            f"Hammer: "
+            f"{item.hammer_score:.1f}"
+        )
+        print(
+            f"Rank: "
+            f"{calculate_ranking_score(item):.1f}"
+        )
+        print(
+            play_of_day.reason
+        )
+    else:
+        print(
+            play_of_day.reason
         )
 
 

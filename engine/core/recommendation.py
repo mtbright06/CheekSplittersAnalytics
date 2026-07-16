@@ -251,36 +251,11 @@ class Recommendation:
 
     @property
     def ranking_score(self) -> float:
-        score = self.hammer_score
-
-        if self.edge_pct is not None:
-            score += max(
-                min(
-                    self.edge_pct,
-                    10,
-                ),
-                -10,
-            ) * 0.5
-
-        if self.expected_value_pct is not None:
-            score += max(
-                min(
-                    self.expected_value_pct,
-                    15,
-                ),
-                -15,
-            ) * 0.2
-
-        if self.real_market_loaded:
-            score += 1.5
-
-        return round(
-            max(
-                0.0,
-                min(100.0, score),
-            ),
-            2,
+        from engine.core.ranking import (
+            calculate_ranking_score,
         )
+
+        return calculate_ranking_score(self)
 
     def to_dict(self) -> dict:
         return {

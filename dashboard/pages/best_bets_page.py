@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from components.registry.play_of_day_card import (
+    render_play_of_day,
+)
+
 import json
 from pathlib import Path
 
@@ -11,6 +15,22 @@ from components.registry.registry_cards import (
     render_registry_table,
 )
 
+def load_play_of_day() -> dict:
+    if not PLAY_OF_DAY_PATH.exists():
+        return {}
+
+    try:
+        with open(
+            PLAY_OF_DAY_PATH,
+            "r",
+            encoding="utf-8",
+        ) as file:
+            return json.load(file)
+    except (
+        OSError,
+        json.JSONDecodeError,
+    ):
+        return {}
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -21,6 +41,12 @@ REGISTRY_PATH = (
     / "recommendation_registry.json"
 )
 
+PLAY_OF_DAY_PATH = (
+    ROOT
+    / "output"
+    / "cards"
+    / "play_of_day.json"
+)
 
 def load_registry() -> dict:
     if not REGISTRY_PATH.exists():
@@ -69,6 +95,17 @@ def render_best_bets():
         """,
         unsafe_allow_html=True,
     )
+
+    play_of_day = (
+        load_play_of_day()
+    )
+
+    if play_of_day:
+        render_play_of_day(
+            play_of_day
+        )
+
+        st.markdown("---")
 
     if not registry:
         st.warning(

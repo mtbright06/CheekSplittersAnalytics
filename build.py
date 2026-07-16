@@ -68,6 +68,14 @@ STEPS = [
         True,
     ),
     (
+        "Validate Market Pipeline",
+        [
+            sys.executable,
+            "tools_validate_market_pipeline.py",
+        ],
+        False,
+    ),
+    (
         "Track Recommendations",
         [
             sys.executable,

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 
 
@@ -16,6 +17,8 @@ class MarketQuote:
     event_id: str | None = None
     commence_time: str | None = None
     last_updated: str | None = None
+    is_live: bool = False
+    source: str | None = None
 
 
 @dataclass

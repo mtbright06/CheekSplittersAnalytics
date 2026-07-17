@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from engine.mlb.totals import (
+    build_totals_projection,
+)
+
+
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Any
@@ -419,6 +424,12 @@ def build_mlb_card(
                 "market_edge"
             ],
         }
+
+        game["totals_model"] = (
+            build_totals_projection(
+                game
+            )
+        )
 
         games.append(game)
 

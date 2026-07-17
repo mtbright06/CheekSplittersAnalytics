@@ -461,10 +461,17 @@ def compare_records(
             ).get(key)
 
             if candidate is None:
-                warnings.append(
-                    f"{source}: missing downstream record for "
-                    f"{record_text(reference)}"
+                downstream_rows = records_by_source.get(
+                    source,
+                    [],
                 )
+
+                if downstream_rows:
+                    warnings.append(
+                        f"{source}: missing downstream record for "
+                        f"{record_text(reference)}"
+                    )
+
                 continue
 
             if not candidate.real_market_loaded:

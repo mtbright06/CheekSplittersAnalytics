@@ -6,8 +6,10 @@ from typing import Any
 from engine.mlb.totals.helpers import (
     clamp,
     first_number,
-    nested_get,
     safe_float,
+)
+from engine.mlb.totals.park_factors import (
+    ParkFactorResult,
 )
 
 
@@ -15,7 +17,16 @@ LEAGUE_RUNS_PER_TEAM = 4.45
 LEAGUE_STARTER_ERA = 4.20
 LEAGUE_STARTER_WHIP = 1.30
 LEAGUE_HR9 = 1.15
+
 HOME_FIELD_RUN_BONUS = 0.12
+
+# Converts the park multiplier into a per-team run adjustment.
+#
+# Examples:
+# 1.05 -> +0.20 runs
+# 0.95 -> -0.20 runs
+# 1.18 -> +0.72 runs
+PARK_RUN_MULTIPLIER = 4.00
 
 
 @dataclass
@@ -25,6 +36,8 @@ class TeamRunProjection:
     baseline_runs: float
     offense_adjustment: float
     starter_adjustment: float
+    park_adjustment: float
+    park_factor: float
     home_adjustment: float
     data_points: int
     reasons: list[str]
@@ -47,6 +60,14 @@ class TeamRunProjection:
             "starter_adjustment": round(
                 self.starter_adjustment,
                 2,
+            ),
+            "park_adjustment": round(
+                self.park_adjustment,
+                2,
+            ),
+            "park_factor": round(
+                self.park_factor,
+                3,
             ),
             "home_adjustment": round(
                 self.home_adjustment,
@@ -138,8 +159,8 @@ def calculate_offense_adjustment(
 
     if wrc_plus is not None:
         wrc_adjustment = (
-            (wrc_plus - 100)
-            / 100
+            (wrc_plus - 100.0)
+            / 100.0
         ) * 1.35
 
         adjustments.append(
@@ -289,27 +310,84 @@ def calculate_starter_adjustment(
     )
 
 
+def calculate_park_adjustment(
+    park: ParkFactorResult,
+) -> tuple[float, int, list[str]]:
+    adjustment = (
+        park.factor - 1.00
+    ) * PARK_RUN_MULTIPLIER
+
+    adjustment = clamp(
+        adjustment,
+        -0.80,
+        0.80,
+    )
+
+    if not park.available:
+        return (
+            0.0,
+            0,
+            [
+                "Park factor unavailable; "
+                "neutral park used."
+            ],
+        )
+
+    if adjustment > 0.01:
+        description = "run-friendly"
+    elif adjustment < -0.01:
+        description = "run-suppressing"
+    else:
+        description = "approximately neutral"
+
+    return (
+        adjustment,
+        1,
+        [
+            (
+                f"Home park factor is "
+                f"{park.factor:.3f} and is "
+                f"{description}."
+            )
+        ],
+    )
+
+
 def project_team_runs(
     *,
     team_profile: dict[str, Any],
     opposing_pitcher: dict[str, Any],
+    park: ParkFactorResult,
     is_home: bool,
 ) -> TeamRunProjection:
     team_name = str(
         team_profile.get("name")
+        or team_profile.get("abbreviation")
         or "Unknown Team"
     )
 
-    offense_adjustment, offense_points, offense_reasons = (
-        calculate_offense_adjustment(
-            team_profile
-        )
+    (
+        offense_adjustment,
+        offense_points,
+        offense_reasons,
+    ) = calculate_offense_adjustment(
+        team_profile
     )
 
-    starter_adjustment, starter_points, starter_reasons = (
-        calculate_starter_adjustment(
-            opposing_pitcher
-        )
+    (
+        starter_adjustment,
+        starter_points,
+        starter_reasons,
+    ) = calculate_starter_adjustment(
+        opposing_pitcher
+    )
+
+    (
+        park_adjustment,
+        park_points,
+        park_reasons,
+    ) = calculate_park_adjustment(
+        park
     )
 
     home_adjustment = (
@@ -322,6 +400,7 @@ def project_team_runs(
         LEAGUE_RUNS_PER_TEAM
         + offense_adjustment
         + starter_adjustment
+        + park_adjustment
         + home_adjustment
     )
 
@@ -334,6 +413,7 @@ def project_team_runs(
     reasons = [
         *offense_reasons,
         *starter_reasons,
+        *park_reasons,
     ]
 
     if is_home:
@@ -345,18 +425,15 @@ def project_team_runs(
         team=team_name,
         expected_runs=expected_runs,
         baseline_runs=LEAGUE_RUNS_PER_TEAM,
-        offense_adjustment=(
-            offense_adjustment
-        ),
-        starter_adjustment=(
-            starter_adjustment
-        ),
-        home_adjustment=(
-            home_adjustment
-        ),
+        offense_adjustment=offense_adjustment,
+        starter_adjustment=starter_adjustment,
+        park_adjustment=park_adjustment,
+        park_factor=park.factor,
+        home_adjustment=home_adjustment,
         data_points=(
             offense_points
             + starter_points
+            + park_points
         ),
         reasons=reasons,
     )

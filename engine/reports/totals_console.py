@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest import result
 
 
 DIVIDER = "=" * 72
@@ -18,6 +19,31 @@ def print_totals_report(result: dict[str, Any]) -> None:
     print(DIVIDER)
     print("SharpStack MLB Totals Report")
     print(DIVIDER)
+
+    starter_total = result.get(
+        "starter_based_total",
+        result["projected_total"],
+    )
+
+    bullpen_adjustment = result.get(
+        "bullpen_adjustment",
+        0.0,
+    )
+
+    bullpen = result.get(
+        "bullpen",
+        {},
+    )
+
+    _line(
+    "Starter Total",
+    f"{starter_total:.2f}",
+    )
+
+    _line(
+        "Bullpen Adjustment",
+        f"{bullpen_adjustment:+.2f}",
+    )
 
     _line(
         "Projected Total",
@@ -88,6 +114,25 @@ def print_totals_report(result: dict[str, Any]) -> None:
         park["team"],
     )
 
+    if bullpen:
+
+        print()
+
+    _line(
+        "Away Bullpen",
+        f"{bullpen.get('away_adjustment',0):+.2f}",
+    )
+
+    _line(
+        "Home Bullpen",
+        f"{bullpen.get('home_adjustment',0):+.2f}",
+    )
+
+    _line(
+        "Combined",
+        f"{bullpen.get('combined_adjustment',0):+.2f}",
+    )
+
     _line(
         "Factor",
         f"{park['factor']:.3f}",
@@ -107,6 +152,7 @@ def print_totals_report(result: dict[str, Any]) -> None:
 
     print("  ✓ Offense")
     print("  ✓ Starting Pitchers")
+    print("  ✓ Bullpen")
     print("  ✓ Park Factors")
     print("  ✓ Market Comparison")
 
@@ -114,7 +160,6 @@ def print_totals_report(result: dict[str, Any]) -> None:
 
     print("Pending")
 
-    print("  • Bullpen")
     print("  • Weather")
     print("  • Confirmed Lineups")
 

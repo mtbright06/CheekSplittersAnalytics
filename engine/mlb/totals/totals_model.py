@@ -3,6 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from engine.mlb.bullpen.bullpen_model import (
+    BullpenProjection,
+    build_bullpen_projection,
+)
+from engine.mlb.bullpen.game_adjustment import (
+    GameBullpenAdjustment,
+    apply_bullpen_adjustment,
+    build_game_bullpen_adjustment,
+)
 from engine.mlb.totals.expected_runs import (
     TeamRunProjection,
     project_team_runs,
@@ -26,10 +35,19 @@ from engine.mlb.totals.park_factors import (
 class TotalsProjection:
     away: TeamRunProjection
     home: TeamRunProjection
+
+    away_bullpen: BullpenProjection
+    home_bullpen: BullpenProjection
+    bullpen: GameBullpenAdjustment
+
     park: ParkFactorResult
     market: MarketTotal
     market_edge: MarketEdge
+
+    starter_based_total: float
+    bullpen_adjustment: float
     projected_total: float
+
     confidence: float
     data_quality: str
     reasons: list[str]
@@ -42,6 +60,14 @@ class TotalsProjection:
             ),
             "home_expected_runs": round(
                 self.home.expected_runs,
+                2,
+            ),
+            "starter_based_total": round(
+                self.starter_based_total,
+                2,
+            ),
+            "bullpen_adjustment": round(
+                self.bullpen_adjustment,
                 2,
             ),
             "projected_total": round(
@@ -66,10 +92,7 @@ class TotalsProjection:
             ),
             "absolute_edge": (
                 None
-                if (
-                    self.market_edge.absolute_edge
-                    is None
-                )
+                if self.market_edge.absolute_edge is None
                 else round(
                     self.market_edge.absolute_edge,
                     2,
@@ -102,6 +125,21 @@ class TotalsProjection:
             "home_projection": (
                 self.home.to_dict()
             ),
+            "away_bullpen": (
+                bullpen_projection_to_dict(
+                    self.away_bullpen
+                )
+            ),
+            "home_bullpen": (
+                bullpen_projection_to_dict(
+                    self.home_bullpen
+                )
+            ),
+            "bullpen": (
+                game_bullpen_to_dict(
+                    self.bullpen
+                )
+            ),
             "reasons": self.reasons,
         }
 
@@ -110,8 +148,12 @@ def confidence_from_data_points(
     data_points: int,
 ) -> float:
     """
-    Totals v1 confidence measures input completeness,
+    Totals confidence measures input completeness,
     not wager strength.
+
+    The current cap remains 78 so bullpen integration
+    does not unexpectedly change the established
+    confidence scale during Sprint 036.
     """
 
     return clamp(
@@ -146,10 +188,14 @@ def calculate_game_data_points(
     park: ParkFactorResult,
 ) -> int:
     """
-    Count unique game-level model inputs.
+    Count unique offense, starter and park inputs.
 
-    Park is already included in each team projection,
-    so one duplicated park point is removed here.
+    Park is included in each team projection, so one
+    duplicated park point is removed here.
+
+    Bullpen inputs are intentionally tracked separately
+    during Sprint 036 so existing confidence behavior
+    remains stable.
     """
 
     team_projection_points = (
@@ -183,6 +229,11 @@ def build_totals_projection(
         {},
     )
 
+    bullpens = game.get(
+        "bullpen",
+        {},
+    )
+
     away_team = teams.get(
         "away",
         {},
@@ -199,6 +250,16 @@ def build_totals_projection(
     )
 
     home_pitcher = pitching.get(
+        "home",
+        {},
+    )
+
+    away_bullpen_profile = bullpens.get(
+        "away",
+        {},
+    )
+
+    home_bullpen_profile = bullpens.get(
         "home",
         {},
     )
@@ -221,9 +282,31 @@ def build_totals_projection(
         is_home=True,
     )
 
-    projected_total = (
+    starter_based_total = (
         away_projection.expected_runs
         + home_projection.expected_runs
+    )
+
+    away_bullpen = build_bullpen_projection_from_profile(
+        team=away_projection.team,
+        profile=away_bullpen_profile,
+    )
+
+    home_bullpen = build_bullpen_projection_from_profile(
+        team=home_projection.team,
+        profile=home_bullpen_profile,
+    )
+
+    bullpen_adjustment = (
+        build_game_bullpen_adjustment(
+            away_bullpen=away_bullpen,
+            home_bullpen=home_bullpen,
+        )
+    )
+
+    projected_total = apply_bullpen_adjustment(
+        starter_based_total=starter_based_total,
+        bullpen_adjustment=bullpen_adjustment,
     )
 
     market = extract_market_total(
@@ -249,16 +332,136 @@ def build_totals_projection(
         data_points
     )
 
+    reasons = build_projection_reasons(
+        away_projection=away_projection,
+        home_projection=home_projection,
+        starter_based_total=starter_based_total,
+        bullpen_adjustment=bullpen_adjustment,
+        projected_total=projected_total,
+        park=park,
+        market=market,
+        market_edge=market_edge,
+        data_points=data_points,
+    )
+
+    result = TotalsProjection(
+        away=away_projection,
+        home=home_projection,
+        away_bullpen=away_bullpen,
+        home_bullpen=home_bullpen,
+        bullpen=bullpen_adjustment,
+        park=park,
+        market=market,
+        market_edge=market_edge,
+        starter_based_total=starter_based_total,
+        bullpen_adjustment=(
+            bullpen_adjustment.combined_adjustment
+        ),
+        projected_total=projected_total,
+        confidence=confidence,
+        data_quality=quality,
+        reasons=reasons,
+    )
+
+    return result.to_dict()
+
+
+def build_bullpen_projection_from_profile(
+    *,
+    team: str,
+    profile: dict[str, Any] | None,
+) -> BullpenProjection:
+    """
+    Convert a game bullpen payload into a BullpenProjection.
+
+    Missing bullpen data produces a neutral fallback rather
+    than preventing the totals projection from running.
+    """
+
+    profile = profile or {}
+
+    return build_bullpen_projection(
+        team=team,
+        season_era=to_optional_float(
+            profile.get(
+                "season_era"
+            )
+        ),
+        season_whip=to_optional_float(
+            profile.get(
+                "season_whip"
+            )
+        ),
+        last7_era=to_optional_float(
+            first_available(
+                profile,
+                "last7_era",
+                "last_7_era",
+            )
+        ),
+        innings_last3=to_float(
+            first_available(
+                profile,
+                "innings_last3",
+                "innings_last_3",
+            ),
+            default=0.0,
+        ),
+        closer_available=to_bool(
+            profile.get(
+                "closer_available"
+            ),
+            default=True,
+        ),
+        setup_available=to_bool(
+            first_available(
+                profile,
+                "setup_available",
+                "setup_reliever_available",
+            ),
+            default=True,
+        ),
+    )
+
+
+def build_projection_reasons(
+    *,
+    away_projection: TeamRunProjection,
+    home_projection: TeamRunProjection,
+    starter_based_total: float,
+    bullpen_adjustment: GameBullpenAdjustment,
+    projected_total: float,
+    park: ParkFactorResult,
+    market: MarketTotal,
+    market_edge: MarketEdge,
+    data_points: int,
+) -> list[str]:
     reasons = [
         (
-            f"Projected score: "
+            f"Starter-based projected score: "
             f"{away_projection.team} "
             f"{away_projection.expected_runs:.2f}, "
             f"{home_projection.team} "
             f"{home_projection.expected_runs:.2f}."
         ),
         (
-            f"Projected game total is "
+            f"Starter-based game total is "
+            f"{starter_based_total:.2f} runs."
+        ),
+        (
+            f"Away bullpen adjustment: "
+            f"{bullpen_adjustment.away_adjustment:+.2f} runs."
+        ),
+        (
+            f"Home bullpen adjustment: "
+            f"{bullpen_adjustment.home_adjustment:+.2f} runs."
+        ),
+        (
+            f"Combined bullpen adjustment: "
+            f"{bullpen_adjustment.combined_adjustment:+.2f} runs."
+        ),
+        (
+            f"Final projected game total is "
             f"{projected_total:.2f} runs."
         ),
         (
@@ -272,7 +475,12 @@ def build_totals_projection(
             f"unique offense, starter and park inputs."
         ),
         (
-            "Bullpen, weather and confirmed lineups "
+            f"Bullpen data status is "
+            f"{bullpen_adjustment.status} with "
+            f"{bullpen_adjustment.confidence:.1f} confidence."
+        ),
+        (
+            "Weather and confirmed lineups "
             "are not yet included."
         ),
     ]
@@ -291,16 +499,183 @@ def build_totals_projection(
             "No sportsbook total was available."
         )
 
-    result = TotalsProjection(
-        away=away_projection,
-        home=home_projection,
-        park=park,
-        market=market,
-        market_edge=market_edge,
-        projected_total=projected_total,
-        confidence=confidence,
-        data_quality=quality,
-        reasons=reasons,
+    return reasons
+
+
+def bullpen_projection_to_dict(
+    projection: BullpenProjection,
+) -> dict[str, Any]:
+    return {
+        "team": projection.team,
+        "quality_rating": (
+            projection.quality.rating
+        ),
+        "quality_score": (
+            projection.quality.quality_score
+        ),
+        "season_era": (
+            projection.quality.season_era
+        ),
+        "season_whip": (
+            projection.quality.season_whip
+        ),
+        "last7_era": (
+            projection.quality.last7_era
+        ),
+        "innings_last3": (
+            projection.fatigue.innings_last3
+        ),
+        "fatigue_rating": (
+            projection.fatigue.rating
+        ),
+        "closer_available": (
+            projection.closer_available
+        ),
+        "setup_available": (
+            projection.setup_available
+        ),
+        "quality_adjustment": (
+            projection.quality_adjustment
+        ),
+        "fatigue_adjustment": (
+            projection.fatigue_adjustment
+        ),
+        "availability_adjustment": (
+            projection.availability_adjustment
+        ),
+        "total_run_adjustment": (
+            projection.total_run_adjustment
+        ),
+        "confidence": (
+            projection.confidence
+        ),
+        "data_quality": (
+            projection.data_quality
+        ),
+        "status": (
+            projection.status
+        ),
+    }
+
+
+def game_bullpen_to_dict(
+    adjustment: GameBullpenAdjustment,
+) -> dict[str, Any]:
+    return {
+        "away_team": (
+            adjustment.away_team
+        ),
+        "home_team": (
+            adjustment.home_team
+        ),
+        "away_adjustment": (
+            adjustment.away_adjustment
+        ),
+        "home_adjustment": (
+            adjustment.home_adjustment
+        ),
+        "combined_adjustment": (
+            adjustment.combined_adjustment
+        ),
+        "confidence": (
+            adjustment.confidence
+        ),
+        "data_quality": (
+            adjustment.data_quality
+        ),
+        "status": (
+            adjustment.status
+        ),
+    }
+
+
+def first_available(
+    mapping: dict[str, Any],
+    *keys: str,
+) -> Any:
+    for key in keys:
+        value = mapping.get(
+            key
+        )
+
+        if value is not None:
+            return value
+
+    return None
+
+
+def to_optional_float(
+    value: Any,
+) -> float | None:
+    if value is None:
+        return None
+
+    try:
+        return float(
+            value
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return None
+
+
+def to_float(
+    value: Any,
+    *,
+    default: float,
+) -> float:
+    parsed = to_optional_float(
+        value
     )
 
-    return result.to_dict()
+    if parsed is None:
+        return default
+
+    return parsed
+
+
+def to_bool(
+    value: Any,
+    *,
+    default: bool,
+) -> bool:
+    if value is None:
+        return default
+
+    if isinstance(
+        value,
+        bool,
+    ):
+        return value
+
+    if isinstance(
+        value,
+        str,
+    ):
+        normalized = (
+            value.strip().lower()
+        )
+
+        if normalized in {
+            "true",
+            "yes",
+            "y",
+            "1",
+            "available",
+        }:
+            return True
+
+        if normalized in {
+            "false",
+            "no",
+            "n",
+            "0",
+            "unavailable",
+        }:
+            return False
+
+    return bool(
+        value
+    )

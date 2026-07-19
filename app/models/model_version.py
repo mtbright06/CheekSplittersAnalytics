@@ -9,6 +9,7 @@ from app.database.base import Base
 from app.models.mixins import CreatedAtMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
+    from app.models.model_run import ModelRun
     from app.models.recommendation import Recommendation
 
 
@@ -47,14 +48,20 @@ class ModelVersion(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         nullable=True,
     )
 
+    model_runs: Mapped[list["ModelRun"]] = relationship(
+        back_populates="model_version",
+    )
+
     recommendations: Mapped[list["Recommendation"]] = relationship(
         back_populates="model_version",
     )
 
     def __repr__(self) -> str:
         return (
-            f"ModelVersion(id={self.id!r}, "
+            f"ModelVersion("
+            f"id={self.id!r}, "
             f"model_name={self.model_name!r}, "
             f"version={self.version!r}, "
-            f"git_commit={self.git_commit!r})"
+            f"git_commit={self.git_commit!r}"
+            f")"
         )

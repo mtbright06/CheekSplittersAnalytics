@@ -25,6 +25,7 @@ from app.models.mixins import CreatedAtMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from app.models.game import Game
+    from app.models.model_run import ModelRun
     from app.models.model_version import ModelVersion
 
 
@@ -51,19 +52,40 @@ class Recommendation(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
             "model_version_id",
             "created_at",
         ),
+        Index(
+            "ix_recommendations_run_created",
+            "model_run_id",
+            "created_at",
+        ),
     )
 
     game_id: Mapped[UUID] = mapped_column(
         PostgreSQLUUID(as_uuid=True),
-        ForeignKey("games.id", ondelete="RESTRICT"),
+        ForeignKey(
+            "games.id",
+            ondelete="RESTRICT",
+        ),
         nullable=False,
         index=True,
     )
 
     model_version_id: Mapped[UUID] = mapped_column(
         PostgreSQLUUID(as_uuid=True),
-        ForeignKey("model_versions.id", ondelete="RESTRICT"),
+        ForeignKey(
+            "model_versions.id",
+            ondelete="RESTRICT",
+        ),
         nullable=False,
+        index=True,
+    )
+
+    model_run_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey(
+            "model_runs.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
         index=True,
     )
 
@@ -134,10 +156,16 @@ class Recommendation(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         back_populates="recommendations",
     )
 
+    model_run: Mapped["ModelRun | None"] = relationship(
+        back_populates="recommendations",
+    )
+
     def __repr__(self) -> str:
         return (
-            f"Recommendation(id={self.id!r}, "
+            f"Recommendation("
+            f"id={self.id!r}, "
             f"market_type={self.market_type!r}, "
             f"selection={self.selection!r}, "
-            f"projection={self.projection!r})"
+            f"projection={self.projection!r}"
+            f")"
         )

@@ -26,6 +26,7 @@ from app.models.mixins import CreatedAtMixin, UUIDPrimaryKeyMixin
 if TYPE_CHECKING:
     from app.models.game import Game
     from app.models.model_run import ModelRun
+    from app.models.recommendation_grade import RecommendationGrade
     from app.models.model_version import ModelVersion
 
 
@@ -158,6 +159,11 @@ class Recommendation(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
 
     model_run: Mapped["ModelRun | None"] = relationship(
         back_populates="recommendations",
+    )
+
+    grades: Mapped[list["RecommendationGrade"]] = relationship(
+        back_populates="recommendation",
+        order_by="RecommendationGrade.graded_at",
     )
 
     def __repr__(self) -> str:

@@ -9,6 +9,7 @@ from app.models.league import League
 from app.models.model_run import ModelRun
 from app.models.model_version import ModelVersion
 from app.models.recommendation import Recommendation
+from app.models.recommendation_grade import RecommendationGrade
 from app.models.team import Team
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "ModelRun",
     "ModelVersion",
     "Recommendation",
+    "RecommendationGrade",
     "Team",
 ]

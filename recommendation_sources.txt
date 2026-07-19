@@ -1,0 +1,424 @@
+
+========================================================================================
+SHARPSTACK RECOMMENDATION SOURCE INSPECTOR
+========================================================================================
+Output root: C:\CheekSplittersAnalytics\output
+Candidate files: 17
+
+----------------------------------------------------------------------------------------
+[1] output\cards\bomb_lab_card.json
+ROWS: 1
+COLUMNS: 6
+COLUMN LIST:
+  - sport
+  - type
+  - generated_at
+  - summary
+  - table
+  - pitchers
+FIRST ROW:
+  sport: MLB
+  type: bomb_lab
+  generated_at: 2026-07-18T21:41:25
+  summary: {'pitchers_loaded': 32, 'elite': 0, 'strong': 0...
+  table: [{'tier': 'PASS', 'bomb_score': 45.6, 'confiden...
+  pitchers: [{'stand': 'L', 'pitcher': 'Rhett Lowder', 'pit...
+
+----------------------------------------------------------------------------------------
+[2] output\cards\decision_card.json
+ROWS: 1
+COLUMNS: 6
+COLUMN LIST:
+  - sport
+  - type
+  - version
+  - generated_at
+  - summary
+  - decisions
+FIRST ROW:
+  sport: MLB
+  type: decision_engine
+  version: 1.0.0
+  generated_at: 2026-07-17T16:10:45
+  summary: {'games_loaded': 0, 'actionable': 0, 'hammer_pl...
+  decisions: []
+
+----------------------------------------------------------------------------------------
+[3] output\cards\first5_card.json
+ROWS: 16
+COLUMNS: 21
+COLUMN LIST:
+  - game_pk
+  - game_date
+  - venue
+  - away_team
+  - away_team_id
+  - away_pitcher
+  - away_pitcher_id
+  - home_team
+  - home_team_id
+  - home_pitcher
+  - home_pitcher_id
+  - matchup
+  - park_factor
+  - away
+  - home
+  - f5_ml
+  - f5_total
+  - confidence
+  - confidence_grade
+  - decision_score
+  - reasons
+FIRST ROW:
+  game_pk: 822790
+  game_date: 2026-07-18T19:07:00Z
+  venue: Rogers Centre
+  away_team: Chicago White Sox
+  away_team_id: 145
+  away_pitcher: Davis Martin
+  away_pitcher_id: 663436
+  home_team: Toronto Blue Jays
+  home_team_id: 141
+  home_pitcher: Shane Bieber
+  home_pitcher_id: 669456
+  matchup: Chicago White Sox @ Toronto Blue Jays
+  park_factor: 1.07
+  away: {'team': 'Chicago White Sox', 'projected_f5_run...
+  home: {'team': 'Toronto Blue Jays', 'projected_f5_run...
+  f5_ml: {'lean': 'Chicago White Sox', 'side': 'AWAY', '...
+  f5_total: {'lean': 'OVER', 'model_line': 6.0, 'projected_...
+  confidence: 90.0
+  confidence_grade: A+
+  decision_score: 87.1
+  reasons: ['Chicago White Sox owns the stronger starting-...
+
+----------------------------------------------------------------------------------------
+[4] output\cards\first5_market_card.json
+ROWS: 16
+COLUMNS: 30
+COLUMN LIST:
+  - game_pk
+  - game_date
+  - venue
+  - away_team
+  - away_team_id
+  - away_pitcher
+  - away_pitcher_id
+  - home_team
+  - home_team_id
+  - home_pitcher
+  - home_pitcher_id
+  - matchup
+  - park_factor
+  - away
+  - home
+  - f5_ml
+  - f5_total
+  - confidence
+  - confidence_grade
+  - decision_score
+  - reasons
+  - market_input
+  - model_probabilities
+  - market_hold
+  - away_market
+  - home_market
+  - best_market_side
+  - f5_total_market
+  - market_decision_score
+  - market_reasons
+FIRST ROW:
+  game_pk: 822790
+  game_date: 2026-07-18T19:07:00Z
+  venue: Rogers Centre
+  away_team: Chicago White Sox
+  away_team_id: 145
+  away_pitcher: Davis Martin
+  away_pitcher_id: 663436
+  home_team: Toronto Blue Jays
+  home_team_id: 141
+  home_pitcher: Shane Bieber
+  home_pitcher_id: 669456
+  matchup: Chicago White Sox @ Toronto Blue Jays
+  park_factor: 1.07
+  away: {'team': 'Chicago White Sox', 'projected_f5_run...
+  home: {'team': 'Toronto Blue Jays', 'projected_f5_run...
+  f5_ml: {'lean': 'Chicago White Sox', 'side': 'AWAY', '...
+  f5_total: {'lean': 'OVER', 'model_line': 6.0, 'projected_...
+  confidence: 90.0
+  confidence_grade: A+
+  decision_score: 87.1
+  reasons: ['Chicago White Sox owns the stronger starting-...
+  market_input: {}
+  model_probabilities: {'away_win': 0.657182, 'home_win': 0.201058, 't...
+  market_hold: None
+  away_market: {'team': 'Chicago White Sox', 'model_probabilit...
+  home_market: {'team': 'Toronto Blue Jays', 'model_probabilit...
+  best_market_side: {'team': 'Chicago White Sox', 'model_probabilit...
+  f5_total_market: {'book_line': None, 'model_total': 5.85, 'run_e...
+  market_decision_score: 0.0
+  market_reasons: ['Chicago White Sox owns the stronger starting-...
+
+----------------------------------------------------------------------------------------
+[5] output\cards\kbo_card.json
+ROWS: 5
+COLUMNS: 11
+COLUMN LIST:
+  - sport
+  - game_id
+  - venue
+  - start_time
+  - status
+  - matchup
+  - pitching
+  - teams
+  - model
+  - odds
+  - market_edge
+FIRST ROW:
+  sport: kbo
+  game_id: https://mykbostats.com/games/13707-Kia-vs-SSG-2...
+  venue: Incheon-Munhak
+  start_time: 6:00pm
+  status: None
+  matchup: {'away': 'KIA Tigers', 'home': 'SSG Landers'}
+  pitching: {'away': {'id': None, 'name': 'Unknown Starter'...
+  teams: {'away': {'name': 'KIA Tigers', 'record': None,...
+  model: {'market': 'Moneyline', 'play': 'KIA Tigers', '...
+  odds: {'provider': None, 'sportsbook': 'Unavailable',...
+  market_edge: {}
+
+----------------------------------------------------------------------------------------
+[6] output\cards\mlb_card.json
+ROWS: 16
+COLUMNS: 12
+COLUMN LIST:
+  - sport
+  - game_id
+  - status
+  - commence_time
+  - venue
+  - matchup
+  - teams
+  - pitching
+  - model
+  - odds
+  - market_edge
+  - totals_model
+FIRST ROW:
+  sport: mlb
+  game_id: 824414
+  status: Final
+  commence_time: 2026-07-18T17:10:00Z
+  venue: Progressive Field
+  matchup: {'away': 'Pittsburgh Pirates', 'home': 'Clevela...
+  teams: {'away': {'id': 134, 'name': 'Pittsburgh Pirate...
+  pitching: {'away': {'id': 683003, 'name': 'Jared Jones', ...
+  model: {'play': 'Pittsburgh Pirates', 'market': 'Money...
+  odds: {'provider': 'the_odds_api', 'sportsbook': 'Fan...
+  market_edge: {'selection': 'Pittsburgh Pirates', 'market': '...
+  totals_model: {'away_expected_runs': 4.87, 'home_expected_run...
+
+----------------------------------------------------------------------------------------
+[7] output\cards\play_of_day.json
+ROWS: 1
+COLUMNS: 4
+COLUMN LIST:
+  - generated_at
+  - eligible_count
+  - reason
+  - recommendation
+FIRST ROW:
+  generated_at: 2026-07-17T16:10:45
+  eligible_count: 0
+  reason: No recommendation met the Play of the Day requi...
+  recommendation: None
+
+----------------------------------------------------------------------------------------
+[8] output\cards\recommendation_registry.json
+ROWS: 0
+COLUMNS: 0
+
+----------------------------------------------------------------------------------------
+[9] output\mlb\games.json
+STATUS: READ ERROR — Expecting value: line 1 column 1 (char 0)
+
+----------------------------------------------------------------------------------------
+[10] output\mlb\pitchers.json
+STATUS: READ ERROR — Expecting value: line 1 column 1 (char 0)
+
+----------------------------------------------------------------------------------------
+[11] output\mlb\schedule.json
+STATUS: READ ERROR — Expecting value: line 1 column 1 (char 0)
+
+----------------------------------------------------------------------------------------
+[12] output\odds_api_normalized_mlb.json
+ROWS: 15
+COLUMNS: 8
+COLUMN LIST:
+  - provider
+  - event_id
+  - sport_key
+  - sport_title
+  - commence_time
+  - home_team
+  - away_team
+  - bookmakers
+FIRST ROW:
+  provider: The Odds API
+  event_id: fc7f74688fa7a695570c6e2a546a1b4c
+  sport_key: baseball_mlb
+  sport_title: MLB
+  commence_time: 2026-06-30T22:36:00Z
+  home_team: Baltimore Orioles
+  away_team: Chicago White Sox
+  bookmakers: [{'sportsbook': 'FanDuel', 'sportsbook_key': 'f...
+
+----------------------------------------------------------------------------------------
+[13] output\odds_api_sample.json
+ROWS: 15
+COLUMNS: 7
+COLUMN LIST:
+  - id
+  - sport_key
+  - sport_title
+  - commence_time
+  - home_team
+  - away_team
+  - bookmakers
+FIRST ROW:
+  id: fc7f74688fa7a695570c6e2a546a1b4c
+  sport_key: baseball_mlb
+  sport_title: MLB
+  commence_time: 2026-06-30T22:36:00Z
+  home_team: Baltimore Orioles
+  away_team: Chicago White Sox
+  bookmakers: [{'key': 'fanduel', 'title': 'FanDuel', 'last_u...
+
+----------------------------------------------------------------------------------------
+[14] output\odds_cache\the_odds_api_kbo_moneyline.json
+ROWS: 80
+COLUMNS: 14
+COLUMN LIST:
+  - provider
+  - sportsbook
+  - league
+  - market
+  - selection
+  - away_team
+  - home_team
+  - american_odds
+  - implied_probability
+  - event_id
+  - commence_time
+  - last_updated
+  - is_live
+  - source
+FIRST ROW:
+  provider: the_odds_api
+  sportsbook: FanDuel
+  league: KBO
+  market: Moneyline
+  selection: Doosan Bears
+  away_team: Doosan Bears
+  home_team: NC Dinos
+  american_odds: -104
+  implied_probability: 50.98
+  event_id: 218a9b18d67bbcf71f34bda6c900fb90
+  commence_time: 2026-07-19T09:00:00Z
+  last_updated: 2026-07-19T01:38:29Z
+  is_live: False
+  source: None
+
+----------------------------------------------------------------------------------------
+[15] output\odds_cache\the_odds_api_mlb_moneyline.json
+ROWS: 300
+COLUMNS: 14
+COLUMN LIST:
+  - provider
+  - sportsbook
+  - league
+  - market
+  - selection
+  - away_team
+  - home_team
+  - american_odds
+  - implied_probability
+  - event_id
+  - commence_time
+  - last_updated
+  - is_live
+  - source
+FIRST ROW:
+  provider: the_odds_api
+  sportsbook: FanDuel
+  league: MLB
+  market: Moneyline
+  selection: San Francisco Giants
+  away_team: San Francisco Giants
+  home_team: Seattle Mariners
+  american_odds: -360
+  implied_probability: 78.26
+  event_id: fc2051a727661b285a4718bc4738966e
+  commence_time: 2026-07-19T00:09:00Z
+  last_updated: 2026-07-19T01:38:45Z
+  is_live: False
+  source: None
+
+----------------------------------------------------------------------------------------
+[16] output\results\recommendations.csv
+ROWS: 0
+COLUMNS: 17
+COLUMN LIST:
+  - date
+  - generated_at
+  - sport
+  - model_version
+  - game_id
+  - game
+  - market
+  - pick
+  - recommendation
+  - model_probability
+  - book_probability
+  - edge
+  - confidence
+  - odds
+  - sportsbook
+  - result
+  - notes
+
+----------------------------------------------------------------------------------------
+[17] output\sharpstack_card.json
+ROWS: 16
+COLUMNS: 12
+COLUMN LIST:
+  - sport
+  - game_id
+  - status
+  - commence_time
+  - venue
+  - matchup
+  - teams
+  - pitching
+  - model
+  - odds
+  - market_edge
+  - totals_model
+FIRST ROW:
+  sport: mlb
+  game_id: 824414
+  status: Final
+  commence_time: 2026-07-18T17:10:00Z
+  venue: Progressive Field
+  matchup: {'away': 'Pittsburgh Pirates', 'home': 'Clevela...
+  teams: {'away': {'id': 134, 'name': 'Pittsburgh Pirate...
+  pitching: {'away': {'id': 683003, 'name': 'Jared Jones', ...
+  model: {'play': 'Pittsburgh Pirates', 'market': 'Money...
+  odds: {'provider': 'the_odds_api', 'sportsbook': 'Fan...
+  market_edge: {'selection': 'Pittsburgh Pirates', 'market': '...
+  totals_model: {'away_expected_runs': 4.87, 'home_expected_run...
+
+========================================================================================
+INSPECTION COMPLETE
+========================================================================================

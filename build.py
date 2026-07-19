@@ -11,84 +11,28 @@ REPORTS_DIR = ROOT / "output" / "reports"
 
 
 STEPS = [
-    (
-        "Build KBO",
-        [
-            sys.executable,
-            "cheek_splitters_engine.py",
-        ],
-        False,
-    ),
-    (
-        "Build MLB",
-        [
-            sys.executable,
-            "tools_build_mlb_card.py",
-        ],
-        True,
-    ),
-    (
-        "Build First 5 Lab",
-        [
-            sys.executable,
-            "tools_build_first5_card.py",
-        ],
-        True,
-    ),
+    ("Build KBO", [sys.executable, "cheek_splitters_engine.py"], False),
+    ("Build MLB", [sys.executable, "tools_build_mlb_card.py"], True),
+    ("Build First 5 Lab", [sys.executable, "tools_build_first5_card.py"], True),
     (
         "Build First 5 Market Edge",
-        [
-            sys.executable,
-            "tools_build_first5_market_card.py",
-        ],
+        [sys.executable, "tools_build_first5_market_card.py"],
         False,
     ),
-    (
-        "Build Bomb Lab",
-        [
-            sys.executable,
-            "tools_build_bomb_lab.py",
-        ],
-        True,
-    ),
-    (
-        "Build Decision Engine",
-        [
-            sys.executable,
-            "tools_build_decision_card.py",
-        ],
-        True,
-    ),
-    (
-        "Build Recommendation Registry",
-        [
-            sys.executable,
-            "tools_build_recommendation_registry.py",
-        ],
-        True,
-    ),
-    (
-        "Validate Market Pipeline",
-        [
-            sys.executable,
-            "tools_validate_market_pipeline.py",
-        ],
-        False,
-    ),
+    ("Build Bomb Lab", [sys.executable, "tools_build_bomb_lab.py"], True),
     (
         "Track Recommendations",
-        [
-            sys.executable,
-            "tools_track_recommendations.py",
-        ],
+        [sys.executable, "tools_track_recommendations.py"],
+        False,
+    ),
+    (
+        "Build Recommendation Explorer",
+        [sys.executable, "tools_build_recommendation_explorer.py"],
         False,
     ),
     (
         "Build Discord Report",
-        [
-            sys.executable,
-            "tools_build_discord_report.py",
-        ],
+        [sys.executable, "tools_build_discord_report.py"],
         False,
     ),
 ]

@@ -1,392 +1,516 @@
 # SharpStack Project Handoff
-Last Updated: 2026-07-19
-Sprint: 39
-Status: STABLE
-Branch: main
+
+**Last Updated:** 2026-07-19
+**Sprint:** 38
+**Status:** STABLE – Core MLB Decision Pipeline Restored
+**Branch:** main
 
 ---
 
 # Project Vision
 
-SharpStack is intended to become a professional sports betting analytics platform capable of producing explainable recommendations across multiple sports while tracking historical performance over time.
+SharpStack is evolving into a professional sports betting analytics platform capable of producing transparent, explainable recommendations across multiple sports while maintaining complete historical tracking.
 
-Current sports:
+Current supported sports:
 
-- MLB
-- KBO
+* MLB
+* KBO
 
-Future:
+Future roadmap:
 
-- NFL
-- NCAA Football
-- NBA
-- NHL
-- Soccer
+* NFL
+* NCAA Football
+* NBA
+* NHL
+* Soccer
 
-Primary goals:
+Primary engineering goals:
 
-- Produce explainable recommendations
-- Persist every recommendation historically
-- Measure model performance over time
-- Support experimentation through model versioning
-- Never overwrite historical recommendations
+* Produce explainable recommendations
+* Track every recommendation historically
+* Measure model performance over time
+* Support model experimentation and versioning
+* Maintain immutable historical results
+* Keep individual modules loosely coupled
 
 ---
 
 # Current Architecture
 
-Current pipeline:
+Current production pipeline:
 
+```
 Schedule
-↓
+    ↓
+Model Generation
+    ↓
+MLB Card / KBO Card
+    ↓
+Decision Builder
+    ↓
+Decision Card
+    ↓
+Recommendation Registry
+    ↓
+Play of the Day
+    ↓
+Reports / Dashboard
+```
 
-Models
-
-↓
-
-Cards
-
-↓
-
-Recommendation Explorer
-
-↓
-
-Recommendation Payload
-
-↓
-
-RecommendationService (next sprint)
-
-↓
-
-Azure PostgreSQL
-
-↓
-
-Dashboard / Analytics
-
-The Recommendation Explorer is now considered the canonical staging layer between model generation and persistence.
+The **Decision Builder** is now the canonical translation layer between model output and recommendation generation.
 
 ---
 
-# Current Sprint (Sprint 39)
+# Sprint 38 Summary
 
-## Completed
+## Primary Objective
 
-Added recommendation generation for:
-
-- MLB Moneylines
-- MLB Totals
-- KBO Moneylines
-
-Recommendation Explorer now produces:
-
-recommendations_today.json
-
-recommendations_today.csv
-
-recommendation_run_payload.json
-
-Immutable historical snapshots
-
-output/recommendations/history/
-
-Every execution generates a unique run timestamp.
-
-Historical recommendations are never overwritten.
+Restore the MLB recommendation pipeline after recommendation generation unexpectedly returned almost no actionable output.
 
 ---
 
-# What Was Verified
+# Root Cause
 
-Verified successfully:
+The issue was **not** inside the Recommendation Registry.
 
-✓ Recommendation snapshots
+The issue was **not** inside Play of the Day.
 
-✓ Immutable history
+The issue was **not** inside the reporting pipeline.
 
-✓ Moneyline recommendations
+The actual failure occurred inside:
 
-✓ MLB totals recommendations
+```
+engine/decision/decision_builder.py
+```
 
-✓ Pitcher context
+The Decision Builder had fallen behind the current MLB card schema.
 
-✓ Confidence values
+Older code expected fields such as:
 
-✓ Recommendation payload
+```python
+away
+home
+pick
+model_probability
+game_pk
+```
 
-✓ Timestamped run keys
+The current MLB card now provides:
 
-Verified manually from console.
+```python
+teams.away
+teams.home
+matchup
+model.play
+model.model_probability
+model.component_scores
+market_edge
+totals_model
+game_id
+```
 
-No git commit has been made yet.
+Because of this mismatch:
 
----
+* team extraction failed
+* model selection failed
+* game matching failed
 
-# Important Design Decision
-
-Recommendation Explorer DOES NOT currently write directly into PostgreSQL.
-
-Instead it generates:
-
-recommendation_run_payload.json
-
-This payload is intentionally shaped so it can be handed to RecommendationService without additional transformation.
-
-Reason:
-
-The existing database service layer was not available during development.
-
-Rather than invent interfaces or risk breaking persistence, the explorer stops at a validated payload.
-
-This was an intentional engineering decision.
-
----
-
-# Azure PostgreSQL Status
-
-Azure PostgreSQL database remains the system of record.
-
-Nothing in Sprint 39 replaces the database.
-
-Current status:
-
-Cards
-↓
-
-Recommendation Explorer
-
-↓
-
-Payload
-
-STOPS HERE
-
-Next sprint resumes here:
-
-Payload
-
-↓
-
-RecommendationService
-
-↓
-
-ModelRun
-
-↓
-
-Recommendation
-
-↓
-
-Azure PostgreSQL
+Every MLB game was skipped before recommendations could be generated.
 
 ---
 
-# Totals Recommendation Behavior
+# Major Work Completed
 
-Current behavior is intentional.
+## Decision Builder rebuilt
 
-If sportsbook totals are unavailable:
+The Decision Builder was updated to support both the legacy schema and the current nested MLB schema.
 
-market_line = None
+New compatibility includes:
 
-selection = NONE
+* `teams.away`
+* `teams.home`
+* `matchup`
+* `model.play`
+* `model.model_probability`
+* `component_scores`
+* `market_edge`
+* `odds`
+* `totals_model`
+* `game_id`
 
-recommendation = PASS
-
-sportsbook = Unavailable
-
-No recommendation is fabricated.
-
-Once sportsbook totals become available, Recommendation Explorer should automatically produce:
-
-OVER
-
-UNDER
-
-PASS
-
-based on model edge.
+Legacy support remains intact.
 
 ---
 
-# Bug Fixed During Sprint
+## Market fallback restored
 
-Original issue:
+If First 5 market data is unavailable, the Decision Builder now falls back to MLB card market data.
 
-Totals inherited:
+This restores:
 
-sportsbook = FanDuel
-
-from the moneyline market.
-
-This incorrectly implied totals odds existed.
-
-Fixed.
-
-Current behavior:
-
-sportsbook = Unavailable
-
-when totals markets are unavailable.
-
-Verified.
+* sportsbook
+* moneyline
+* implied probability
+* market edge
+* expected ROI
+* real-market classification
 
 ---
 
-# Known Limitations
+## Totals integration
 
-1.
+Decision records now expose:
 
-MLB totals currently lack sportsbook totals.
+* projected total
+* market total
+* total edge
+* total recommendation
+* totals model
 
-The model projects totals correctly.
-
-Sportsbook totals are simply unavailable from current data.
-
-No action required until odds provider is expanded.
-
----
-
-2.
-
-Recommendation Explorer is file-backed only.
-
-Database persistence is the next milestone.
+These values are now available for downstream reporting.
 
 ---
 
-3.
+## Recommendation Registry validated
 
-Recommendation history exists as immutable JSON snapshots.
+Registry generation now succeeds.
 
-Database history is not yet connected.
+Current verified output:
+
+```
+Recommendations: 16
+Actionable: 1
+Real Market: 15
+Model Only: 1
+```
+
+The Recommendation Registry is confirmed healthy.
 
 ---
 
-# Next Sprint (Sprint 40)
+## Play of the Day validated
 
-Highest priority:
+Current output:
 
-Wire Recommendation Explorer into existing persistence layer.
+```
+No recommendation met the Play of the Day requirements.
+```
 
-Tasks:
+This is expected behavior.
 
-Read recommendation_run_payload.json
+The current threshold requires:
 
-Create ModelRun
+```
+minimum_hammer_score = 74
+```
 
-Create Recommendation rows
+Today's highest score:
 
-Persist to Azure PostgreSQL
+```
+Washington Nationals
+Hammer Score = 69.3
+```
 
-Verify:
+No bug exists.
 
-ModelRun count
+---
 
-Recommendation count
+# Current Pipeline Health
 
-Foreign keys
+Verified:
 
-Indexes
+```
+MLB Card
+      ✓
 
-Historical runs
+Decision Builder
+      ✓
 
-No duplicate recommendations within a run
+Decision Card
+      ✓
 
-Do NOT rewrite Recommendation Explorer.
+Recommendation Registry
+      ✓
 
-The explorer has been validated.
+Play of the Day
+      ✓
+```
 
-Only connect it.
+The MLB recommendation pipeline is fully operational again.
+
+---
+
+# Validation Results
+
+Decision Builder produced:
+
+```
+Games Loaded: 16
+Actionable: 1
+Hammer Plays: 0
+Bets: 0
+Leans: 1
+Real Market: 15
+Model Only: 1
+```
+
+Recommendation Registry produced:
+
+```
+Recommendations: 16
+Actionable: 1
+Real Market: 15
+Model Only: 1
+```
+
+Top recommendation:
+
+```
+Washington Nationals
+
+Recommendation:
+LEAN
+
+Hammer:
+69.3
+
+Ranking:
+75.5
+
+Consensus:
+4 / 6
+```
+
+---
+
+# Current Known Limitations
+
+## 1. First 5 integration
+
+Decision output currently contains:
+
+```
+first5_score = None
+first5_choice = ""
+```
+
+The pipeline tolerates this correctly.
+
+Likely caused by a schema mismatch between:
+
+```
+first5_card.json
+```
+
+or
+
+```
+first5_market_card.json
+```
+
+and current game matching.
+
+Needs investigation.
+
+---
+
+## 2. Bullpen quality
+
+Bullpen module currently operates with limited confidence.
+
+Current records indicate placeholder-quality bullpen values.
+
+The engine currently treats bullpen as a neutral contributor.
+
+---
+
+## 3. Weather
+
+Weather currently contributes no score.
+
+Future enhancement only.
+
+---
+
+## 4. Totals recommendations
+
+Totals projections now flow through the pipeline.
+
+However, totals are still metadata rather than first-class recommendations.
+
+Future work should allow outputs such as:
+
+```
+Moneyline:
+Nationals
+
+Total:
+Under 9.5
+```
 
 ---
 
 # Engineering Principles
 
-Never overwrite history.
+Do not rewrite working modules.
 
-Every execution is immutable.
+Work one file at a time.
 
-Every recommendation belongs to exactly one ModelRun.
+Validate after every change.
 
-Recommendation Explorer should remain independent from database implementation.
+Avoid broad architectural changes.
 
-Avoid coupling model generation to persistence.
+Prefer compatibility over replacement.
 
-Always validate outputs before git commit.
+Never fabricate sportsbook information.
 
----
-
-# Important Gotchas
-
-1.
-
-Do not fabricate sportsbook data.
-
-If totals are unavailable:
-
-PASS
-
-is correct.
-
----
-
-2.
-
-Recommendation Explorer is now effectively an API.
-
-Downstream systems should consume its payload rather than rebuilding recommendation logic.
-
----
-
-3.
-
-Do not store generated JSON/CSV/history outputs in Git.
-
-Only commit source.
-
----
-
-4.
-
-Historical snapshots are expected to grow quickly.
-
-Eventually move history storage into PostgreSQL while keeping immutable semantics.
+Never overwrite historical recommendation data.
 
 ---
 
 # Current Repository State
 
-Recommendation generation:
+Decision Builder:
 
 Stable
 
-Moneylines:
+Decision Card:
 
 Stable
 
-Totals:
-
-Stable (waiting on sportsbook totals)
-
-Recommendation payload:
+Recommendation Registry:
 
 Stable
 
-Database persistence:
+Play of the Day:
 
-Next sprint
+Stable
 
 Dashboard:
 
-Future sprint
+Pending enhancement
+
+Hammer calibration:
+
+Next priority
+
+---
+
+# Recommended Next Sprint (Sprint 39)
+
+Primary objective:
+
+Improve recommendation quality rather than repairing infrastructure.
+
+Priority order:
+
+## 1. Investigate missing First 5 signals
+
+Inspect:
+
+```
+output/cards/first5_card.json
+
+output/cards/first5_market_card.json
+```
+
+Verify schema compatibility with Decision Builder matching logic.
+
+---
+
+## 2. Review Hammer Score
+
+Inspect:
+
+```
+engine/decision/hammer_score.py
+```
+
+Document:
+
+* score normalization
+* recommendation thresholds
+* agreement bonuses
+* contradiction penalties
+* unavailable-module behavior
+
+Do not modify thresholds until current score distribution has been reviewed.
+
+---
+
+## 3. Review Play of the Day logic
+
+Current rule:
+
+```
+minimum_hammer_score = 74
+```
+
+Determine whether:
+
+* threshold
+* consensus
+* edge
+* ROI
+* contradiction checks
+
+produce the desired level of selectivity.
+
+---
+
+## 4. Promote totals
+
+Elevate totals into Recommendation Registry as independent recommendations rather than metadata.
+
+---
+
+# Start Here Next Chat
+
+Begin with:
+
+```
+Review engine/decision/hammer_score.py.
+
+Identify recommendation thresholds, weighting, normalization, bonuses, penalties, and unavailable-module handling.
+
+Compare those rules against the current 16-game registry output before making any changes.
+```
+
+Do **not** rebuild the Decision Builder.
+
+That work is complete.
 
 ---
 
 # Suggested Commit
 
-feat: add totals recommendations and immutable recommendation snapshots
+```
+fix: restore MLB decision and recommendation pipeline
+```
+
+Commit summary:
+
+* Updated Decision Builder for current MLB schema
+* Restored market extraction
+* Restored totals integration
+* Restored Recommendation Registry pipeline
+* Validated 16-game MLB output
+* Verified Play of the Day behavior
+
+---
+
+# Definition of Done (Sprint 38)
+
+✓ Decision Builder repaired
+
+✓ MLB schema compatibility restored
+
+✓ Decision Card populated
+
+✓ Recommendation Registry restored
+
+✓ Play of the Day validated
+
+✓ End-to-end MLB recommendation pipeline operational
+
+Sprint 38 is complete.

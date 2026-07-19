@@ -108,25 +108,51 @@ def teams_match(
     )
 
 
+def matchup_text(game: dict) -> str:
+    matchup = game.get("matchup")
+
+    if isinstance(matchup, dict):
+        away = matchup.get("away")
+        home = matchup.get("home")
+
+        if away and home:
+            return f"{away} @ {home}"
+
+    if matchup:
+        return str(matchup)
+
+    game_text = game.get("game")
+
+    if game_text:
+        return str(game_text)
+
+    away = extract_team_name(game, "away")
+    home = extract_team_name(game, "home")
+
+    if away and home:
+        return f"{away} @ {home}"
+
+    return ""
+
+
 def game_match(
     source_game: dict,
     target_game: dict,
 ) -> bool:
-    source_pk = source_game.get("game_pk")
-    target_pk = target_game.get("game_pk")
+    source_pk = (
+        source_game.get("game_pk")
+        or source_game.get("game_id")
+    )
+    target_pk = (
+        target_game.get("game_pk")
+        or target_game.get("game_id")
+    )
 
     if source_pk and target_pk:
         return str(source_pk) == str(target_pk)
 
-    source_matchup = normalized_text(
-        source_game.get("matchup")
-        or source_game.get("game")
-    )
-
-    target_matchup = normalized_text(
-        target_game.get("matchup")
-        or target_game.get("game")
-    )
+    source_matchup = normalized_text(matchup_text(source_game))
+    target_matchup = normalized_text(matchup_text(target_game))
 
     return bool(
         source_matchup
@@ -154,6 +180,14 @@ def extract_team_blob(
     game: dict,
     side: str,
 ) -> dict:
+    teams = game.get("teams", {})
+
+    if isinstance(teams, dict):
+        value = teams.get(side)
+
+        if isinstance(value, dict):
+            return value
+
     value = game.get(side)
 
     if isinstance(value, dict):
@@ -168,42 +202,51 @@ def extract_team_name(
 ) -> str:
     blob = extract_team_blob(game, side)
 
-    return str(
-        blob.get("team")
-        or blob.get("name")
-        or game.get(f"{side}_team")
-        or ""
-    )
+    if blob:
+        name = blob.get("team") or blob.get("name")
+
+        if name:
+            return str(name)
+
+    matchup = game.get("matchup")
+
+    if isinstance(matchup, dict):
+        name = matchup.get(side)
+
+        if name:
+            return str(name)
+
+    return str(game.get(f"{side}_team") or "")
 
 
 def extract_matchup(game: dict) -> str:
-    matchup = game.get("matchup") or game.get("game")
-
-    if matchup:
-        return str(matchup)
-
-    away = extract_team_name(game, "away")
-    home = extract_team_name(game, "home")
-
-    if away and home:
-        return f"{away} @ {home}"
-
-    return "Unknown Matchup"
+    return matchup_text(game) or "Unknown Matchup"
 
 
 def extract_model_probability(
     game: dict,
     team_name: str,
 ) -> float | None:
+    model = game.get("model", {})
+
+    if not isinstance(model, dict):
+        model = {}
+
     recommended = str(
-        game.get("pick")
+        model.get("play")
+        or model.get("selection")
+        or model.get("recommended_team")
+        or game.get("pick")
         or game.get("recommended_play")
         or game.get("recommendation")
         or ""
     )
 
     model_probability = (
-        game.get("model_win_probability")
+        model.get("model_probability")
+        or model.get("model_win_probability")
+        or model.get("model_win_pct")
+        or game.get("model_win_probability")
         or game.get("model_win_pct")
         or game.get("model_probability")
     )
@@ -255,6 +298,29 @@ def extract_component_score(
     team_name: str,
     keys: list[str],
 ) -> float | None:
+    model = game.get("model", {})
+
+    if isinstance(model, dict):
+        component_scores = model.get("component_scores", {})
+
+        if isinstance(component_scores, dict):
+            selected = component_scores.get("selected", {})
+            opponent = component_scores.get("opponent", {})
+            model_choice = extract_mlb_choice(game)
+
+            selected_blob = (
+                selected
+                if teams_match(team_name, model_choice)
+                else opponent
+            )
+
+            if isinstance(selected_blob, dict):
+                for key in keys:
+                    value = safe_float(selected_blob.get(key))
+
+                    if value is not None:
+                        return clamp(value)
+
     for side in ["away", "home"]:
         blob = extract_team_blob(game, side)
         blob_team = blob.get("team") or blob.get("name")
@@ -278,8 +344,22 @@ def extract_component_score(
 
 
 def extract_mlb_choice(game: dict) -> str:
+    model = game.get("model", {})
+
+    if not isinstance(model, dict):
+        model = {}
+
+    market_edge = game.get("market_edge", {})
+
+    if not isinstance(market_edge, dict):
+        market_edge = {}
+
     explicit = (
-        game.get("pick")
+        model.get("play")
+        or model.get("selection")
+        or model.get("recommended_team")
+        or market_edge.get("selection")
+        or game.get("pick")
         or game.get("recommended_team")
         or game.get("recommended_play")
         or game.get("recommendation")
@@ -287,7 +367,6 @@ def extract_mlb_choice(game: dict) -> str:
 
     if explicit:
         explicit_text = str(explicit)
-
         away = extract_team_name(game, "away")
         home = extract_team_name(game, "home")
 
@@ -440,6 +519,62 @@ def extract_market_for_team(
         return best
 
     return {}
+
+
+def extract_mlb_market(
+    game: dict,
+    team_name: str,
+) -> dict:
+    odds = game.get("odds", {})
+    market_edge = game.get("market_edge", {})
+
+    if not isinstance(odds, dict):
+        odds = {}
+
+    if not isinstance(market_edge, dict):
+        market_edge = {}
+
+    selection = (
+        market_edge.get("selection")
+        or odds.get("selection")
+    )
+
+    if not teams_match(selection, team_name):
+        return {}
+
+    book_probability = (
+        odds.get("book_probability")
+        or odds.get("implied_probability")
+    )
+
+    return {
+        "team": team_name,
+        "recommendation": (
+            game.get("model", {}).get("recommendation", "")
+            if isinstance(game.get("model"), dict)
+            else ""
+        ),
+        "book_odds": (
+            market_edge.get("american_odds")
+            or market_edge.get("moneyline")
+            or odds.get("american_odds")
+            or odds.get("moneyline")
+        ),
+        "book_raw_implied_probability": book_probability,
+        "book_no_vig_probability": book_probability,
+        "edge_pct": (
+            market_edge.get("edge")
+            or odds.get("edge_pct")
+        ),
+        "expected_value_pct": (
+            market_edge.get("expected_roi")
+            or odds.get("expected_value_pct")
+        ),
+        "sportsbook": (
+            market_edge.get("sportsbook")
+            or odds.get("sportsbook")
+        ),
+    }
 
 
 def module_vote(
@@ -623,6 +758,12 @@ def build_decision_card() -> dict:
             selected_team,
         )
 
+        if not market:
+            market = extract_mlb_market(
+                mlb_game,
+                selected_team,
+            )
+
         votes = [
             module_vote(selected_team, mlb_choice),
             module_vote(selected_team, first5_choice),
@@ -661,7 +802,12 @@ def build_decision_card() -> dict:
             clamp(mlb_probability * 100)
             if mlb_probability is not None
             else score_from_edge(
-                mlb_game.get("edge")
+                (
+                    mlb_game.get("model", {}).get("edge")
+                    if isinstance(mlb_game.get("model"), dict)
+                    else None
+                )
+                or mlb_game.get("edge")
                 or mlb_game.get("edge_pct")
             )
         )
@@ -679,6 +825,7 @@ def build_decision_card() -> dict:
             mlb_game,
             selected_team,
             [
+                "starting_pitching",
                 "starter_score",
                 "pitcher_score",
                 "starting_pitcher_score",
@@ -689,6 +836,7 @@ def build_decision_card() -> dict:
             mlb_game,
             selected_team,
             [
+                "offense",
                 "offense_score",
                 "hitting_score",
                 "team_offense_score",
@@ -699,6 +847,7 @@ def build_decision_card() -> dict:
             mlb_game,
             selected_team,
             [
+                "bullpen",
                 "bullpen_score",
                 "relief_score",
             ],
@@ -715,6 +864,11 @@ def build_decision_card() -> dict:
 
         sample_confidence = safe_float(
             bomb.get("sample_confidence")
+            or (
+                mlb_game.get("model", {}).get("confidence")
+                if isinstance(mlb_game.get("model"), dict)
+                else None
+            )
             or mlb_game.get("confidence")
         )
 
@@ -774,7 +928,10 @@ def build_decision_card() -> dict:
 
         decisions.append(
             {
-                "game_pk": mlb_game.get("game_pk"),
+                "game_pk": (
+                    mlb_game.get("game_pk")
+                    or mlb_game.get("game_id")
+                ),
                 "matchup": matchup,
                 "away_team": away_team,
                 "home_team": home_team,
@@ -814,6 +971,55 @@ def build_decision_card() -> dict:
                 "bullpen_score": bullpen_score,
                 "park_score": park_score,
                 "weather_score": weather_score,
+                "projected_total": (
+                    mlb_game.get("totals_model", {}).get(
+                        "projected_total"
+                    )
+                    if isinstance(
+                        mlb_game.get("totals_model"),
+                        dict,
+                    )
+                    else None
+                ),
+                "market_total": (
+                    mlb_game.get("totals_model", {}).get(
+                        "market_total"
+                    )
+                    if isinstance(
+                        mlb_game.get("totals_model"),
+                        dict,
+                    )
+                    else None
+                ),
+                "total_edge": (
+                    mlb_game.get("totals_model", {}).get("edge")
+                    if isinstance(
+                        mlb_game.get("totals_model"),
+                        dict,
+                    )
+                    else None
+                ),
+                "total_direction": (
+                    mlb_game.get("totals_model", {}).get(
+                        "direction"
+                    )
+                    if isinstance(
+                        mlb_game.get("totals_model"),
+                        dict,
+                    )
+                    else None
+                ),
+                "total_recommendation": (
+                    mlb_game.get("totals_model", {}).get(
+                        "recommendation"
+                    )
+                    if isinstance(
+                        mlb_game.get("totals_model"),
+                        dict,
+                    )
+                    else None
+                ),
+                "totals_model": mlb_game.get("totals_model", {}),
                 "top_hr_targets": bomb.get(
                     "top_hitters",
                     [],
@@ -868,7 +1074,7 @@ def build_decision_card() -> dict:
     output = {
         "sport": "MLB",
         "type": "decision_engine",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "generated_at": datetime.now().isoformat(
             timespec="seconds"
         ),

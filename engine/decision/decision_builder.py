@@ -148,8 +148,8 @@ def game_match(
         or target_game.get("game_id")
     )
 
-    if source_pk and target_pk:
-        return str(source_pk) == str(target_pk)
+    if source_pk and target_pk and str(source_pk) == str(target_pk):
+        return True
 
     source_matchup = normalized_text(matchup_text(source_game))
     target_matchup = normalized_text(matchup_text(target_game))
@@ -404,9 +404,16 @@ def extract_mlb_choice(game: dict) -> str:
 
 
 def extract_first5_choice(game: dict) -> str:
+    f5_ml = game.get("f5_ml", {})
+
     choice = (
         game.get("f5_ml_pick")
         or game.get("f5_moneyline_pick")
+        or (
+            f5_ml.get("lean")
+            if isinstance(f5_ml, dict)
+            else None
+        )
         or game.get("recommended_team")
         or game.get("lean")
         or game.get("recommendation")
@@ -431,8 +438,8 @@ def first5_score_for_team(
 ) -> float | None:
     explicit_score = (
         game.get("f5_score")
-        or game.get("confidence")
         or game.get("decision_score")
+        or game.get("confidence")
     )
 
     score = safe_float(explicit_score)
@@ -758,7 +765,19 @@ def build_decision_card() -> dict:
             selected_team,
         )
 
-        if not market:
+        first5_market_loaded = bool(
+            market
+            and market.get("book_odds") is not None
+            and (
+                market.get("book_no_vig_probability") is not None
+                or market.get(
+                    "book_raw_implied_probability"
+                )
+                is not None
+            )
+        )
+
+        if not first5_market_loaded:
             market = extract_mlb_market(
                 mlb_game,
                 selected_team,
@@ -943,6 +962,16 @@ def build_decision_card() -> dict:
                 ),
                 "hammer_score": hammer["hammer_score"],
                 "base_score": hammer["base_score"],
+                "agreement_bonus": hammer["agreement_bonus"],
+                "contradiction_penalty": hammer[
+                    "contradiction_penalty"
+                ],
+                "market_status_penalty": hammer[
+                    "market_status_penalty"
+                ],
+                "real_market_loaded": hammer[
+                    "real_market_loaded"
+                ],
                 "recommendation": hammer["recommendation"],
                 "confidence": hammer["confidence"],
                 "stars": hammer["stars"],

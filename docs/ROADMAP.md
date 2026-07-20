@@ -7,7 +7,33 @@
 - Do not build presentation before stable backend contracts.
 - Do not recalibrate scores before historical evidence exists.
 - Preserve immutable recommendation and append-only market history.
+- Use structured explanation contracts instead of surface-specific reasoning.
+- Keep renderers presentation-only.
 
+## Current Position
+
+### Sprint 39 — Signal Plumbing Repair
+
+Completed:
+
+- First5 game matching repaired
+- First5 recommendation extraction repaired
+- `decision_score` prioritized
+- empty-market fallback repaired
+- Hammer diagnostics persisted
+- Hammer weights intentionally unchanged
+
+### Sprint 40 — Recommendation History Foundation
+
+Completed as the persistence and continuity foundation for recommendation history and future analytics.
+
+Historical grading, ROI, and performance analytics remain active priorities.
+
+### Sprint 41 — MLB Totals Recommendations
+
+Completed and committed:
+f289bf9 feat: add bettor-facing MLB totals recommendations
+829d0ea feat: add structured totals explanation contract and renderer
 ## Current Position
 
 SharpStack has completed the core signal-integration repair for MLB Decision Builder.

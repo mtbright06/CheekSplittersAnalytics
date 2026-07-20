@@ -372,6 +372,39 @@ It may eventually consider Hammer, recommendation tier, Bomb/First5 agreement, r
 
 Do not introduce a second unexplained composite score.
 
+## Structured Explanation Architecture
+
+Structured explanations are the reusable reasoning contract for presentation consumers.
+
+The contract may contain:
+
+- summary,
+- strengths,
+- risks,
+- market evidence,
+- contextual evidence,
+- stable explanation ID,
+- category,
+- title,
+- detail,
+- impact,
+- direction,
+- metric,
+- value,
+- unit,
+- confidence,
+- evidence score,
+- and priority.
+
+Rules:
+
+- Explanations describe existing model and recommendation output.
+- Explanations must not recalculate projections, Hammer, market edge, confidence, or recommendation thresholds.
+- Stable explanation IDs are downstream contracts and should not be renamed casually.
+- Renderers may sort, limit, and format explanation items but must not change their meaning.
+- Legacy `reasons: list[str]` may remain during migration.
+- CLI, Discord, API, dashboard, and AI consumers should use the shared explanation contract rather than create independent reasoning logic.
+
 ## 13. Reporting and Presentation
 
 Presentation layers must not own business logic.
@@ -418,16 +451,13 @@ Each sprint should have one primary goal, focused commits, validation before com
 
 Unrelated modified files must remain outside the sprint commit.
 
-Current intentionally uncommitted files:
-
-- `engine/mlb/game_builder.py`
-- `engine/odds/the_odds_api_provider.py`
-- `engine/odds/models.py`
 
 ## 17. Prohibited Patterns
 
 New chats must not:
 
+- calculate recommendation logic inside a renderer,
+- create separate explanation logic for each presentation surface,
 - import SQLAlchemy into prediction engines,
 - rewrite historical recommendations,
 - overwrite odds history,
@@ -466,6 +496,7 @@ Every new SharpStack chat should receive:
 2. `ARCHITECTURE.md`
 3. `ROADMAP.md`
 4. `CHAT_PROTOCOL.md`
+5. `DEVELOPMENT_ENVIRONMENT.md`
 
 The opening prompt should require the new chat to summarize the sprint, preserved constraints, expected files, and ambiguities before writing code.
 

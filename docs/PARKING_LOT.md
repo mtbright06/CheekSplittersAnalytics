@@ -1,5 +1,7 @@
 # SharpStack Parking Lot
 
+Completed MLB totals recommendations and the initial structured explanation framework have been removed from this document because they are now implemented.
+
 ## Purpose
 
 This document captures ideas that have been discussed but are intentionally
@@ -31,27 +33,6 @@ Status:
 Deferred until sufficient recommendation history exists.
 
 ---
-
-## Totals Market Recommendations
-
-Add full totals-market support so SharpStack can:
-
-- generate OVER / UNDER recommendations,
-- ingest and validate sportsbook total lines and prices,
-- persist recommendation-time totals immutably,
-- grade wins, losses, and pushes,
-- calculate ROI and units for totals,
-- expose totals through history and analytics query services,
-- and surface totals in the future UI.
-
-Priority:
-High.
-
-Dependency:
-Complete core recommendation history, grading, and ROI foundations first.
-
-Roadmap target:
-Promote immediately after Sprint 40.
 
 ## Signal Attribution
 
@@ -258,25 +239,6 @@ First5 missing
 
 # User Experience
 
-## Explain Recommendation
-
-Generate human-readable explanation:
-
-"Recommendation is LEAN because..."
-
-Include:
-
-Hammer
-
-agreement
-
-market edge
-
-key model components
-
-risk factors
-
----
 
 ## Recommendation Cards
 

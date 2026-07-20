@@ -102,9 +102,69 @@ Persist append-only odds observations and expose line movement, including provid
 
 Dependency: recommendation history and grading should be stable first.
 
-## Sprint 44 — Closing Line Value
+---
 
+# Sprint 44 — Dashboard Totals Explanation Integration
+
+## Objective
+
+Expose the existing structured Totals Explanation contract through the dashboard UI.
+
+The dashboard becomes the primary presentation layer for MLB Totals recommendations.
+
+No backend redesign is expected.
+
+---
+
+## Goals
+
+- Integrate structured explanations into dashboard cards.
+- Reuse existing explanation contract.
+- Preserve renderer-only presentation responsibilities.
+- Keep backend recommendation engine unchanged.
+
+---
+
+## Investigation
+
+Review:
+
+- dashboard/components/mlb/mlb_card.py
+- dashboard/card_loader.py
+- output/cards/mlb_card.json
+
+Determine how explanation payloads currently flow.
+
+---
+
+## Success Criteria
+
+Dashboard displays:
+
+- Recommendation
+- Selection
+- Projected Total
+- Market Total
+- Edge
+- Confidence
+- Compact Explanation
+
+No duplicate explanation logic exists.
+
+All existing validation continues passing.
+
+closing line value
 Measure CLV by recommendation, market, tier, model version, signal combination, and rolling period.
+---
+
+## Deferred
+
+Renderer wording polish.
+
+Discord integration.
+
+Recommendation Explorer integration.
+
 
 ## Sprint 45 — API Layer
 

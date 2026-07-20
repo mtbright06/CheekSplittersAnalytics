@@ -1,4 +1,4 @@
-from dashboard.components.decision.decision_cards import (
+from components.decision.decision_cards import (
     render_decision_card,
     render_decision_summary,
     render_decision_table,

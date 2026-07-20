@@ -3,6 +3,7 @@ import streamlit as st
 from components.badges import play_badge_class, play_grade
 from components.commentary import splitter_commentary
 from components.matchup_hero import render_matchup_hero
+from components.mlb.mlb_card import render_mlb_totals_card
 from components.pitcher_grade import (
     grade_pitcher,
     grade_icon,
@@ -157,6 +158,9 @@ def render_game(game):
     render_matchup_hero(matchup, sport=sport)
 
     render_play_summary(game)
+
+    if sport == "mlb":
+        render_mlb_totals_card(game)
 
     st.markdown(
         f"<div class='splitter-comment'>{splitter_commentary(game)}</div>",

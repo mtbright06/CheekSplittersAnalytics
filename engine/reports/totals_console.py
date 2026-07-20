@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest import result
+
+from engine.mlb.totals.explanation import TotalsExplanation
+from engine.mlb.totals.explanation_renderer import (
+    render_totals_explanation,
+)
 
 
 DIVIDER = "=" * 72
@@ -88,6 +92,36 @@ def print_totals_report(result: dict[str, Any]) -> None:
         "Data Quality",
         result["data_quality"],
     )
+
+    explanation_payload = result.get("explanation")
+    explanation = None
+
+    if isinstance(
+        explanation_payload,
+        TotalsExplanation,
+    ):
+        explanation = explanation_payload
+
+    elif isinstance(
+        explanation_payload,
+        dict,
+    ):
+        explanation = TotalsExplanation.from_dict(
+            explanation_payload
+        )
+
+    if explanation is not None:
+        print()
+        print(SECTION)
+        print("Explanation")
+        print(SECTION)
+
+        print(
+            render_totals_explanation(
+                explanation,
+                include_context=True,
+            )
+        )
 
     print()
     print(SECTION)

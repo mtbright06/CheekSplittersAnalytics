@@ -2,6 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.mlb.totals.explanation import (
+    TotalsExplanation,
+)
+from engine.mlb.totals.explanation_renderer import (
+    render_totals_explanation,
+    render_totals_explanation_compact,
+)
+
 from engine.mlb.totals.market import (
     MarketTotal,
     evaluate_market_edge,
@@ -202,10 +210,32 @@ def validate_primary_projection(
     assert result["direction"] == "OVER"
 
     assert result["recommendation"] in {
+        "PASS",
         "LEAN OVER",
         "BET OVER",
         "STRONG BET OVER",
     }
+
+    betting_recommendation = result[
+        "betting_recommendation"
+    ]
+
+    assert betting_recommendation[
+        "recommendation"
+    ] == result["recommendation"]
+
+    assert betting_recommendation[
+        "selection"
+    ] in {
+        "NONE",
+        "OVER",
+        "UNDER",
+    }
+
+    assert isinstance(
+        betting_recommendation["actionable"],
+        bool,
+    )
 
     assert park["team"] == "SEA"
     assert park["factor"] == 0.94
@@ -287,8 +317,23 @@ def validate_missing_market() -> None:
     assert result["absolute_edge"] is None
     assert result["direction"] == "NONE"
     assert result["market_status"] == "MODEL_ONLY"
-    assert result["recommendation"] == "NO MARKET LINE"
+    assert result["recommendation"] == "PASS"
 
+    betting_recommendation = result[
+        "betting_recommendation"
+    ]
+
+    assert betting_recommendation[
+        "recommendation"
+    ] == "PASS"
+
+    assert betting_recommendation[
+        "selection"
+    ] == "NONE"
+
+    assert betting_recommendation[
+        "actionable"
+    ] is False
 
 def validate_recommendation_thresholds() -> None:
     pass_result = evaluate_market_edge(
@@ -347,6 +392,47 @@ def validate_recommendation_thresholds() -> None:
 
     assert under_result.recommendation == "BET UNDER"
 
+def validate_explanation_rendering(
+    result: dict[str, Any],
+) -> None:
+    explanation_payload = result["explanation"]
+
+    assert isinstance(
+        explanation_payload,
+        dict,
+    )
+
+    explanation = TotalsExplanation.from_dict(
+        explanation_payload
+    )
+
+    full_output = render_totals_explanation(
+        explanation,
+        include_context=True,
+    )
+
+    compact_output = (
+        render_totals_explanation_compact(
+            explanation
+        )
+    )
+
+    assert explanation.summary in full_output
+
+    assert "Market" in full_output
+    assert "Strengths" in full_output
+    assert "Risks" in full_output
+    assert "Context" in full_output
+
+    assert "PASS" in full_output
+    assert "Model versus market" in full_output
+    assert "Starter-based projection" in full_output
+    assert "Bullpen adjustment" in full_output
+    assert "Projection inputs" in full_output
+
+    assert explanation.summary in compact_output
+    assert "PASS" in compact_output
+    assert "Model versus market" in compact_output
 
 def main() -> None:
     result = build_totals_projection(
@@ -358,6 +444,10 @@ def main() -> None:
     )
 
     validate_primary_projection(
+        result
+    )
+
+    validate_explanation_rendering(
         result
     )
 

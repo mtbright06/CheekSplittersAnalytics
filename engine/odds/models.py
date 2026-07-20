@@ -19,6 +19,7 @@ class MarketQuote:
     last_updated: str | None = None
     is_live: bool = False
     source: str | None = None
+    line: float | None = None
 
 
 @dataclass

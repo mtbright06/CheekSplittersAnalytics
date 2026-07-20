@@ -461,3 +461,24 @@ Recommendation subscriptions
 Historical exports
 
 CSV/PDF reporting
+
+## Recommendation semantics
+
+Separate the two bettor-facing concepts currently represented by the recommendation score:
+
+- **Model confidence:** How trustworthy is today's projection?
+- **Recommendation score:** How attractive is this wager?
+
+These should eventually become separate fields throughout the model, serialized output, reports, dashboard, and Discord presentation.
+
+## Automated hosting and delivery
+
+Host SharpStack on the Proxmox environment so the application can:
+
+- Run automatically on a daily schedule.
+- Refresh required data and market inputs.
+- Build the daily cards and recommendations.
+- Preserve logs and surface failures.
+- Eventually publish recommendations through a Discord application or bot.
+
+Future hosting design should consider containers or a lightweight virtual machine, scheduled execution, secrets management, persistent output storage, health monitoring, and retry behavior.

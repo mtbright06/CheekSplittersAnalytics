@@ -1,23 +1,44 @@
 from __future__ import annotations
 
-from engine.mlb.totals import (
-    build_totals_projection,
-)
-
-
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Any
 
-from engine.mlb.offense import fetch_team_batting_stats
-from engine.mlb.pitchers import fetch_pitcher_stats
-from engine.mlb.team_mapping import MLB_TEAM_ABBR
-from engine.model.sharpscore import build_sharpscore_decision
-from engine.odds.best_line import select_best_quote
-from engine.odds.provider_factory import get_odds_provider
+from engine.mlb.offense import (
+    fetch_team_batting_stats,
+)
+from engine.mlb.pitchers import (
+    fetch_pitcher_stats,
+)
+from engine.mlb.team_mapping import (
+    MLB_TEAM_ABBR,
+)
+from engine.mlb.totals import (
+    build_totals_projection,
+)
+from engine.model.sharpscore import (
+    build_sharpscore_decision,
+)
+from engine.odds.best_line import (
+    select_best_quote,
+)
+from engine.odds.provider_factory import (
+    get_odds_provider,
+)
 
 
 MAXIMUM_QUOTE_AGE_MINUTES = 20
+
+
+PREFERRED_TOTAL_SPORTSBOOKS = [
+    "FanDuel",
+    "DraftKings",
+    "BetMGM",
+    "Caesars",
+    "Fanatics",
+    "BetRivers",
+    "ESPN BET",
+]
 
 
 def clean(value: Any) -> str:
@@ -35,16 +56,109 @@ def get_value(
     default: Any = None,
 ) -> Any:
     if isinstance(obj, dict):
-        return obj.get(key, default)
+        return obj.get(
+            key,
+            default,
+        )
 
-    return getattr(obj, key, default)
+    return getattr(
+        obj,
+        key,
+        default,
+    )
 
 
-def pitcher_from_team(team_blob: dict) -> dict:
-    pitcher = team_blob.get("probablePitcher") or {}
+def to_float(
+    value: Any,
+) -> float | None:
+    if value is None:
+        return None
+
+    try:
+        return float(value)
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return None
+
+
+def to_int(
+    value: Any,
+) -> int | None:
+    if value is None:
+        return None
+
+    try:
+        return int(
+            round(float(value))
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return None
+
+
+def parse_timestamp(
+    value: Any,
+) -> float:
+    if not value:
+        return 0.0
+
+    try:
+        normalized = (
+            str(value)
+            .strip()
+            .replace(
+                "Z",
+                "+00:00",
+            )
+        )
+
+        return datetime.fromisoformat(
+            normalized
+        ).timestamp()
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return 0.0
+
+
+def sportsbook_priority(
+    sportsbook: Any,
+) -> int:
+    name = clean(
+        sportsbook
+    )
+
+    for index, preferred in enumerate(
+        PREFERRED_TOTAL_SPORTSBOOKS
+    ):
+        if name == clean(preferred):
+            return index
+
+    return len(
+        PREFERRED_TOTAL_SPORTSBOOKS
+    ) + 100
+
+
+def pitcher_from_team(
+    team_blob: dict,
+) -> dict:
+    pitcher = (
+        team_blob.get(
+            "probablePitcher"
+        )
+        or {}
+    )
+
     pitcher_id = pitcher.get("id")
 
-    stats = fetch_pitcher_stats(pitcher_id)
+    stats = fetch_pitcher_stats(
+        pitcher_id
+    )
 
     return {
         "id": pitcher_id,
@@ -71,19 +185,29 @@ def pitcher_from_team(team_blob: dict) -> dict:
     }
 
 
-def team_profile(team_blob: dict) -> dict:
-    team = team_blob.get("team", {})
+def team_profile(
+    team_blob: dict,
+) -> dict:
+    team = team_blob.get(
+        "team",
+        {},
+    )
+
     name = team.get("name")
     team_id = team.get("id")
 
     return {
         "id": team_id,
         "name": name,
-        "abbr": MLB_TEAM_ABBR.get(name),
+        "abbr": MLB_TEAM_ABBR.get(
+            name
+        ),
         "record": None,
         "form": None,
-        "offense": fetch_team_batting_stats(
-            team_id
+        "offense": (
+            fetch_team_batting_stats(
+                team_id
+            )
         ),
         "bullpen": {
             "era": None,
@@ -91,6 +215,23 @@ def team_profile(team_blob: dict) -> dict:
             "fip": None,
             "recent_usage": None,
         },
+    }
+
+
+def unavailable_total_dict() -> dict:
+    return {
+        "line": None,
+        "sportsbook": "Unavailable",
+        "over_odds": None,
+        "under_odds": None,
+        "provider": None,
+        "event_id": None,
+        "commence_time": None,
+        "last_updated": None,
+        "available": False,
+        "stale": True,
+        "real_market_loaded": False,
+        "quotes_compared": 0,
     }
 
 
@@ -113,6 +254,7 @@ def unavailable_quote_dict() -> dict:
         "stale": True,
         "real_market_loaded": False,
         "quotes_compared": 0,
+        "totals": unavailable_total_dict(),
     }
 
 
@@ -211,6 +353,7 @@ def quote_to_dict(
             )
             or 0
         ),
+        "totals": unavailable_total_dict(),
     }
 
 
@@ -218,10 +361,10 @@ def quote_object(
     quote: dict | None,
 ) -> SimpleNamespace | None:
     """
-    SharpScore currently expects quote attributes
-    such as quote.american_odds. The best-line engine
-    returns dictionaries, so expose the selected quote
-    through attribute access without losing metadata.
+    SharpScore expects quote attributes such as
+    quote.american_odds. The best-line engine returns
+    dictionaries, so expose the selected quote through
+    attribute access without losing metadata.
     """
 
     if not quote:
@@ -232,24 +375,84 @@ def quote_object(
     )
 
 
-def build_quote_lookup() -> dict[
-    tuple[str, str, str],
+def fetch_market_quotes() -> tuple[
+    list[Any],
     list[Any],
 ]:
+    """
+    Fetch moneylines and totals.
+
+    The preferred provider implementation retrieves both
+    markets in one API request. The fallback keeps this
+    builder compatible with providers that expose only
+    separate methods.
+    """
+
     try:
         provider = get_odds_provider(
             "the_odds_api"
         )
 
-        quotes = provider.get_moneylines(
+        combined_method = getattr(
+            provider,
+            "get_moneylines_and_totals",
+            None,
+        )
+
+        if callable(combined_method):
+            markets = combined_method(
+                "MLB"
+            )
+
+            return (
+                markets.get(
+                    "moneylines",
+                    [],
+                ),
+                markets.get(
+                    "totals",
+                    [],
+                ),
+            )
+
+        moneylines = provider.get_moneylines(
             "MLB"
         )
+
+        totals_method = getattr(
+            provider,
+            "get_totals",
+            None,
+        )
+
+        totals = (
+            totals_method("MLB")
+            if callable(totals_method)
+            else []
+        )
+
+        return (
+            moneylines,
+            totals,
+        )
+
     except Exception as ex:
         print(
             f"MLB odds unavailable: {ex}"
         )
-        return {}
 
+        return (
+            [],
+            [],
+        )
+
+
+def build_moneyline_lookup(
+    quotes: list[Any],
+) -> dict[
+    tuple[str, str, str],
+    list[Any],
+]:
     lookup: dict[
         tuple[str, str, str],
         list[Any],
@@ -283,7 +486,195 @@ def build_quote_lookup() -> dict[
         lookup.setdefault(
             key,
             [],
-        ).append(quote)
+        ).append(
+            quote
+        )
+
+    return lookup
+
+
+def build_total_lookup(
+    quotes: list[Any],
+) -> dict[
+    tuple[str, str],
+    list[dict],
+]:
+    """
+    Pair OVER and UNDER quotes by:
+
+        matchup
+        sportsbook
+        total line
+
+    This prevents combining FanDuel OVER 8.5 with
+    DraftKings UNDER 8.0.
+    """
+
+    paired: dict[
+        tuple[
+            str,
+            str,
+            str,
+            float,
+        ],
+        dict,
+    ] = {}
+
+    for quote in quotes:
+        away = clean(
+            get_value(
+                quote,
+                "away_team",
+            )
+        )
+
+        home = clean(
+            get_value(
+                quote,
+                "home_team",
+            )
+        )
+
+        sportsbook = get_value(
+            quote,
+            "sportsbook",
+        )
+
+        sportsbook_key = clean(
+            sportsbook
+        )
+
+        line = to_float(
+            get_value(
+                quote,
+                "line",
+            )
+        )
+
+        selection = clean(
+            get_value(
+                quote,
+                "selection",
+            )
+        ).upper()
+
+        if (
+            not away
+            or not home
+            or not sportsbook_key
+            or line is None
+            or selection
+            not in {
+                "OVER",
+                "UNDER",
+            }
+        ):
+            continue
+
+        pair_key = (
+            away,
+            home,
+            sportsbook_key,
+            line,
+        )
+
+        candidate = paired.setdefault(
+            pair_key,
+            {
+                "line": line,
+                "sportsbook": sportsbook,
+                "over_odds": None,
+                "under_odds": None,
+                "provider": get_value(
+                    quote,
+                    "provider",
+                ),
+                "event_id": get_value(
+                    quote,
+                    "event_id",
+                ),
+                "commence_time": get_value(
+                    quote,
+                    "commence_time",
+                ),
+                "last_updated": get_value(
+                    quote,
+                    "last_updated",
+                ),
+                "available": True,
+                "stale": False,
+                "real_market_loaded": True,
+                "quotes_compared": 0,
+            },
+        )
+
+        odds = to_int(
+            get_value(
+                quote,
+                "american_odds",
+            )
+        )
+
+        if selection == "OVER":
+            candidate[
+                "over_odds"
+            ] = odds
+        else:
+            candidate[
+                "under_odds"
+            ] = odds
+
+        quote_updated = get_value(
+            quote,
+            "last_updated",
+        )
+
+        if (
+            parse_timestamp(
+                quote_updated
+            )
+            > parse_timestamp(
+                candidate.get(
+                    "last_updated"
+                )
+            )
+        ):
+            candidate[
+                "last_updated"
+            ] = quote_updated
+
+    lookup: dict[
+        tuple[str, str],
+        list[dict],
+    ] = {}
+
+    for (
+        away,
+        home,
+        _sportsbook,
+        _line,
+    ), candidate in paired.items():
+        matchup_key = (
+            away,
+            home,
+        )
+
+        lookup.setdefault(
+            matchup_key,
+            [],
+        ).append(
+            candidate
+        )
+
+    for candidates in lookup.values():
+        quote_count = len(
+            candidates
+        )
+
+        for candidate in candidates:
+            candidate[
+                "quotes_compared"
+            ] = quote_count
 
     return lookup
 
@@ -324,16 +715,146 @@ def quote_for_team(
     )
 
 
+def total_for_game(
+    total_lookup: dict[
+        tuple[str, str],
+        list[dict],
+    ],
+    away: str,
+    home: str,
+) -> dict:
+    key = (
+        clean(away),
+        clean(home),
+    )
+
+    candidates = total_lookup.get(
+        key,
+        [],
+    )
+
+    if not candidates:
+        return unavailable_total_dict()
+
+    complete_pairs = [
+        candidate
+        for candidate in candidates
+        if (
+            candidate.get(
+                "line"
+            )
+            is not None
+            and candidate.get(
+                "over_odds"
+            )
+            is not None
+            and candidate.get(
+                "under_odds"
+            )
+            is not None
+        )
+    ]
+
+    usable = (
+        complete_pairs
+        or candidates
+    )
+
+    usable.sort(
+        key=lambda candidate: (
+            sportsbook_priority(
+                candidate.get(
+                    "sportsbook"
+                )
+            ),
+            -parse_timestamp(
+                candidate.get(
+                    "last_updated"
+                )
+            ),
+            abs(
+                float(
+                    candidate.get(
+                        "line",
+                        0,
+                    )
+                )
+            ),
+        )
+    )
+
+    selected = dict(
+        usable[0]
+    )
+
+    selected[
+        "available"
+    ] = (
+        selected.get("line")
+        is not None
+    )
+
+    selected[
+        "real_market_loaded"
+    ] = bool(
+        selected.get(
+            "available"
+        )
+    )
+
+    return selected
+
+
 def build_mlb_card(
     raw_games: list[dict],
 ) -> dict:
-    quote_lookup = build_quote_lookup()
+    (
+        moneyline_quotes,
+        total_quotes,
+    ) = fetch_market_quotes()
+
+    moneyline_lookup = (
+        build_moneyline_lookup(
+            moneyline_quotes
+        )
+    )
+
+    total_lookup = build_total_lookup(
+        total_quotes
+    )
+
+    print(
+        "MLB moneyline quotes loaded:",
+        len(moneyline_quotes),
+    )
+
+    print(
+        "MLB total quotes loaded:",
+        len(total_quotes),
+    )
+
+    print(
+        "MLB total matchups loaded:",
+        len(total_lookup),
+    )
+
     games: list[dict] = []
 
     for raw in raw_games:
-        teams = raw.get("teams", {})
-        away_blob = teams.get("away", {})
-        home_blob = teams.get("home", {})
+        teams = raw.get(
+            "teams",
+            {},
+        )
+
+        away_blob = teams.get(
+            "away",
+            {},
+        )
+
+        home_blob = teams.get(
+            "home",
+            {},
+        )
 
         away_profile = team_profile(
             away_blob
@@ -343,8 +864,13 @@ def build_mlb_card(
             home_blob
         )
 
-        away = away_profile.get("name")
-        home = home_profile.get("name")
+        away = away_profile.get(
+            "name"
+        )
+
+        home = home_profile.get(
+            "name"
+        )
 
         if not away or not home:
             continue
@@ -358,32 +884,46 @@ def build_mlb_card(
         )
 
         away_quote = quote_for_team(
-            quote_lookup,
+            moneyline_lookup,
             away,
             home,
             away,
         )
 
         home_quote = quote_for_team(
-            quote_lookup,
+            moneyline_lookup,
             away,
             home,
             home,
         )
 
-        decision = build_sharpscore_decision(
-            away,
-            home,
-            away_profile,
-            home_profile,
-            away_pitcher,
-            home_pitcher,
-            away_quote,
-            home_quote,
+        decision = (
+            build_sharpscore_decision(
+                away,
+                home,
+                away_profile,
+                home_profile,
+                away_pitcher,
+                home_pitcher,
+                away_quote,
+                home_quote,
+            )
         )
 
         selected_quote = decision.get(
             "quote"
+        )
+
+        odds = quote_to_dict(
+            selected_quote
+        )
+
+        odds[
+            "totals"
+        ] = total_for_game(
+            total_lookup,
+            away,
+            home,
         )
 
         game = {
@@ -416,28 +956,32 @@ def build_mlb_card(
                 "away": away_pitcher,
                 "home": home_pitcher,
             },
-            "model": decision["model"],
-            "odds": quote_to_dict(
-                selected_quote
-            ),
+            "model": decision[
+                "model"
+            ],
+            "odds": odds,
             "market_edge": decision[
                 "market_edge"
             ],
         }
 
-        game["totals_model"] = (
-            build_totals_projection(
-                game
-            )
+        game[
+            "totals_model"
+        ] = build_totals_projection(
+            game
         )
 
-        games.append(game)
+        games.append(
+            game
+        )
 
     return {
         "sport": "MLB",
-        "version": "0.8 Alpha",
-        "generated_at": datetime.now().isoformat(
-            timespec="seconds"
+        "version": "0.9 Alpha",
+        "generated_at": (
+            datetime.now().isoformat(
+                timespec="seconds"
+            )
         ),
         "games": games,
     }

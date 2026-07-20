@@ -30,6 +30,10 @@ from engine.mlb.totals.park_factors import (
     get_park_factor,
 )
 
+from engine.mlb.totals.recommendation import (
+    TotalsRecommendation,
+    build_totals_recommendation,
+)
 
 @dataclass
 class TotalsProjection:
@@ -43,6 +47,7 @@ class TotalsProjection:
     park: ParkFactorResult
     market: MarketTotal
     market_edge: MarketEdge
+    recommendation: TotalsRecommendation
 
     starter_based_total: float
     bullpen_adjustment: float
@@ -111,14 +116,37 @@ class TotalsProjection:
             "market_status": (
                 self.market_edge.status
             ),
-            "recommendation": (
-                self.market_edge.recommendation
+
+            "selection": (
+                self.recommendation.selection
             ),
+            "recommendation": (
+                self.recommendation.recommendation
+            ),
+            "recommendation_score": (
+                round(
+                    self.recommendation.recommendation_score,
+                    1,
+                )
+            ),
+            "betting_confidence": (
+                self.recommendation.confidence
+            ),
+            "stars": self.recommendation.stars,
+            "actionable": (
+                self.recommendation.actionable
+            ),
+
             "park": self.park.to_dict(),
             "market": self.market.to_dict(),
             "market_edge": (
                 self.market_edge.to_dict()
             ),
+
+            "betting_recommendation": (
+                self.recommendation.to_dict()
+            ),
+
             "away_projection": (
                 self.away.to_dict()
             ),
@@ -332,6 +360,29 @@ def build_totals_projection(
         data_points
     )
 
+    market_payload = (
+        game.get("odds", {}).get(
+            "totals",
+            {},
+        )
+        if isinstance(
+            game.get("odds"),
+            dict,
+        )
+        else {}
+    )
+
+    recommendation = build_totals_recommendation(
+        direction=market_edge.direction,
+        absolute_edge=market_edge.absolute_edge,
+        model_confidence=confidence,
+        data_quality=quality,
+        bullpen_confidence=(
+            bullpen_adjustment.confidence
+        ),
+        market_payload=market_payload,
+    )
+
     reasons = build_projection_reasons(
         away_projection=away_projection,
         home_projection=home_projection,
@@ -353,6 +404,7 @@ def build_totals_projection(
         park=park,
         market=market,
         market_edge=market_edge,
+        recommendation=recommendation,
         starter_based_total=starter_based_total,
         bullpen_adjustment=(
             bullpen_adjustment.combined_adjustment

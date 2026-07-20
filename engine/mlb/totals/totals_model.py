@@ -34,6 +34,10 @@ from engine.mlb.totals.recommendation import (
     TotalsRecommendation,
     build_totals_recommendation,
 )
+from engine.mlb.totals.explanation import (
+    TotalsExplanation,
+    build_totals_explanation,
+)
 
 @dataclass
 class TotalsProjection:
@@ -48,6 +52,7 @@ class TotalsProjection:
     market: MarketTotal
     market_edge: MarketEdge
     recommendation: TotalsRecommendation
+    explanation: TotalsExplanation
 
     starter_based_total: float
     bullpen_adjustment: float
@@ -145,6 +150,9 @@ class TotalsProjection:
 
             "betting_recommendation": (
                 self.recommendation.to_dict()
+            ),
+            "explanation": (
+                self.explanation.to_dict()
             ),
 
             "away_projection": (
@@ -395,6 +403,19 @@ def build_totals_projection(
         data_points=data_points,
     )
 
+    explanation = build_totals_explanation(
+        away_projection=away_projection,
+        home_projection=home_projection,
+        starter_based_total=starter_based_total,
+        bullpen_adjustment=bullpen_adjustment,
+        projected_total=projected_total,
+        park=park,
+        market=market,
+        market_edge=market_edge,
+        recommendation=recommendation,
+        data_points=data_points,
+    )
+
     result = TotalsProjection(
         away=away_projection,
         home=home_projection,
@@ -405,6 +426,7 @@ def build_totals_projection(
         market=market,
         market_edge=market_edge,
         recommendation=recommendation,
+        explanation=explanation,
         starter_based_total=starter_based_total,
         bullpen_adjustment=(
             bullpen_adjustment.combined_adjustment

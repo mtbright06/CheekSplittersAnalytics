@@ -103,7 +103,16 @@ def render_play_of_day(
     )
 
     st.markdown(
-        "## 🔥 Play of the Day"
+        (
+            '<div style="'
+            'font-size:1.55rem;'
+            'font-weight:850;'
+            'margin:0.35rem 0 0.75rem 0;'
+            '">'
+            '🔥 Play of the Day'
+            '</div>'
+        ),
+        unsafe_allow_html=True,
     )
 
     if not recommendation:

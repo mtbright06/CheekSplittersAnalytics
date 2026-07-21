@@ -207,6 +207,27 @@ def render_registry_card(
         sport,
     )
 
+    reasons = item.get(
+        "reasons",
+        [],
+    )
+
+    visible_reasons = [
+        esc(reason)
+        for reason in reasons[:3]
+        if reason
+    ]
+
+    if visible_reasons:
+        reasons_html = "".join(
+            f"<li>{reason}</li>"
+            for reason in visible_reasons
+        )
+    else:
+        reasons_html = (
+            "<li>No supporting reasons available.</li>"
+        )
+
     html_block = f"""
     <div class="decision-card decision-{recommendation_class}">
         <div class="decision-top-row">
@@ -291,6 +312,33 @@ def render_registry_card(
                     {number(item.get("units"))}
                 </strong>
             </div>
+        </div>
+
+        <div style="
+            margin-top:0.85rem;
+            padding-top:0.75rem;
+            border-top:1px solid rgba(255,255,255,0.08);
+        ">
+            <div style="
+                margin-bottom:0.35rem;
+                font-size:0.72rem;
+                font-weight:800;
+                letter-spacing:0.10em;
+                text-transform:uppercase;
+                opacity:0.68;
+            ">
+                Why SharpStack Likes It
+            </div>
+
+            <ul style="
+                margin:0;
+                padding-left:1.1rem;
+                line-height:1.42;
+                font-size:0.88rem;
+                opacity:0.86;
+            ">
+                {reasons_html}
+            </ul>
         </div>
     </div>
     """

@@ -83,31 +83,114 @@ def side_text(side):
 
 
 def render_bomb_lab_header(summary):
-    pitchers = summary.get("pitchers_loaded", 0)
-    elite = summary.get("elite", 0)
-    strong = summary.get("strong", 0)
-    watch = summary.get("watch", 0)
+    pitchers = summary.get(
+        "pitchers_loaded",
+        0,
+    )
+    elite = summary.get(
+        "elite",
+        0,
+    )
+    strong = summary.get(
+        "strong",
+        0,
+    )
+    watch = summary.get(
+        "watch",
+        0,
+    )
 
-    html = f"""
-<div class="bomb-v2-hero">
-  <div>
-    <div class="bomb-v2-kicker">BOMB LAB V2</div>
-    <div class="bomb-v2-title">Today's Home Run Decision Board</div>
-    <div class="bomb-v2-copy">
-      Start here. Bomb Lab ranks the offenses to attack, the pitcher creating the opportunity,
-      the preferred hitter side, and the supporting evidence.
-    </div>
-  </div>
-  <div class="bomb-v2-summary">
-    <div><span>Pitchers</span><strong>{pitchers}</strong></div>
-    <div><span>Elite</span><strong>{elite}</strong></div>
-    <div><span>Strong</span><strong>{strong}</strong></div>
-    <div><span>Watch</span><strong>{watch}</strong></div>
-  </div>
-</div>
-"""
-    st.markdown(html, unsafe_allow_html=True)
+    html = (
+        '<div style="'
+        'display:grid;'
+        'grid-template-columns:minmax(0,2.2fr) minmax(360px,1fr);'
+        'gap:1rem;'
+        'align-items:center;'
+        'padding:1rem 1.15rem;'
+        'margin:0.35rem 0 0.75rem 0;'
+        'border:1px solid rgba(255,255,255,0.14);'
+        'border-radius:1.15rem;'
+        'background:linear-gradient('
+        '110deg,'
+        'rgba(18,31,50,0.92),'
+        'rgba(34,31,29,0.78)'
+        ');'
+        '">'
+        '<div>'
+        '<div style="'
+        'font-size:0.73rem;'
+        'font-weight:900;'
+        'letter-spacing:0.13em;'
+        'color:#ffd166;'
+        '">'
+        'BOMB LAB V2'
+        '</div>'
+        '<div style="'
+        'font-size:1.7rem;'
+        'font-weight:900;'
+        'line-height:1.12;'
+        'margin-top:0.2rem;'
+        '">'
+        "Today's Home Run Decision Board"
+        '</div>'
+        '<div style="'
+        'font-size:0.86rem;'
+        'line-height:1.4;'
+        'opacity:0.72;'
+        'margin-top:0.3rem;'
+        '">'
+        'Ranked offenses, pitcher vulnerabilities, '
+        'preferred hitter sides, and top HR targets.'
+        '</div>'
+        '</div>'
+        '<div style="'
+        'display:grid;'
+        'grid-template-columns:repeat(4,minmax(0,1fr));'
+        'gap:0.55rem;'
+        '">'
+        f'{_bomb_stat("Pitchers", pitchers)}'
+        f'{_bomb_stat("Elite", elite)}'
+        f'{_bomb_stat("Strong", strong)}'
+        f'{_bomb_stat("Watch", watch)}'
+        '</div>'
+        '</div>'
+    )
 
+    st.markdown(
+        html,
+        unsafe_allow_html=True,
+    )
+
+
+def _bomb_stat(
+    label,
+    value,
+):
+    return (
+        '<div style="'
+        'padding:0.65rem 0.7rem;'
+        'border:1px solid rgba(255,255,255,0.11);'
+        'border-radius:0.8rem;'
+        'background:rgba(255,255,255,0.035);'
+        '">'
+        '<div style="'
+        'font-size:0.64rem;'
+        'font-weight:850;'
+        'letter-spacing:0.09em;'
+        'text-transform:uppercase;'
+        'opacity:0.62;'
+        '">'
+        f'{label}'
+        '</div>'
+        '<div style="'
+        'font-size:1.45rem;'
+        'font-weight:900;'
+        'margin-top:0.15rem;'
+        '">'
+        f'{value}'
+        '</div>'
+        '</div>'
+    )
 
 def render_decision_board(pitchers):
     st.markdown("### 🎯 Offenses to Target")

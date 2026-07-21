@@ -1,5 +1,5 @@
 import streamlit as st
-
+from components.explorer import render_recommendation_explorer
 from components.badges import play_badge_class, play_grade
 from components.commentary import splitter_commentary
 from components.matchup_hero import render_matchup_hero
@@ -12,6 +12,7 @@ from components.pitcher_grade import (
 )
 from components.play_summary import render_play_summary
 from components.progress import render_score_bar
+from models import game
 
 
 def stat(value):
@@ -104,13 +105,13 @@ def render_pitcher_card(title, pitcher):
 
     st.markdown(pitcher_html, unsafe_allow_html=True)
 
-    cols = st.columns(4)
+    cols = st.columns(4, gap="small")
     cols[0].metric("IP", stat(pitcher.get("ip")))
     cols[1].metric("SO", stat(pitcher.get("so")))
     cols[2].metric("BB", stat(pitcher.get("bb")))
     cols[3].metric("HR", stat(pitcher.get("hr_allowed")))
 
-    cols = st.columns(3)
+    cols = st.columns(3, gap="small")
     cols[0].metric("K/9", stat(pitcher.get("k_rate")))
     cols[1].metric("BB/9", stat(pitcher.get("bb_rate")))
     cols[2].metric("HR/9", stat(pitcher.get("hr9")))
@@ -157,15 +158,26 @@ def render_game(game):
 
     render_matchup_hero(matchup, sport=sport)
 
-    render_play_summary(game)
-
     if sport == "mlb":
-        render_mlb_totals_card(game)
+        summary_col, totals_col = st.columns(
+            [1, 1],
+            gap="medium",
+        )
 
-    st.markdown(
-        f"<div class='splitter-comment'>{splitter_commentary(game)}</div>",
-        unsafe_allow_html=True,
-    )
+        with summary_col:
+            render_play_summary(game)
+
+        with totals_col:
+            render_mlb_totals_card(game)
+
+        render_recommendation_explorer(game)
+    else:
+        render_play_summary(game)
+
+        st.markdown(
+            f"<div class='splitter-comment'>{splitter_commentary(game)}</div>",
+            unsafe_allow_html=True,
+        )
 
     st.markdown("---")
 

@@ -13,7 +13,61 @@ into the roadmap.
 Nothing in this document is considered committed work.
 
 ---
+# Upcoming Promotions
 
+These ideas are expected to graduate into the roadmap soon.
+
+---
+
+## Recommendation Explorer
+
+Unified game dashboard exposing every SharpStack model from a single screen.
+
+Planned capabilities
+
+- Moneyline
+- Totals
+- Hammer
+- Bomb Lab
+- First 5
+- Market comparison
+- Structured explanations
+- Historical performance
+
+---
+
+## API Platform
+
+REST API exposing:
+
+- Recommendation history
+- Today's slate
+- Model runs
+- ROI
+- CLV
+- Health reports
+
+Consumes shared DTOs.
+
+---
+
+## Multi-Sport Foundation
+
+Before expanding into additional sports, complete the shared contracts for:
+
+- Recommendation
+- Odds history
+- Grading
+- Analytics
+- Dashboard consumers
+
+Initial expansion order
+
+1. KBO
+2. Soccer
+3. WNBA
+4. NFL
+5. NBA
 # Model Intelligence
 
 ## Automatic Hammer Calibration

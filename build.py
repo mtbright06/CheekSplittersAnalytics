@@ -20,16 +20,31 @@ STEPS = [
         False,
     ),
     ("Build Bomb Lab", [sys.executable, "tools_build_bomb_lab.py"], True),
+
     (
         "Track Recommendations",
         [sys.executable, "tools_track_recommendations.py"],
         False,
     ),
+
+    (
+        "Build Decision Engine",
+        [sys.executable, "tools_build_decision_card.py"],
+        False,
+    ),
+
+    (
+        "Build Recommendation Registry",
+        [sys.executable, "tools_build_recommendation_registry.py"],
+        False,
+    ),
+
     (
         "Build Recommendation Explorer",
         [sys.executable, "tools_build_recommendation_explorer.py"],
         False,
     ),
+
     (
         "Build Discord Report",
         [sys.executable, "tools_build_discord_report.py"],

@@ -1865,5 +1865,467 @@ div.stButton > button:hover {
     }
 }
 
+/* =========================================================
+   SPRINT 45 — COMPACT MLB GAME LAYOUT
+   ========================================================= */
+
+[data-testid="stMainBlockContainer"] {
+    max-width: 1500px;
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+}
+
+[data-testid="stHorizontalBlock"] {
+    align-items: flex-start;
+}
+
+.stMetric {
+    padding: 8px 10px;
+    border-radius: 12px;
+}
+
+.stMetric [data-testid="stMetricLabel"] {
+    font-size: 0.72rem;
+}
+
+.stMetric [data-testid="stMetricValue"] {
+    font-size: 1.35rem;
+    line-height: 1.1;
+}
+
+.play-hero {
+    margin: 8px 0;
+    padding: 14px;
+    min-height: 0;
+    align-items: flex-start;
+}
+
+.play-title {
+    font-size: 26px;
+}
+
+.play-hero-metrics {
+    gap: 8px;
+}
+
+.play-hero-metrics div {
+    min-width: 84px;
+    padding: 8px 10px;
+}
+
+.play-hero-metrics strong {
+    font-size: 20px;
+}
+
+.play-hero-footer {
+    margin-bottom: 4px;
+}
+
+.value-meter {
+    margin: 8px 0;
+    padding: 10px 12px;
+}
+
+.value-title {
+    margin-bottom: 8px;
+}
+
+.value-row {
+    margin-bottom: 7px;
+}
+
+.value-edge {
+    margin-top: 8px;
+    padding-top: 8px;
+}
+
+.value-edge strong {
+    font-size: 22px;
+}
+
+.progress-wrap {
+    margin: 8px 0;
+    padding: 8px 10px;
+}
+
+.matchup-hero {
+    margin: 10px 0;
+    padding: 12px;
+}
+
+.matchup-team-block {
+    padding: 12px;
+}
+
+.matchup-logo-wrap .team-logo,
+.matchup-logo-wrap .team-logo-placeholder {
+    width: 58px;
+    height: 58px;
+    min-width: 58px;
+    min-height: 58px;
+}
+
+.matchup-team-name {
+    font-size: 24px;
+}
+
+.pitcher-box {
+    padding: 12px;
+}
+
+.reason {
+    padding: 6px 9px;
+    margin-bottom: 5px;
+    font-size: 0.84rem;
+}
+
+.splitter-comment {
+    margin: 8px 0 2px;
+    padding: 9px 12px;
+}
+
+hr {
+    margin: 0.9rem 0;
+}
+
+@media (max-width: 1100px) {
+    [data-testid="stMainBlockContainer"] {
+        max-width: 100%;
+    }
+
+    .play-hero {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .play-hero-metrics {
+        justify-content: flex-start;
+    }
+}
+
+/* =========================================================
+   SPRINT 45 — MATCHUP AND PITCHER POLISH
+   ========================================================= */
+
+.matchup-hero {
+    margin: 8px 0 12px 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+}
+
+.matchup-team-block {
+    min-height: 74px;
+    padding: 10px 14px;
+    gap: 12px;
+    border-radius: 15px;
+}
+
+.matchup-logo-wrap .team-logo,
+.matchup-logo-wrap .team-logo-placeholder {
+    width: 50px;
+    height: 50px;
+    min-width: 50px;
+    min-height: 50px;
+}
+
+.matchup-side-label {
+    font-size: 10px;
+}
+
+.matchup-team-name {
+    font-size: 21px;
+    line-height: 1.05;
+}
+
+.matchup-vs {
+    min-height: 74px;
+    font-size: 20px;
+}
+
+.pitcher-box {
+    padding: 10px 12px;
+    margin-bottom: 6px;
+}
+
+.pitcher-name {
+    font-size: 20px;
+    line-height: 1.05;
+}
+
+.pitcher-tags {
+    margin-top: 6px;
+}
+
+.mini-tag {
+    padding: 4px 7px;
+    font-size: 0.72rem;
+}
+
+.pitcher-grade {
+    padding: 4px 8px;
+    font-size: 0.74rem;
+}
+
+[data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] {
+    margin-bottom: 0.2rem;
+}
+
+/* =========================================================
+   SPRINT 45 — SHARPSTACK BLUE THEME
+   Blue = interface
+   Green = positive
+   Red = negative
+   Amber = caution
+   ========================================================= */
+
+:root {
+    --ss-blue: #2f80ed;
+    --ss-blue-bright: #60a5fa;
+    --ss-blue-soft: rgba(47, 128, 237, 0.14);
+
+    --ss-bg: #08111f;
+    --ss-surface: #101b2b;
+    --ss-surface-raised: #152235;
+
+    --ss-border: #2a3a50;
+    --ss-border-soft: rgba(116, 143, 177, 0.20);
+
+    --ss-text: #f2f6fb;
+    --ss-text-muted: #9aacbf;
+
+    --ss-positive: #55d98b;
+    --ss-negative: #f06b73;
+    --ss-warning: #f2b84b;
+}
+
+/* Application background */
+
+.stApp {
+    background:
+        radial-gradient(
+            circle at top left,
+            rgba(47, 128, 237, 0.08),
+            transparent 34%
+        ),
+        linear-gradient(
+            180deg,
+            #07101c 0%,
+            var(--ss-bg) 100%
+        );
+}
+
+/* Confirmed SharpStack card classes */
+
+.matchup-team-block,
+.play-hero,
+.pitcher-box,
+.decision-card {
+    background:
+        linear-gradient(
+            145deg,
+            rgba(21, 34, 53, 0.98),
+            rgba(10, 20, 34, 0.98)
+        );
+    border-color: var(--ss-border);
+    box-shadow:
+        0 8px 22px rgba(0, 0, 0, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+/* Matchup */
+
+.matchup-side-label {
+    color: var(--ss-blue-bright);
+}
+
+.matchup-team-name,
+.pitcher-name,
+.decision-team {
+    color: var(--ss-text);
+}
+
+.matchup-vs,
+.decision-matchup {
+    color: var(--ss-text-muted);
+}
+
+/* Neutral pitcher tags */
+
+.mini-tag {
+    background: var(--ss-blue-soft);
+    border-color: rgba(96, 165, 250, 0.30);
+    color: #c9ddfb;
+}
+
+/* SharpStack Intelligence */
+
+details[data-testid="stExpander"] {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(18, 36, 61, 0.98),
+            rgba(10, 21, 36, 0.98)
+        );
+    border: 1px solid rgba(47, 128, 237, 0.55);
+    border-radius: 12px;
+}
+
+details[data-testid="stExpander"]:hover {
+    border-color: var(--ss-blue-bright);
+    box-shadow: 0 0 14px rgba(47, 128, 237, 0.14);
+}
+
+details[data-testid="stExpander"] summary {
+    color: var(--ss-blue-bright);
+    font-weight: 750;
+}
+
+/* Tabs */
+
+button[data-baseweb="tab"] {
+    color: var(--ss-text-muted);
+}
+
+button[data-baseweb="tab"]:hover {
+    color: var(--ss-blue-bright);
+}
+
+button[data-baseweb="tab"][aria-selected="true"] {
+    color: var(--ss-text);
+    background: var(--ss-blue-soft);
+}
+
+[data-baseweb="tab-highlight"] {
+    background-color: var(--ss-blue);
+}
+
+/* Confidence bars */
+
+[data-testid="stProgress"] > div > div > div {
+    background:
+        linear-gradient(
+            90deg,
+            var(--ss-blue),
+            var(--ss-blue-bright)
+        );
+}
+
+/* Standard Streamlit buttons */
+
+.stButton > button {
+    background:
+        linear-gradient(
+            180deg,
+            #2f80ed,
+            #2564ba
+        );
+    border: 1px solid rgba(96, 165, 250, 0.55);
+    color: #ffffff;
+}
+
+.stButton > button:hover {
+    background:
+        linear-gradient(
+            180deg,
+            #4693f2,
+            #2f73d2
+        );
+    border-color: var(--ss-blue-bright);
+    color: #ffffff;
+}
+
+/* Decision cards */
+
+.decision-kicker {
+    color: var(--ss-blue-bright);
+}
+
+.decision-score span,
+.decision-metrics span,
+.decision-subtitle {
+    color: var(--ss-text-muted);
+}
+
+/* Semantic colors remain meaningful */
+
+.decision-bet,
+.recommendation-bet,
+.positive,
+.edge-positive {
+    color: var(--ss-positive);
+}
+
+.decision-lean,
+.recommendation-lean,
+.warning {
+    color: var(--ss-warning);
+}
+
+.negative,
+.edge-negative {
+    color: var(--ss-negative);
+}
+
+/* Decision and registry team logos */
+
+.decision-logo {
+    width: 62px;
+    min-width: 62px;
+    height: 62px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(116, 143, 177, 0.20);
+}
+
+.decision-logo .team-logo,
+.decision-logo .team-logo-placeholder {
+    width: 50px;
+    height: 50px;
+    max-width: 50px;
+    max-height: 50px;
+    object-fit: contain;
+}
+
+.decision-top-row {
+    align-items: center;
+}
+
+/* Decision and registry logos use the existing rank column. */
+
+.decision-rank.decision-team-logo {
+    width: 54px;
+    height: 54px;
+    padding: 5px;
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(116, 143, 177, 0.22);
+    box-shadow: none;
+}
+
+.decision-rank.decision-team-logo .team-logo,
+.decision-rank.decision-team-logo .team-logo-placeholder {
+    width: 44px;
+    height: 44px;
+    max-width: 44px;
+    max-height: 44px;
+    object-fit: contain;
+}
+
+/* -------------------------------------------------
+   Play of the Day has only TWO columns.
+-------------------------------------------------- */
+
+.play-day-top-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 170px;
+    gap: 18px;
+    align-items: center;
+}
+
 </style>
 """

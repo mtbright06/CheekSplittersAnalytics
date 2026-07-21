@@ -24,13 +24,20 @@ def render_matchup_hero(matchup, sport="kbo"):
     away = matchup["away"]
     home = matchup["home"]
 
-    left, middle, right = st.columns([5, 1, 5])
+    with st.container():
+        left, middle, right = st.columns(
+            [5, 0.6, 5],
+            gap="small",
+        )
 
-    with left:
-        render_team_block(away, "Away", sport)
+        with left:
+            render_team_block(away, "Away", sport)
 
-    with middle:
-        st.markdown("<div class='matchup-vs'>@</div>", unsafe_allow_html=True)
+        with middle:
+            st.markdown(
+                "<div class='matchup-vs'>@</div>",
+                unsafe_allow_html=True,
+            )
 
-    with right:
-        render_team_block(home, "Home", sport)
+        with right:
+            render_team_block(home, "Home", sport)

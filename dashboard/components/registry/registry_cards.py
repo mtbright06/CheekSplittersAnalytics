@@ -1,11 +1,17 @@
 from __future__ import annotations
-
 import html
 from typing import Any
-
+from components.logos import team_logo_html
 import pandas as pd
 import streamlit as st
 
+
+def compact_html(value):
+    return "\n".join(
+        line.strip()
+        for line in value.splitlines()
+        if line.strip()
+    )
 
 def safe(
     value: Any,
@@ -188,13 +194,25 @@ def render_registry_card(
         else "MODEL ONLY"
     )
 
+    team_name = item.get("selection")
+
+    sport = str(
+        item.get("league")
+        or item.get("sport")
+        or "mlb"
+    ).strip().lower()
+
+    logo_html = team_logo_html(
+        team_name,
+        sport,
+    )
+
     html_block = f"""
     <div class="decision-card decision-{recommendation_class}">
         <div class="decision-top-row">
-            <div class="decision-rank">
-                {rank}
+           <div class="decision-rank decision-team-logo">
+                {logo_html}
             </div>
-
             <div class="decision-main">
                 <div class="decision-kicker">
                     {esc(recommendation)}
@@ -278,7 +296,7 @@ def render_registry_card(
     """
 
     st.markdown(
-        html_block,
+        compact_html(html_block),
         unsafe_allow_html=True,
     )
 

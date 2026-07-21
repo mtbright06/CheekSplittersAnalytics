@@ -10,6 +10,136 @@
 - Use structured explanation contracts instead of surface-specific reasoning.
 - Keep renderers presentation-only.
 
+# Strategic Feature Tracks
+
+These tracks span multiple sprints.
+
+A sprint may advance one or more tracks, but unfinished work remains associated
+with its feature track until completed.
+
+This prevents long-term initiatives from disappearing as sprint priorities
+change.
+
+---
+
+## Track 1 — MLB Recommendation Engine
+Status: Active
+
+Completed
+
+- Recommendation framework
+- Hammer integration
+- Totals recommendations
+- Structured explanations
+- Dashboard totals integration
+
+Remaining
+
+- Recommendation Explorer
+- Recommendation replay
+- Model comparison
+- Recommendation semantics split
+
+---
+
+## Track 2 — Historical Analytics
+Status: Active
+
+Completed
+
+- Recommendation history foundation
+
+Remaining
+
+- Historical grading
+- ROI
+- Rolling performance
+- Signal attribution
+- Recommendation confidence studies
+
+---
+
+## Track 3 — Market Intelligence
+Status: Planned
+
+Remaining
+
+- Odds history
+- Line movement
+- Closing Line Value
+- Sportsbook comparisons
+- Steam movement
+- Market efficiency analytics
+
+---
+
+## Track 4 — Platform Services
+Status: Planned
+
+Remaining
+
+- Query services
+- API layer
+- DTO contracts
+- Authentication
+- Public API
+
+---
+
+## Track 5 — Dashboard Experience
+Status: Active
+
+Completed
+
+- Dashboard totals explanations
+
+Remaining
+
+- Recommendation Explorer
+- Historical analytics views
+- CLV views
+- Market comparison
+- Explorer filters
+- Search
+- Favorites
+
+---
+
+## Track 6 — Discord Automation
+Status: Planned
+
+Remaining
+
+- Daily recommendations
+- Health warnings
+- Live alerts
+- Daily recap
+- Recommendation cards
+
+---
+
+## Track 7 — Multi-Sport Expansion
+Status: Planned
+
+Target Sports
+
+- KBO
+- Soccer
+- NFL
+- NBA
+- NHL
+- College Baseball
+- College Football
+
+Shared Contracts
+
+- Game identity
+- Recommendation
+- Odds history
+- Grading
+- Analytics
+- Dashboard consumers
+
 ## Current Position
 
 ### Sprint 39 — Signal Plumbing Repair
@@ -106,56 +236,78 @@ Dependency: recommendation history and grading should be stable first.
 
 # Sprint 44 — Dashboard Totals Explanation Integration
 
-## Objective
+Status: COMPLETE
 
-Expose the existing structured Totals Explanation contract through the dashboard UI.
+Commit
 
-The dashboard becomes the primary presentation layer for MLB Totals recommendations.
+0e430e7
 
-No backend redesign is expected.
+Delivered
 
+- Dashboard totals model card
+- Structured explanation integration
+- Renderer-only implementation
+- Existing explanation contract reused
+- UI formatting improvements
+- End-to-end dashboard validation
+
+Validation
+
+- py_compile passed
+- tools_test_mlb_totals.py passed
+- Dashboard verified
 ---
+# Sprint 45 — Recommendation Explorer (Phase 1)
 
-## Goals
+Objective
 
-- Integrate structured explanations into dashboard cards.
-- Reuse existing explanation contract.
-- Preserve renderer-only presentation responsibilities.
-- Keep backend recommendation engine unchanged.
+Begin the Recommendation Explorer.
 
----
+The Explorer becomes the primary dashboard experience for viewing every
+SharpStack model for a single matchup.
 
-## Investigation
+Scope
 
-Review:
+- Explorer shell
+- Moneyline section
+- Totals section
+- Existing explanation integration
+- Navigation framework for future model tabs
 
-- dashboard/components/mlb/mlb_card.py
-- dashboard/card_loader.py
-- output/cards/mlb_card.json
+Future phases will integrate:
 
-Determine how explanation payloads currently flow.
+- Hammer
+- Bomb Lab
+- First 5
+- Market comparison
+- Historical analytics
+- Recommendation replay
 
----
+Constraints
 
-## Success Criteria
+Presentation only.
 
-Dashboard displays:
+Reuse existing DTOs.
 
-- Recommendation
-- Selection
-- Projected Total
-- Market Total
-- Edge
-- Confidence
-- Compact Explanation
+Reuse existing explanation contracts.
 
-No duplicate explanation logic exists.
+Do not duplicate model logic.
 
-All existing validation continues passing.
+## Sprint 46
 
-closing line value
-Measure CLV by recommendation, market, tier, model version, signal combination, and rolling period.
----
+Priority 1
+- Recommendation scoring improvements
+- Recommendation confidence tuning
+- Market edge refinements
+
+Priority 2
+- MLB engine enhancements
+- First 5 model improvements
+- Recommendation analytics
+
+Priority 3
+- Dashboard refresh helper
+- Additional historical analytics
 
 ## Deferred
 
@@ -166,11 +318,36 @@ Discord integration.
 Recommendation Explorer integration.
 
 
-## Sprint 45 — API Layer
+#
+## Objective
 
-Expose stable endpoints for model runs, recommendations, history summaries, model health, ROI, CLV, and Play of the Day audit.
+Create a unified game explorer capable of displaying every SharpStack model for an individual matchup.
 
-Guardrail: return DTOs/schemas, not raw ORM entities.
+## ScopeSprint 45 — Recommendation Explorer
+
+Present existing outputs for:
+
+- Moneyline
+- Totals
+- Hammer
+- Bomb Lab
+- First 5
+- Market Comparison
+- Structured Explanations
+
+## Constraints
+
+Do not duplicate recommendation logic.
+
+Do not duplicate explanation logic.
+
+Do not redesign backend services.
+
+Explorer consumes existing DTOs and serialized outputs.
+
+## Success Criteria
+
+A single dashboard view presents all model outputs for one game while remaining presentation-only.
 
 ## Sprint 46 — Dashboard
 

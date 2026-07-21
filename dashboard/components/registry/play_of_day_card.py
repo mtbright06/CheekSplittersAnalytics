@@ -5,6 +5,12 @@ from typing import Any
 
 import streamlit as st
 
+def compact_html(value):
+    return "\n".join(
+        line.strip()
+        for line in value.splitlines()
+        if line.strip()
+    )
 
 def esc(
     value: Any,
@@ -149,15 +155,15 @@ def render_play_of_day(
 
     card = f"""
     <div class="decision-card decision-hammer">
-        <div class="decision-top-row">
+        <div class="decision-top-row play-day-top-row">
             <div class="decision-main">
                 <div class="decision-kicker">
                     PLAY OF THE DAY
                     <span>
                         {esc(recommendation.get("league"))}
-                        ·
+                        &middot;
                         {esc(recommendation.get("market"))}
-                        ·
+                        &middot;
                         {market_label}
                     </span>
                 </div>
@@ -233,7 +239,7 @@ def render_play_of_day(
     """
 
     st.markdown(
-        card,
+        compact_html(card),
         unsafe_allow_html=True,
     )
 

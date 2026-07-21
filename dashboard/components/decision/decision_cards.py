@@ -1,11 +1,17 @@
 from __future__ import annotations
-
 import html
 from typing import Any
-
+from components.logos import team_logo_html
 import pandas as pd
 import streamlit as st
 
+
+def compact_html(value):
+    return "\n".join(
+        line.strip()
+        for line in value.splitlines()
+        if line.strip()
+    )
 
 def safe(value: Any, default: str = "N/A") -> str:
     if value in [None, "", "None"]:
@@ -165,10 +171,20 @@ def render_decision_card(
         decision.get("top_hr_targets", [])
     )
 
+    team_name = decision.get("selected_team")
+    sport = str(decision.get("sport", "mlb")).lower()
+
+    logo_html = team_logo_html(
+        team_name,
+        sport,
+    )
+
     html_block = f"""
     <div class="decision-card decision-{recommendation_class}">
         <div class="decision-top-row">
-            <div class="decision-rank">{rank}</div>
+            <div class="decision-rank decision-team-logo">
+                {logo_html}
+            </div>
 
             <div class="decision-main">
                 <div class="decision-kicker">
@@ -258,7 +274,7 @@ def render_decision_card(
     """
 
     st.markdown(
-        html_block,
+        compact_html(html_block),
         unsafe_allow_html=True,
     )
 

@@ -10,6 +10,7 @@ from engine.core.ranking import (
 from engine.core.recommendation import (
     Recommendation,
 )
+from engine.model import recommendations
 
 
 def safe_float(
@@ -35,22 +36,24 @@ def safe_float(
 @dataclass
 class PlayOfDayResult:
     recommendation: Recommendation | None
+    fallback_recommendation: Recommendation | None
     eligible_count: int
     reason: str
     generated_at: str
 
     def to_dict(self) -> dict:
         return {
-            "generated_at": (
-                self.generated_at
-            ),
-            "eligible_count": (
-                self.eligible_count
-            ),
+            "generated_at": self.generated_at,
+            "eligible_count": self.eligible_count,
             "reason": self.reason,
             "recommendation": (
                 self.recommendation.to_dict()
                 if self.recommendation
+                else None
+            ),
+            "fallback_recommendation": (
+                self.fallback_recommendation.to_dict()
+                if self.fallback_recommendation
                 else None
             ),
         }
@@ -105,47 +108,65 @@ def consensus_values(
     )
 
 
-def is_eligible(
+def eligibility_result(
     recommendation: Recommendation,
     *,
     minimum_hammer_score: float = 74.0,
     require_real_market: bool = False,
-) -> bool:
-    if not recommendation.actionable:
-        return False
+) -> tuple[bool, list[str]]:
+    reasons: list[str] = []
 
-    if (
-        recommendation.hammer_score
-        < minimum_hammer_score
-    ):
-        return False
+    if not recommendation.actionable:
+        reasons.append("Not actionable.")
+
+    if recommendation.hammer_score < minimum_hammer_score:
+        reasons.append(
+            f"Hammer {recommendation.hammer_score:.1f} "
+            f"< {minimum_hammer_score:.1f}"
+        )
 
     if (
         require_real_market
         and not recommendation.real_market_loaded
     ):
-        return False
+        reasons.append("Real market required.")
 
     if (
-        recommendation.edge_pct
-        is not None
+        recommendation.edge_pct is not None
         and recommendation.edge_pct < -1
     ):
-        return False
-
-    agreement_pct, _, oppose_count = (
-        consensus_values(
-            recommendation
+        reasons.append(
+            f"Negative edge ({recommendation.edge_pct:+.1f}%)."
         )
+
+    agreement_pct, _, oppose_count = consensus_values(
+        recommendation
     )
 
     if (
         oppose_count >= 2
         and agreement_pct < 60
     ):
-        return False
+        reasons.append(
+            f"Consensus only {agreement_pct:.1f}% "
+            f"with {oppose_count} opposing models."
+        )
 
-    return True
+    return len(reasons) == 0, reasons
+
+
+def is_eligible(
+    recommendation: Recommendation,
+    *,
+    minimum_hammer_score: float = 74.0,
+    require_real_market: bool = False,
+) -> bool:
+    eligible, _ = eligibility_result(
+        recommendation,
+        minimum_hammer_score=minimum_hammer_score,
+        require_real_market=require_real_market,
+    )
+    return eligible
 
 
 def select_play_of_day(
@@ -156,6 +177,59 @@ def select_play_of_day(
     require_real_market: bool = False,
     minimum_hammer_score: float = 74.0,
 ) -> PlayOfDayResult:
+
+    print("")
+    print("=" * 64)
+    print("PLAY OF DAY AUDIT")
+    print("=" * 64)
+
+    for recommendation in recommendations:
+        ok, reasons = eligibility_result(
+            recommendation,
+            minimum_hammer_score=minimum_hammer_score,
+            require_real_market=require_real_market,
+        )
+
+        print(
+            f"{recommendation.league} | "
+            f"{recommendation.market} | "
+            f"{recommendation.selection}"
+        )
+
+        if ok:
+            print(
+                f"  ✓ ELIGIBLE "
+                f"(Rank {calculate_ranking_score(recommendation):.1f})"
+            )
+        else:
+            for reason in reasons:
+                print(f"  ✗ {reason}")
+
+        print("")
+
+
+    actionable = [
+        recommendation
+        for recommendation in recommendations
+        if recommendation.actionable
+    ]
+
+    actionable.sort(
+        key=lambda recommendation: (
+            calculate_ranking_score(
+                recommendation
+            ),
+            recommendation.hammer_score,
+        ),
+        reverse=True,
+    )
+
+    fallback_recommendation = (
+        actionable[0]
+        if actionable
+        else None
+    )
+
     eligible = [
         recommendation
         for recommendation in recommendations
@@ -189,10 +263,16 @@ def select_play_of_day(
     if not eligible:
         return PlayOfDayResult(
             recommendation=None,
+            fallback_recommendation=(
+                fallback_recommendation
+            ),
             eligible_count=0,
             reason=(
                 "No recommendation met the "
-                "Play of the Day requirements."
+                "Play of the Day requirements. "
+                "The fallback recommendation is "
+                "the highest-ranked actionable play "
+                "and is not an official Play of the Day."
             ),
             generated_at=generated_at,
         )
@@ -244,6 +324,7 @@ def select_play_of_day(
 
     return PlayOfDayResult(
         recommendation=winner,
+        fallback_recommendation=None,
         eligible_count=len(
             eligible
         ),

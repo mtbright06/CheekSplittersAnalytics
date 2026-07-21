@@ -1,102 +1,180 @@
 # SharpStack Chat Protocol
 
-## Files to Attach to Every New Chat
+> This document defines how future development chats should contribute to the
+> SharpStack project. It serves as the contributor guide for both human
+> developers and AI assistants.
 
-## Files to Attach to Every New Chat
+---
 
-1. `PROJECT_HANDOFF.md`
-2. `ARCHITECTURE.md`
-3. `ROADMAP.md`
-4. `CHAT_PROTOCOL.md`
-5. `DEVELOPMENT_ENVIRONMENT.md`
+# Required Documents
 
-## Opening Prompt
+Every new development chat should begin with these documents:
 
-> We are continuing the SharpStack project.
-> Read all four attached project documents before proposing code.
-> ARCHITECTURE.md is authoritative for system design.
-> PROJECT_HANDOFF.md is authoritative for current state.
-> ROADMAP.md defines priority and sequencing.
-> Do not redesign completed architecture unless you first identify a concrete blocker, explain the smallest necessary change, and receive approval.
-> Before writing code, summarize:
-> 1. the current sprint goal,
-> 2. the architecture rules you will preserve,
-> 3. the exact files you expect to change,
-> 4. any ambiguity or conflict you found.
-> End the chat by updating PROJECT_HANDOFF.md and ROADMAP.md.
+1. PROJECT_HANDOFF.md
+2. ARCHITECTURE.md
+3. ROADMAP.md
+4. CHAT_PROTOCOL.md
+5. DEVELOPMENT_ENVIRONMENT.md
 
-## Required First Response
+Together they define:
 
-The new chat should not immediately produce code. It should confirm:
+- Current state
+- Architecture
+- Strategic direction
+- Development workflow
+- Local environment
 
-- current sprint,
-- current branch,
-- latest commit if known,
-- Alembic revision if known,
-- feature objective,
-- intentionally uncommitted files,
-- prohibited changes,
-- expected implementation files.
+---
 
-## Rules During the Chat
+# Opening Workflow
 
-- Inspect actual source before assuming signatures, object paths, fields, or entry points.
-- Prefer small targeted changes to existing files.
-- For a new file or deliberate full-file replacement, provide the complete file for VS Code.
-- Avoid large automated search-and-replace scripts unless no safer option exists.
-- Use PowerShell commands by default.
-- Compile after each meaningful code change.
-- Separate unrelated changes.
-- Do not change schema without explaining why.
-- Do not alter Hammer weights before validating signal plumbing.
-- Do not import SQLAlchemy into prediction engines.
-- Do not overwrite recommendation history.
-- Do not overwrite odds history.
-- Do not add presentation logic to model code.
-- Do not include unrelated modified files in commits.
-- Do not put model or recommendation calculations in renderers.
-## Architecture Change Gate
+Before writing code:
 
-Before any architecture change, show:
+1. Read all project documents.
+2. Summarize the current objective.
+3. Confirm architectural constraints.
+4. Identify expected files.
+5. Identify unknowns before making assumptions.
 
-```text
-Current architecture rule:
-Feature blocked:
-Evidence of blocker:
-Smallest required change:
-Files affected:
-Database impact:
-Backward compatibility:
-Tests:
-Rollback:
+Never begin implementation before understanding the current state.
+
+---
+
+# Investigation Order
+
+When something appears incorrect, investigate in this order:
+
+1. Provider data
+2. Data normalization
+3. Game matching
+4. Decision Builder
+5. Consensus
+6. Hammer
+7. Recommendation Registry
+8. Presentation
+
+Do not recalibrate scores until plumbing has been verified.
+
+---
+
+# Development Philosophy
+
+Prefer:
+
+- Small targeted edits
+- Existing patterns
+- Reusable contracts
+- Canonical ownership
+- Backward compatibility
+
+Avoid:
+
+- Broad refactors
+- Duplicate calculations
+- Multiple sources of truth
+- Premature optimization
+
+---
+
+# Architectural Guardrails
+
+Never:
+
+- Calculate recommendations inside presentation code.
+- Duplicate consensus calculations.
+- Duplicate Hammer calculations.
+- Import persistence into prediction engines.
+- Rewrite recommendation history.
+- Rewrite odds history.
+
+Presentation consumes data.
+
+It never creates it.
+
+---
+
+# Validation Expectations
+
+After meaningful changes:
+
+```powershell
+python -m py_compile <modified files>
+
+git diff --check
+git diff --stat
+git status --short
 ```
+
+Run focused validation before full builds.
+
+Verify generated artifacts whenever dashboard behavior changes.
+
+---
+
+# Documentation Expectations
+
+Every completed development session should update:
+
+- PROJECT_HANDOFF.md
+- ROADMAP.md (when priorities change)
+
+Architecture documentation should only change after an approved architectural
+decision.
+
+---
+
+# Git Expectations
+
+Each commit should:
+
+- Have one primary objective.
+- Be independently understandable.
+- Exclude unrelated modified files.
+- Pass validation.
+
+---
+
+# Architecture Review Gate
+
+Before proposing architecture changes, document:
+
+- Current design
+- Problem
+- Evidence
+- Smallest change
+- Files affected
+- Compatibility
+- Testing
+- Rollback
 
 Wait for approval.
 
-## End-of-Chat Deliverables
+---
 
-1. Sprint summary
+# End-of-Chat Deliverables
+
+Every development chat should finish with:
+
+1. Summary
 2. Files changed
-3. Validation commands and results
-4. Commit command and message
-5. Push verification
-6. Current Alembic revision
-7. Remaining modified/uncommitted files
-8. Known issues or gotchas
-9. Updated `PROJECT_HANDOFF.md`
-10. Updated `ROADMAP.md`
-11. Exact opening prompt for the next chat
+3. Validation results
+4. Commit message
+5. Push confirmation
+6. Known issues
+7. Updated documentation
+8. Next-chat prompt
 
-## Handoff Quality Standard
+---
 
-A handoff is incomplete unless the next chat can answer:
+# Contributor Mindset
 
-- What was just completed?
-- What is next?
-- What must not change?
-- What files are modified?
-- What tests pass?
-- What database revision is active?
-- What is the latest commit?
-- What is the first command to run?
-- Which environment and editing workflow should be used?
+SharpStack favors:
+
+- Evidence over opinion.
+- Simplicity over cleverness.
+- Explainability over mystery.
+- Consistency over convenience.
+- Long-term maintainability over short-term speed.
+
+Whenever multiple solutions exist, choose the one that produces the clearest,
+most reproducible system.

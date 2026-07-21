@@ -1,239 +1,180 @@
 # SharpStack MLB Analytics
-# SharpStack MLB Analytics
-## Project Handoff
+# PROJECT_HANDOFF.md
 
-**Sprint:** 45 Kickoff
-**Branch:** feature/recommendation-history
-**Latest Commit:** 0e430e7
+> This document is the operational state of the project. It should allow a brand-new
+> development chat to resume work with minimal context switching.
 
 ---
 
-# Current Project State
+# Project Status
 
-Sprint 44 is complete.
+**Current Milestone:** Sprint 50 (Consensus Unification)
 
-Structured Totals Explanations now flow end-to-end from the MLB totals engine through serialized card output into the dashboard UI.
+**Repository:** CheekSplittersAnalytics
 
-The dashboard consumes the shared explanation contract without duplicating business logic.
+**Primary Branch:** `feature/recommendation-history`
 
-Presentation remains renderer-only and backend architecture remains unchanged.
-
-The project now shifts from exposing individual recommendation components toward building an integrated Recommendation Explorer capable of surfacing every SharpStack model for a single game.
----
-
-# Sprint History
-
-## Sprint 41
-Commit:
-f289bf9
-
-Completed:
-
-- Bettor-facing totals recommendations
-- Recommendation scoring
-- PASS / LEAN / BET / STRONG BET recommendation model
-- Structured betting recommendation object
-- Confidence model
-
-Status:
-
-Complete.
+**Project State:** Stable, actively developed
 
 ---
 
-## Sprint 42
+# Executive Summary
 
-Commit:
-829d0ea
+SharpStack has evolved from a collection of independent baseball models into a
+unified analytics platform.
 
-Completed:
+Major accomplishments include:
 
-- TotalsExplanation domain model
-- ExplanationItem model
-- Structured explanation builder
-- Full explanation renderer
-- Compact explanation renderer
-- Serialization support
-- Deserialization support
+- Recommendation Registry established as the primary recommendation artifact.
+- Play of the Day generated from Recommendation Registry.
+- Recommendation history and persistence foundation completed.
+- MLB totals recommendations integrated end-to-end.
+- Structured explanation framework implemented.
+- Dashboard stabilized.
+- Azure PostgreSQL foundation established.
+- Recommendation Explorer foundation implemented.
 
-Validation completed.
+Current work is focused on improving decision quality, not expanding features.
 
-Status:
-
-Complete.
-
----
-
-## Sprint 43
-
-Commit:
-
-(Insert latest commit hash)
-
-Completed:
-
-- Integrated structured explanations into console reporting.
-- Console now consumes structured explanation payloads.
-- Supports both serialized dictionaries and TotalsExplanation objects.
-- Renderer remains presentation-only.
-- No business logic duplicated.
-
-Testing:
-
-- Updated legacy validation for Sprint 41 recommendation contract.
-- Added renderer validation.
-- Added serialization/deserialization validation.
-- Added compact renderer validation.
-- Existing totals validation passes.
-
-Validation:
-
-- py_compile passes
-- tools_test_mlb_totals.py passes
-- git diff --check clean
-
-Status:
-
-Complete.
+The highest-priority effort is ensuring every consumer receives the exact same
+consensus interpretation from a single canonical source.
 
 ---
 
-# Current Architecture
+# Current Focus
 
-Totals Model
+## Consensus Unification
 
-↓
+An architectural review discovered that Recommendation Registry is rebuilding
+consensus independently instead of consuming the Decision Builder's canonical
+agreement decisions.
 
-Totals Projection
+Observed symptoms included:
 
-↓
+- Recommendation reasons indicating agreement while serialized consensus showed opposition.
+- Agreement percentages inconsistent with Hammer diagnostics.
+- Downstream consumers displaying conflicting interpretations.
 
-Structured Explanation Builder
+Decision:
 
-↓
+**Decision Builder becomes the sole owner of consensus.**
 
-Serialized Explanation
-
-↓
-
-Consumer
-
-↓
-
-Renderer
-
-↓
-
-Presentation
-
-Current consumers:
-
-✓ Console
-
-Pending consumers:
-
-- Dashboard UI
-- Discord Report
-- Recommendation Explorer
-
-Architecture remains consistent with ARCHITECTURE.md.
+Recommendation Registry, Dashboard, Explorer, Discord, and Play of the Day will
+consume serialized consensus rather than reconstructing it.
 
 ---
 
-# Sprint 44 Objective
+# Important Findings
 
-Primary objective:
+## Hammer Score
 
-Integrate structured Totals Explanations into the dashboard UI.
+Hammer remains the primary composite recommendation score.
 
-The dashboard is now the primary presentation surface for the project.
+At this time it intentionally determines:
+- recommendation eligibility
+- recommendation strength
 
-Do not redesign backend components.
+No calibration changes are approved until sufficient historical evidence exists.
 
-Do not duplicate explanation logic.
+## Ranking Score
 
-Consumers should consume the existing explanation contract.
+Current weighting:
 
----
+- Hammer: 60%
+- Consensus: 18%
+- Edge: 10%
+- Expected Value: 7%
+- Market Quality: 5%
 
-# Files Expected To Be Reviewed
+Observation:
 
-dashboard/components/mlb/mlb_card.py
+Hammer currently influences both eligibility and ranking.
 
-dashboard/card_loader.py
-
-output/cards/mlb_card.json
-
-Determine:
-
-- how totals_model currently flows
-- where explanation payload already exists
-- smallest UI change necessary to expose explanations
-
----
-
-# Technical Notes
-
-Current renderer output is functionally correct.
-
-Minor cosmetic wording remains, for example:
-
-Recommendation score: 0.0 score
-
-Park factor: 0.94 factor
-
-13.0 inputs
-
-These are cosmetic only.
-
-Do not modify during Sprint 44 unless required by the UI.
+This is documented for future review but must not be changed until consensus
+serialization is complete and historical performance supports a redesign.
 
 ---
 
-# Development Guidelines
+# Current Architectural Priorities
 
-Maintain strict architectural separation.
-
-Models generate explanations.
-
-Renderers format explanations.
-
-Consumers present explanations.
-
-Avoid duplicated explanation logic.
-
-Keep edits targeted.
-
-Compile after meaningful changes.
-
-Avoid broad refactors unless explicitly planned.
+1. Canonical consensus ownership.
+2. Eliminate duplicated decision logic.
+3. Preserve explainability.
+4. Improve analytics before expanding functionality.
+5. Prefer evidence over intuition when tuning recommendations.
 
 ---
 
-# Ready For
+# Expected Files For Current Work
 
-Sprint 45
+Primary:
 
-Recommendation Explorer
+- engine/decision/decision_builder.py
+- engine/core/consensus.py
+- engine/core/play_of_day.py
+- tools_build_recommendation_registry.py
+- dashboard consumers (read-only unless necessary)
 
-Primary objective:
+Supporting:
 
-Create a unified game explorer that surfaces:
+- recommendation_registry.json
+- play_of_day.json
 
-- Moneyline
-- Totals
-- Hammer
-- Bomb Lab
-- First 5
-- Market Comparison
-- Structured Explanations
+---
 
-using existing model output.
+# Validation Checklist
 
-Do not introduce new recommendation logic.
+```powershell
+python -m py_compile engine\decision\decision_builder.py
+python tools_build_recommendation_registry.py
+python tools_build_decision_card.py
+python tools_build_discord_report.py
 
-Do not duplicate explanation rendering.
+git diff --check
+git diff --stat
+git status --short
+```
 
-Consumers should reuse existing contracts.
+Confirm:
+- Recommendation reasons match serialized consensus.
+- Dashboard matches registry.
+- Play of the Day matches registry.
+- No duplicated consensus calculations remain.
 
+---
 
+# Known Gotchas
+
+- Dashboard consumes generated artifacts.
+- Always rebuild artifacts before debugging UI.
+- Do not tune Hammer based on a single slate.
+- PASS is neutral, not agreement.
+- Recommendation history is immutable.
+
+---
+
+# Immediate Next Objective
+
+Complete Consensus Unification by making Decision Builder the canonical source
+for all agreement data and removing downstream consensus reconstruction.
+
+After completion:
+
+1. Validate consensus across all consumers.
+2. Revisit ranking architecture using historical evidence.
+3. Continue historical analytics and CLV work.
+
+---
+
+# Long-Term Vision
+
+SharpStack is evolving into an explainable, evidence-driven sports analytics
+platform capable of supporting multiple sports while maintaining:
+
+- reproducible recommendations
+- immutable historical records
+- canonical decision contracts
+- transparent scoring
+- data-driven model evolution
+
+End of handoff.

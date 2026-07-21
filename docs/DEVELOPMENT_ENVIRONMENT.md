@@ -1,78 +1,141 @@
-## Primary Workstation
+# SharpStack Development Environment
 
-- Operating system: Windows
-- Repository path: `C:\CheekSplittersAnalytics`
-- Primary shell: PowerShell
-- Primary editor: Visual Studio Code
-- Python version: `3.13.13`
-- Source control: Git and GitHub
-- Current branch: maintained in `PROJECT_HANDOFF.md`
+> This document describes the standard development environment and workflow for
+> SharpStack.
 
-## Available Infrastructure
+---
 
-### Proxmox Host
+# Primary Development Environment
 
-A Proxmox host is available for virtual machines and containers.
+Operating System
+- Windows 11
 
-Potential SharpStack uses include:
+Repository
+- C:\CheekSplittersAnalytics
 
-- Linux development environments
-- application hosting
-- database hosting
-- scheduled jobs
-- automated daily SharpStack runs
-- API and dashboard hosting
-- Discord integration services
-- isolated testing environments
-- persistent logs and output storage
+Primary Editor
+- Visual Studio Code
 
-The home environment can host services when appropriate.
+Primary Shell
+- PowerShell
 
-Any deployment design must address:
+Python
+- Python 3.13+
 
-- security,
-- secrets management,
-- network exposure,
-- backups,
-- monitoring,
-- logging,
-- recovery,
-- and retry behavior.
+Source Control
+- Git / GitHub
 
-### Additional Systems
+---
 
+# Infrastructure
+
+Current infrastructure:
+
+- Windows workstation
+- Azure PostgreSQL
+- GitHub
+- Proxmox
+- Ubuntu Server
 - MacBook Pro
-- Parallels Windows virtual machine
-- Ubuntu Server environment and administration experience
-- GitHub repository for source control and continuity
 
-## Preferred Development Workflow
+---
 
-- Use PowerShell unless another shell is specifically required.
-- Use VS Code for new files, complete-file replacements, and larger edits.
-- For new files, provide the complete file for direct paste into VS Code.
-- For existing files, prefer small targeted changes.
-- Avoid large automated search-and-replace patches.
-- Inspect current source before proposing integration changes.
-- Compile after each meaningful Python change.
-- Run targeted validation before full builds.
-- Run `git diff --check` before committing.
-- Review `git status --short` and `git diff --stat` before committing.
-- Update project documentation before closing a sprint.
-- Create a detailed handoff before beginning a new chat.
+# Development Workflow
 
-## Collaboration Preferences
+1. Pull latest code.
+2. Read PROJECT_HANDOFF.md.
+3. Review ROADMAP.md.
+4. Make focused changes.
+5. Validate.
+6. Rebuild generated artifacts.
+7. Verify outputs.
+8. Review git status.
+9. Commit.
+10. Push.
 
-- Do not assume function signatures, entry points, serialized paths, or field names.
-- Inspect the relevant source when current code is unavailable.
-- Prefer exact, copyable PowerShell commands.
-- Explain what each validation checkpoint proves.
-- Keep changes small enough to troubleshoot independently.
-- Preserve backward compatibility unless removal is explicitly planned.
-- Keep model, persistence, and presentation logic separated.
-- When a full file is safer than an automated patch, provide the full file for VS Code.
+---
 
-## Common Commands
+# Generated Artifacts
+
+Rebuild these whenever recommendation output changes:
+
+- tools_build_mlb_card.py
+- tools_build_decision_card.py
+- tools_build_recommendation_registry.py
+- tools_build_discord_report.py
+
+Generated artifacts should always be regenerated before debugging dashboard behavior.
+
+---
+
+# Validation
+
+Minimum validation:
+
+```powershell
+python -m py_compile <modified files>
+
+git diff --check
+git diff --stat
+git status --short
+```
+
+Always inspect generated JSON after recommendation changes.
+
+---
+
+# Editing Philosophy
+
+Prefer:
+
+- Small edits
+- Existing architecture
+- Incremental validation
+- Backward compatibility
+
+Avoid:
+
+- Broad refactors
+- Large search-and-replace
+- Multiple unrelated objectives
+
+---
+
+# Git Workflow
+
+Before every commit:
+
+```powershell
+git diff --check
+git diff --stat
+git status --short
+```
+
+One logical objective per commit.
+
+---
+
+# Troubleshooting
+
+Dashboard unchanged?
+
+→ Regenerate artifacts.
+
+Consensus mismatch?
+
+→ Verify Decision Builder.
+
+Recommendation incorrect?
+
+→ Verify plumbing before tuning models.
+
+Hammer issue?
+
+→ Validate consensus before changing weights.
+
+---
+
+# Common Commands
 
 ```powershell
 python --version
@@ -81,6 +144,15 @@ git log -1 --oneline
 git status --short
 git diff --check
 git diff --stat
-python -m py_compile <files>
-python .\tools_build_mlb_card.py
+python tools_build_recommendation_registry.py
+python tools_build_decision_card.py
+python tools_build_discord_report.py
 alembic current
+```
+
+---
+
+# Development Goal
+
+Produce reliable, explainable, reproducible analytics through disciplined,
+incremental engineering.

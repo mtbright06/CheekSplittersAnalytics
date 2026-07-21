@@ -1,500 +1,158 @@
 # SharpStack Parking Lot
 
-Completed MLB totals recommendations and the initial structured explanation framework have been removed from this document because they are now implemented.
-
-## Purpose
-
-This document captures ideas that have been discussed but are intentionally
-deferred.
-
-These items should NOT interrupt the current sprint unless explicitly promoted
-into the roadmap.
-
-Nothing in this document is considered committed work.
-
----
-# Upcoming Promotions
-
-These ideas are expected to graduate into the roadmap soon.
+> This document captures valuable ideas that are intentionally deferred.
+> Nothing in this file represents approved or scheduled work.
 
 ---
 
-## Recommendation Explorer
+# Purpose
 
-Unified game dashboard exposing every SharpStack model from a single screen.
+The Parking Lot exists to preserve good ideas without interrupting the current
+development objective.
 
-Planned capabilities
-
-- Moneyline
-- Totals
-- Hammer
-- Bomb Lab
-- First 5
-- Market comparison
-- Structured explanations
-- Historical performance
+If an item belongs on the active roadmap, move it there and remove it from this
+document.
 
 ---
 
-## API Platform
+# Recommendation Intelligence
 
-REST API exposing:
+## Recommendation Semantics
 
-- Recommendation history
-- Today's slate
-- Model runs
-- ROI
-- CLV
-- Health reports
+Separate:
 
-Consumes shared DTOs.
+- Model Confidence
+- Recommendation Attractiveness
+
+These are currently represented by overlapping concepts and should eventually
+be independent throughout the platform.
 
 ---
 
-## Multi-Sport Foundation
+## Ranking Calibration
 
-Before expanding into additional sports, complete the shared contracts for:
+Current observation:
 
-- Recommendation
-- Odds history
-- Grading
-- Analytics
-- Dashboard consumers
+Hammer influences both qualification and ranking.
 
-Initial expansion order
+This should be revisited only after sufficient historical recommendation data
+exists.
 
-1. KBO
-2. Soccer
-3. WNBA
-4. NFL
-5. NBA
-# Model Intelligence
+---
 
 ## Automatic Hammer Calibration
 
-Instead of manually tuning Hammer weights, use historical graded recommendations
-to optimize:
+Use historical performance to optimize:
 
 - agreement bonus
 - contradiction penalty
-- market penalties
-- recommendation thresholds
+- thresholds
+- weighting
 
-Goal:
-Allow Hammer to improve itself over time while remaining explainable.
-
-Status:
-Deferred until sufficient recommendation history exists.
+Must remain explainable.
 
 ---
 
-## Signal Attribution
+# Historical Analytics
 
-Determine which signal combinations consistently outperform.
+Future work:
 
-Examples:
-
-Bomb + First5
-
-Bomb only
-
-Market only
-
-Bomb + Market
-
-Hammer > 70
-
-Hammer 60-70
-
-Real Market Loaded vs Missing Market
-
-Goal:
-Identify which combinations actually generate long-term ROI.
+- Signal attribution
+- Confidence bands
+- Feature importance
+- Recommendation replay
+- Model version comparison
 
 ---
 
-## Recommendation Confidence Bands
+# Market Intelligence
 
-Evaluate performance grouped by:
+Future ideas:
 
-70-75
-
-75-80
-
-80-85
-
-85+
-
-Determine optimal recommendation tiers.
+- Closing Line Value
+- Sportsbook performance
+- Line movement alerts
+- Market efficiency scoring
+- Steam move detection
 
 ---
 
-## Adaptive Recommendation Thresholds
+# Platform
 
-Allow recommendation thresholds to change by:
+Potential future work:
 
-sport
-
-market
-
-season
-
-sample size
-
-Only after historical validation.
+- REST API
+- OAuth
+- Public API
+- Mobile application
+- User accounts
+- Saved filters
 
 ---
 
-# Market Analytics
+# Infrastructure
 
-## Closing Line Value
+Potential future improvements:
 
-Track:
-
-Opening Line
-
-Recommendation Line
-
-Closing Line
-
-CLV
-
-Historical CLV
-
-Average CLV by model
+- Docker
+- CI/CD
+- Kubernetes
+- Automated deployments
+- Scheduled daily runs
+- Health monitoring
+- Alerting
 
 ---
 
-## Sportsbook Performance
+# AI
 
-Compare:
+Potential future capabilities:
 
-DraftKings
-
-FanDuel
-
-BetMGM
-
-Caesars
-
-Fanatics
-
-Goal:
-
-Determine which sportsbook consistently provides the best value.
+- Daily AI recap
+- Interactive recommendation assistant
+- Natural-language querying
+- Automated narrative generation
 
 ---
 
-## Line Movement Alerts
-
-Notify when:
-
-Market moves toward SharpStack projection
-
-Market moves away
-
-Edge disappears
-
-Edge increases
-
----
-
-# Model Quality
-
-## Recommendation Replay
-
-Replay any historical slate using:
-
-old model version
-
-old odds
-
-old weather
-
-old lineup
-
-Purpose:
-
-Compare historical versions of SharpStack.
-
----
-
-## Model Version Comparison
-
-Compare:
-
-v0.4
-
-v0.5
-
-v0.6
-
-using identical historical slates.
-
----
-
-## Feature Importance
-
-Estimate contribution of:
-
-weather
-
-bullpen
-
-park factor
-
-market
-
-Bomb
-
-First5
-
-Goal:
-
-Understand which variables actually drive winning picks.
-
----
-
-# Operations
-
-## Automatic Morning Health Report
-
-Email / Discord summary including:
-
-Games
-
-Coverage
-
-Warnings
-
-Pipeline health
-
-Recommendation distribution
-
----
-
-## Pipeline Alerts
-
-Notify when:
-
-provider fails
-
-market coverage low
-
-weather unavailable
-
-probable pitchers missing
-
-Bomb missing
-
-First5 missing
-
----
-
-# User Experience
-
-
-## Recommendation Cards
-
-Generate polished cards for:
-
-Discord
-
-Twitter/X
-
-Website
-
----
-
-## Daily Slate Report
-
-Automatically produce:
-
-Top Plays
-
-Biggest Edges
-
-Model Health
-
-Watch List
-
-Fade Candidates
-
----
-
-# Dashboard Ideas
-
-Recommendation history
-
-ROI
-
-Rolling ROI
-
-Win %
-
-Units
-
-CLV
-
-Signal attribution
-
-Model comparison
-
-Line movement
-
-Market coverage
-
-Provider health
-
----
-
-# AI Features
-
-## Daily AI Recap
-
-Generate narrative summary explaining:
-
-Today's best plays
-
-Model confidence
-
-Major disagreements
-
-Pipeline issues
-
----
-
-## AI Chat Assistant
-
-Allow questions like:
-
-Why is Atlanta a LEAN?
-
-Show today's biggest market edge.
-
-Compare today's slate to yesterday.
-
-Show Bomb-only recommendations.
-
----
-
-# Multi-Sport Expansion
-
-Future sports:
-
-KBO
-
-Soccer
-
-WNBA
-
-NFL
-
-NBA
-
-NHL
-
-College Baseball
-
-College Football
+# Multi-Sport
+
+Planned expansion after MLB analytics mature:
+
+- KBO
+- Soccer
+- NFL
+- NBA
+- NHL
+- College Baseball
+- College Football
 
 ---
 
 # Research Ideas
 
-Expected Value optimization
+Long-term investigations:
 
-Bankroll optimization
-
-Kelly Criterion
-
-Portfolio optimization
-
-Risk-adjusted recommendation ranking
-
-Monte Carlo simulations
-
-Weather sensitivity studies
-
-Bullpen fatigue modeling
-
-Travel fatigue
-
-Umpire impact
-
-Rest advantage
-
-Live betting models
-
-Player prop framework
-
-Arbitrage detection
-
-Steam move detection
-
-Consensus fade analysis
-
-Market efficiency scoring
-
-Bookmaker sharpness ranking
+- Kelly Criterion
+- Portfolio optimization
+- Monte Carlo simulation
+- Live betting
+- Umpire impact
+- Travel fatigue
+- Weather sensitivity
+- Arbitrage detection
 
 ---
 
-# Nice-to-Have
+# Parking Lot Rules
 
-Plugin architecture
+An item belongs here when:
 
-Mobile app
+- It is valuable.
+- It is not blocking current work.
+- It requires future evidence.
+- It deserves preservation.
 
-API authentication
+This document should remain intentionally short.
 
-Public API
-
-OAuth
-
-Cloud deployment
-
-Docker
-
-Kubernetes
-
-CI/CD
-
-Automatic retraining
-
-Feature store
-
-Experiment tracking
-
-A/B testing
-
-User accounts
-
-Saved filters
-
-Recommendation subscriptions
-
-Historical exports
-
-CSV/PDF reporting
-
-## Recommendation semantics
-
-Separate the two bettor-facing concepts currently represented by the recommendation score:
-
-- **Model confidence:** How trustworthy is today's projection?
-- **Recommendation score:** How attractive is this wager?
-
-These should eventually become separate fields throughout the model, serialized output, reports, dashboard, and Discord presentation.
-
-## Automated hosting and delivery
-
-Host SharpStack on the Proxmox environment so the application can:
-
-- Run automatically on a daily schedule.
-- Refresh required data and market inputs.
-- Build the daily cards and recommendations.
-- Preserve logs and surface failures.
-- Eventually publish recommendations through a Discord application or bot.
-
-Future hosting design should consider containers or a lightweight virtual machine, scheduled execution, secrets management, persistent output storage, health monitoring, and retry behavior.
+If it becomes a backlog, it has failed its purpose.

@@ -22,6 +22,9 @@ from engine.model.sharpscore import (
 from engine.odds.best_line import (
     select_best_quote,
 )
+from engine.odds.implied_probability import (
+    american_to_implied_probability,
+)
 from engine.odds.provider_factory import (
     get_odds_provider,
 )
@@ -715,6 +718,91 @@ def quote_for_team(
     )
 
 
+def total_price_balance(
+    candidate: dict,
+) -> float:
+    """
+    Prefer the sportsbook's primary total by selecting
+    the OVER/UNDER pair whose implied probabilities are
+    closest together.
+    """
+
+    over = to_int(
+        candidate.get(
+            "over_odds"
+        )
+    )
+
+    under = to_int(
+        candidate.get(
+            "under_odds"
+        )
+    )
+
+    if over is None or under is None:
+        return float("inf")
+
+    over_prob = (
+        american_to_implied_probability(
+            over
+        )
+    )
+
+    under_prob = (
+        american_to_implied_probability(
+            under
+        )
+    )
+
+    return abs(
+        over_prob - under_prob
+    )
+
+
+def total_market_vig(
+    candidate: dict,
+) -> float:
+    """
+    Secondary tiebreaker that prefers the lower-vig
+    market when totals are similarly balanced.
+    """
+
+    over = to_int(
+        candidate.get(
+            "over_odds"
+        )
+    )
+
+    under = to_int(
+        candidate.get(
+            "under_odds"
+        )
+    )
+
+    if over is None or under is None:
+        return float("inf")
+
+    over_prob = (
+        american_to_implied_probability(
+            over
+        )
+    )
+
+    under_prob = (
+        american_to_implied_probability(
+            under
+        )
+    )
+
+    return abs(
+        (
+            over_prob
+            + under_prob
+        )
+        - 1.0
+    )
+
+
 def total_for_game(
     total_lookup: dict[
         tuple[str, str],
@@ -767,17 +855,15 @@ def total_for_game(
                     "sportsbook"
                 )
             ),
+            total_price_balance(
+                candidate
+            ),
+            total_market_vig(
+                candidate
+            ),
             -parse_timestamp(
                 candidate.get(
                     "last_updated"
-                )
-            ),
-            abs(
-                float(
-                    candidate.get(
-                        "line",
-                        0,
-                    )
                 )
             ),
         )

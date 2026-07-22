@@ -2,7 +2,6 @@ from engine.model.component_scores import (
     offense_score,
     starting_pitcher_score,
     bullpen_score,
-    market_score,
     home_field_score,
 )
 from engine.model.confidence import calculate_confidence
@@ -11,10 +10,9 @@ from engine.odds.market_edge import calculate_market_edge, market_edge_to_dict
 
 
 WEIGHTS = {
-    "offense": 0.35,
-    "starting_pitching": 0.35,
+    "offense": 0.40,
+    "starting_pitching": 0.45,
     "bullpen": 0.10,
-    "market": 0.15,
     "home_field": 0.05,
 }
 
@@ -23,15 +21,12 @@ def calculate_team_score(
     offense,
     pitcher,
     bullpen,
-    book_probability,
-    provisional_model_probability,
     is_home,
 ):
     components = {
         "offense": offense_score(offense),
         "starting_pitching": starting_pitcher_score(pitcher),
         "bullpen": bullpen_score(bullpen),
-        "market": market_score(book_probability, provisional_model_probability),
         "home_field": home_field_score(is_home),
     }
 
@@ -39,7 +34,6 @@ def calculate_team_score(
         components["offense"] * WEIGHTS["offense"]
         + components["starting_pitching"] * WEIGHTS["starting_pitching"]
         + components["bullpen"] * WEIGHTS["bullpen"]
-        + components["market"] * WEIGHTS["market"]
         + components["home_field"] * WEIGHTS["home_field"]
     )
 
@@ -75,31 +69,10 @@ def build_sharpscore_decision(
     away_bullpen = away_profile.get("bullpen", {})
     home_bullpen = home_profile.get("bullpen", {})
 
-    away_book_probability = (
-        away_quote.implied_probability * 100
-        if away_quote and away_quote.implied_probability is not None
-        else None
-    )
-
-
-    away_book_probability = (
-    away_quote.implied_probability * 100
-    if away_quote and away_quote.implied_probability is not None
-    else None
-    )
-
-    home_book_probability = (
-        home_quote.implied_probability * 100
-        if home_quote and home_quote.implied_probability is not None
-        else None
-    )
-
     away_score, away_components = calculate_team_score(
         away_offense,
         away_pitcher,
         away_bullpen,
-        away_book_probability,
-        50,
         False,
     )
 
@@ -107,8 +80,6 @@ def build_sharpscore_decision(
         home_offense,
         home_pitcher,
         home_bullpen,
-        home_book_probability,
-        50,
         True,
     )
 
@@ -168,7 +139,6 @@ def build_sharpscore_decision(
             {"name": "Offense", "value": selected_components["offense"] / 100},
             {"name": "Starting Pitching", "value": selected_components["starting_pitching"] / 100},
             {"name": "Bullpen", "value": selected_components["bullpen"] / 100},
-            {"name": "Market", "value": selected_components["market"] / 100},
             {"name": "Home Field", "value": selected_components["home_field"] / 100},
         ],
         "reasons": build_reasons(
@@ -242,7 +212,7 @@ def build_reasons(
         )
 
     reasons.append(
-        "SharpScore v0.1 weighs offense, starting pitching, bullpen placeholder, market value, and home field."
+        "SharpScore v0.2 weighs offense, starting pitching, bullpen placeholder, and home field. Market value is evaluated separately after the model prediction."
     )
 
     return reasons

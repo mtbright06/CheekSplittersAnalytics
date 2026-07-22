@@ -40,6 +40,36 @@ exists.
 
 ---
 
+### Consensus score calibration
+
+Current behavior:
+
+- `agreement_pct` measures directional module agreement.
+- `consensus_score` blends participating signal scores, sample bonus, and contradiction penalty.
+- A play can therefore be `UNANIMOUS` while still having a modest `consensus_score`.
+
+Example observed:
+
+- Cincinnati Reds
+- Agreement: 100%
+- Consensus score: 55.3
+
+Decision:
+
+Do not change during Sprint 50. Sprint 50 is limited to canonical consensus ownership and serialization.
+
+Revisit when:
+
+- consensus is flowing correctly through Registry, Dashboard, Explorer, Discord, and Play of Day
+- sufficient recommendation history exists to compare consensus score against outcomes
+- ranking calibration work begins
+
+Questions to answer later:
+
+- Should low-scoring supportive modules reduce consensus strength this heavily?
+- Should Bomb Lab support require a minimum score?
+- Should consensus score represent agreement only, signal quality only, or a clearly documented blend?
+
 ## Automatic Hammer Calibration
 
 Use historical performance to optimize:

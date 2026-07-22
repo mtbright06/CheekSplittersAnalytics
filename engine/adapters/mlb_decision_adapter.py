@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from engine.core.consensus import (
-    ConsensusSignal,
-    build_consensus,
-)
 
 from typing import Any
 
@@ -113,190 +109,6 @@ def build_tags(
 
     return tags
 
-
-def score_supports(
-    value: Any,
-    threshold: float = 60.0,
-) -> bool | None:
-    number = safe_float(value)
-
-    if number is None:
-        return None
-
-    return number >= threshold
-
-
-def build_consensus_signals(
-    row: dict,
-) -> list[ConsensusSignal]:
-    signals = [
-        ConsensusSignal(
-            name="MLB Model",
-            supports=score_supports(
-                row.get(
-                    "mlb_model_score"
-                )
-                or row.get(
-                    "model_score"
-                )
-                or (
-                    safe_float(
-                        row.get(
-                            "model_probability"
-                        )
-                    )
-                    * 100
-                    if safe_float(
-                        row.get(
-                            "model_probability"
-                        )
-                    )
-                    is not None
-                    else None
-                ),
-            ),
-            score=(
-                row.get(
-                    "mlb_model_score"
-                )
-                or row.get(
-                    "model_score"
-                )
-            ),
-            weight=1.4,
-            reason=(
-                "MLB model supports "
-                "the selected side."
-            ),
-            source="mlb_model",
-        ),
-        ConsensusSignal(
-            name="First 5",
-            supports=score_supports(
-                row.get(
-                    "first5_score"
-                )
-            ),
-            score=row.get(
-                "first5_score"
-            ),
-            weight=1.0,
-            reason=(
-                "First 5 model supports "
-                "the full-game side."
-            ),
-            source="first5",
-        ),
-        ConsensusSignal(
-            name="Bomb Lab",
-            supports=score_supports(
-                row.get(
-                    "bomb_score"
-                )
-            ),
-            score=row.get(
-                "bomb_score"
-            ),
-            weight=0.8,
-            reason=(
-                "Bomb Lab supports "
-                "the offense."
-            ),
-            source="bomb_lab",
-        ),
-        ConsensusSignal(
-            name="Starter",
-            supports=score_supports(
-                row.get(
-                    "starter_score"
-                )
-            ),
-            score=row.get(
-                "starter_score"
-            ),
-            weight=1.2,
-            reason=(
-                "Starting-pitcher matchup "
-                "supports the play."
-            ),
-            source="starter",
-        ),
-        ConsensusSignal(
-            name="Offense",
-            supports=score_supports(
-                row.get(
-                    "offense_score"
-                )
-            ),
-            score=row.get(
-                "offense_score"
-            ),
-            weight=1.0,
-            reason=(
-                "Offensive matchup "
-                "supports the play."
-            ),
-            source="offense",
-        ),
-        ConsensusSignal(
-            name="Bullpen",
-            supports=score_supports(
-                row.get(
-                    "bullpen_score"
-                )
-            ),
-            score=row.get(
-                "bullpen_score"
-            ),
-            weight=0.8,
-            reason=(
-                "Bullpen matchup "
-                "supports the play."
-            ),
-            source="bullpen",
-        ),
-        ConsensusSignal(
-            name="Market Edge",
-            supports=(
-                safe_float(
-                    row.get(
-                        "market_edge_pct"
-                    )
-                )
-                > 0
-                if safe_float(
-                    row.get(
-                        "market_edge_pct"
-                    )
-                )
-                is not None
-                else None
-            ),
-            score=(
-                50
-                + (
-                    safe_float(
-                        row.get(
-                            "market_edge_pct"
-                        ),
-                        0,
-                    )
-                    or 0
-                )
-                * 4
-            ),
-            weight=1.1,
-            reason=(
-                "Available market price "
-                "shows positive model edge."
-            ),
-            source="market",
-        ),
-    ]
-
-    return signals
-
-
 def adapt_decision(
     row: dict,
     *,
@@ -323,11 +135,6 @@ def adapt_decision(
     if event_id is not None:
         event_id = str(event_id)
 
-        consensus = build_consensus(
-        build_consensus_signals(
-            row
-        )
-    )
 
     return Recommendation(
         sport="BASEBALL",
@@ -378,15 +185,19 @@ def adapt_decision(
             "score_breakdown",
             {},
         ),
+
         source_signals={
-            **row.get(
-                "source_signals",
+            **(
+                row.get("source_signals", {})
+                if isinstance(row.get("source_signals"), dict)
+                else {}
+            ),
+            "consensus": row.get(
+                "consensus",
                 {},
             ),
-            "consensus": (
-                consensus.to_dict()
-            ),
-        },
+         },
+
         tags=build_tags(row),
         status=(
             "live"

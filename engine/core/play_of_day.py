@@ -10,8 +10,6 @@ from engine.core.ranking import (
 from engine.core.recommendation import (
     Recommendation,
 )
-from engine.model import recommendations
-
 
 def safe_float(
     value: Any,

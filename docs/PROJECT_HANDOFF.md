@@ -39,6 +39,7 @@ Current work is focused on improving decision quality, not expanding features.
 The highest-priority effort is ensuring every consumer receives the exact same
 consensus interpretation from a single canonical source.
 
+Deferred observation: `consensus_score` may remain modest despite unanimous agreement because it blends underlying signal quality; review during historical ranking calibration, not during consensus unification.
 ---
 
 # Current Focus

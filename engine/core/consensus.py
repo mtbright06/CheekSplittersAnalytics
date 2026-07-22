@@ -51,12 +51,15 @@ class ConsensusSignal:
                 self.score
             )
 
+        parsed_weight = safe_float(
+            self.weight,
+            1.0,
+        )
+
         self.weight = max(
-            safe_float(
-                self.weight,
-                1.0,
-            )
-            or 1.0,
+            parsed_weight
+            if parsed_weight is not None
+            else 1.0,
             0.0,
         )
 

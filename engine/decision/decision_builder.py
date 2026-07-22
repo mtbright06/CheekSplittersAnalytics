@@ -13,6 +13,10 @@ from engine.decision.hammer_score import (
     safe_float,
 )
 
+from engine.core.consensus import (
+    ConsensusSignal,
+    build_consensus,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 CARDS_DIR = ROOT / "output" / "cards"
@@ -596,6 +600,32 @@ def module_vote(
 
     return -1
 
+def consensus_signal_from_vote(
+    name: str,
+    vote: int,
+    *,
+    score: float | None = None,
+    reason: str | None = None,
+    source: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> ConsensusSignal:
+    supports: bool | None
+
+    if vote == 1:
+        supports = True
+    elif vote == -1:
+        supports = False
+    else:
+        supports = None
+
+    return ConsensusSignal(
+        name=name,
+        supports=supports,
+        score=score,
+        reason=reason,
+        source=source,
+        metadata=metadata or {},
+    )
 
 def determine_primary_team(
     mlb_game: dict,
@@ -783,34 +813,6 @@ def build_decision_card() -> dict:
                 selected_team,
             )
 
-        votes = [
-            module_vote(selected_team, mlb_choice),
-            module_vote(selected_team, first5_choice),
-        ]
-
-        if bomb:
-            votes.append(1)
-
-        if market:
-            market_recommendation = str(
-                market.get("recommendation", "")
-            )
-
-            if (
-                "BET" in market_recommendation
-                or "LEAN" in market_recommendation
-            ):
-                votes.append(
-                    module_vote(
-                        selected_team,
-                        market.get("team"),
-                    )
-                )
-
-        agreement = len([vote for vote in votes if vote == 1])
-        contradictions = len(
-            [vote for vote in votes if vote == -1]
-        )
 
         mlb_probability = extract_model_probability(
             mlb_game,
@@ -911,6 +913,106 @@ def build_decision_card() -> dict:
             )
         )
 
+        mlb_vote = module_vote(
+            selected_team,
+            mlb_choice,
+        )
+
+        first5_vote = module_vote(
+            selected_team,
+            first5_choice,
+        )
+
+        bomb_vote = 1 if bomb else 0
+
+        market_vote = 0
+        market_recommendation = str(
+            market.get("recommendation", "")
+        ).upper()
+
+        if (
+            market
+            and (
+                "BET" in market_recommendation
+                or "LEAN" in market_recommendation
+            )
+        ):
+            market_vote = module_vote(
+                selected_team,
+                market.get("team"),
+            )
+
+        consensus_signals = [
+            consensus_signal_from_vote(
+                "MLB Model",
+                mlb_vote,
+                score=mlb_model_score,
+                reason=(
+                    f"MLB model selects {mlb_choice}."
+                    if mlb_choice
+                    else "MLB model selection unavailable."
+                ),
+                source="mlb_model",
+                metadata={
+                    "selected_team": selected_team,
+                    "module_team": mlb_choice,
+                },
+            ),
+            consensus_signal_from_vote(
+                "First 5",
+                first5_vote,
+                score=first5_score,
+                reason=(
+                    f"First 5 model selects {first5_choice}."
+                    if first5_choice
+                    else "First 5 selection unavailable."
+                ),
+                source="first5",
+                metadata={
+                    "selected_team": selected_team,
+                    "module_team": first5_choice,
+                },
+            ),
+            consensus_signal_from_vote(
+                "Bomb Lab",
+                bomb_vote,
+                score=bomb_score,
+                reason=(
+                    f"Bomb Lab supports the {selected_team} offense."
+                    if bomb
+                    else "Bomb Lab signal unavailable."
+                ),
+                source="bomb_lab",
+                metadata={
+                    "selected_team": selected_team,
+                    "module_team": bomb.get("opponent"),
+                },
+            ),
+            consensus_signal_from_vote(
+                "Market",
+                market_vote,
+                reason=(
+                    f"Market signal supports {market.get('team')}."
+                    if market_vote != 0
+                    else "Actionable market signal unavailable."
+                ),
+                source="market",
+                metadata={
+                    "selected_team": selected_team,
+                    "module_team": market.get("team"),
+                    "recommendation": market_recommendation,
+                    "real_market_loaded": real_market_loaded,
+                },
+            ),
+        ]
+
+        consensus = build_consensus(
+            consensus_signals
+        )
+
+        agreement = consensus.support_count
+        contradictions = consensus.oppose_count
+
         hammer = calculate_hammer_score(
             HammerInputs(
                 mlb_model_score=mlb_model_score,
@@ -975,6 +1077,7 @@ def build_decision_card() -> dict:
                 "recommendation": hammer["recommendation"],
                 "confidence": hammer["confidence"],
                 "stars": hammer["stars"],
+                "consensus": consensus.to_dict(),
                 "agreement_count": agreement,
                 "contradiction_count": contradictions,
                 "model_probability": (
@@ -1055,12 +1158,10 @@ def build_decision_card() -> dict:
                 )[:3],
                 "reasons": reasons,
                 "score_breakdown": hammer["breakdown"],
-                "source_signals": {
-                    "mlb_choice": mlb_choice,
-                    "first5_choice": first5_choice,
-                    "bomb_team": bomb.get("opponent"),
-                    "market_team": market.get("team"),
-                },
+                "source_signals": [
+                    signal.to_dict()
+                    for signal in consensus_signals
+                ],
             }
         )
 

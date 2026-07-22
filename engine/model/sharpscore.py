@@ -75,8 +75,24 @@ def build_sharpscore_decision(
     away_bullpen = away_profile.get("bullpen", {})
     home_bullpen = home_profile.get("bullpen", {})
 
-    away_book_probability = away_quote.implied_probability if away_quote else None
-    home_book_probability = home_quote.implied_probability if home_quote else None
+    away_book_probability = (
+        away_quote.implied_probability * 100
+        if away_quote and away_quote.implied_probability is not None
+        else None
+    )
+
+
+    away_book_probability = (
+    away_quote.implied_probability * 100
+    if away_quote and away_quote.implied_probability is not None
+    else None
+    )
+
+    home_book_probability = (
+        home_quote.implied_probability * 100
+        if home_quote and home_quote.implied_probability is not None
+        else None
+    )
 
     away_score, away_components = calculate_team_score(
         away_offense,

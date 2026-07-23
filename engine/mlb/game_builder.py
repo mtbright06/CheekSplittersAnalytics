@@ -177,14 +177,39 @@ def pitcher_from_team(
         "era": stats.get("era"),
         "whip": stats.get("whip"),
         "ip": stats.get("ip"),
+        "starts": stats.get("starts"),
         "so": stats.get("so"),
         "bb": stats.get("bb"),
+        "hits": stats.get("hits"),
+        "hbp": stats.get("hbp"),
         "hr_allowed": stats.get(
             "hr_allowed"
+        ),
+        "batters_faced": stats.get(
+            "batters_faced"
         ),
         "k_rate": stats.get("k_rate"),
         "bb_rate": stats.get("bb_rate"),
         "hr9": stats.get("hr9"),
+        "h9": stats.get("h9"),
+        "k_bb_pct": stats.get(
+            "k_bb_pct"
+        ),
+        "strike_pct": stats.get(
+            "strike_pct"
+        ),
+        "pitches_per_inning": stats.get(
+            "pitches_per_inning"
+        ),
+        "ground_air_ratio": stats.get(
+            "ground_air_ratio"
+        ),
+        "opponent_avg": stats.get(
+            "opponent_avg"
+        ),
+        "data_source": stats.get(
+            "data_source"
+        ),
     }
 
 

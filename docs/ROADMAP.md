@@ -1,153 +1,180 @@
-# SharpStack Roadmap
+﻿# SharpStack Roadmap
 
-> This roadmap captures the strategic direction of SharpStack. It is organized
-> by long-term initiatives rather than individual commits or sprint history.
-
----
+> Strategic priority order. This document defines what comes next and what does not.
 
 # Guiding Principles
 
-- Finish complete features before expanding scope.
-- Improve decision quality before adding presentation.
-- Validate with historical evidence.
-- Preserve architectural separation.
+- Correct provider data before tuning models.
+- Finish approved work before expanding scope.
+- Reuse existing architecture.
 - Prefer one canonical source of truth.
-- Build reusable platform capabilities before sport-specific enhancements.
-
----
+- Preserve backward compatibility.
+- Validate with historical evidence.
+- Keep presentation separate from prediction logic.
+- Prefer small targeted changes over broad refactors.
 
 # Current Milestone
 
-## Consensus Unification (Active)
+## Sprint 52 â€” MLB Model Integrity and Data Quality
 
-Objective:
+Completed:
 
-Establish Decision Builder as the canonical owner of recommendation consensus.
+- S52-001 â€” Remove market leakage
+- S52-002 â€” Explainable confidence / unknown starters
+- S52-003 â€” Default audit
+- Explicit MLB API season and regular-season parameters
+- S52-005 â€” Pitcher sample stabilization
+
+In progress:
+
+- S52-006 â€” Starter Model v2
+  - starter-only game-log aggregation
+  - safe season fallback
+  - richer starter profile
+  - stabilized skill-based starter score
+  - end-to-end artifact validation
+
+Deferred:
+
+- S52-004 â€” Calibration
+  - requires sufficient historical recommendations, outcomes, and market context
+
+# Approved Near-Term Priority Order
+
+## 1. Finish Starter Model v2
+
+Success criteria:
+
+- Starter and relief appearances are separated whenever game logs are available.
+- Raw counts are aggregated and rates are recomputed.
+- Tiny samples remain near neutral.
+- Established strong and weak starters separate plausibly.
+- Unknown starters remain neutral.
+- Generated artifacts build successfully.
+- Documentation, commit, and push are complete.
+
+## 2. MLB Bullpen Provider and Integration
+
+This is the next priority after the starter commit.
 
 Deliverables:
 
-- Single consensus contract
-- Registry consumes canonical consensus
-- Dashboard consumes registry
-- Discord consumes registry
-- Play of the Day consumes registry
-- Eliminate duplicated agreement calculations
+- Inspect existing `engine/mlb/bullpen/` contracts.
+- Build MLB roster and reliever ingestion.
+- Normalize season and recent-use data.
+- Produce `BullpenSnapshot`.
+- Feed existing quality, fatigue, projection, and game-adjustment modules.
+- Populate game-builder bullpen data.
+- Share one normalized bullpen contract across totals and SharpScore.
+- Add safe fallbacks and source-quality indicators.
+- Validate provider data before tuning weights.
 
-Success Criteria:
+Success criteria:
 
-- Every consumer reports identical agreement values.
-- Recommendation reasons and serialized consensus match.
-- No downstream consensus reconstruction remains.
+- Bullpen payloads are populated for normal MLB games.
+- Reliever identification is role-aware.
+- Recent usage and availability are plausible.
+- Existing bullpen modules remain canonical.
+- Missing data degrades safely to neutral behavior.
 
----
+## 3. KBO Confidence Improvements
+
+Expected themes:
+
+- unknown starter handling
+- source quality
+- confidence degradation
+- role and sample awareness
+- clear separation among playable, lean, recommendation, and pass
+
+## 4. Historical Validation and Calibration
+
+Only after the data and plumbing work above:
+
+- starter score validation
+- bullpen component validation
+- confidence-band performance
+- Hammer and ranking review
+- threshold calibration
+- model-version comparison
+
+No calibration should be justified by a single slate.
 
 # Strategic Workstreams
 
-## 1. Recommendation Intelligence
+## Recommendation Intelligence
 
-Status: Active
-
-Completed
+Completed:
 
 - Decision Builder
 - Hammer Score
 - Recommendation Registry
 - Play of the Day
-- Totals recommendations
-- Structured explanations
+- totals recommendations
+- structured explanations
+- canonical consensus direction
 
-Next
+Current:
 
-- Consensus unification
-- Ranking refinement
-- Recommendation semantics split
-- Historical confidence validation
+- improve MLB input quality
+- improve uncertainty handling
+- preserve explainability
 
----
+Later:
 
-## 2. Historical Analytics
+- confidence vs attractiveness split
+- ranking calibration
+- threshold calibration
+- historical signal attribution
 
-Status: Active
+## Historical Analytics
 
-Goals
+Goals:
 
-- Result grading
-- Win/Loss/Push tracking
-- ROI
-- Units
-- Rolling performance
-- Signal attribution
-- Historical replay
+- grading
+- W/L/P tracking
+- ROI and units
+- rolling performance
+- signal attribution
+- recommendation replay
+- model-version comparison
 
----
+## Market Intelligence
 
-## 3. Market Intelligence
-
-Status: Planned
-
-Goals
+Planned:
 
 - Closing Line Value
-- Line movement
-- Sportsbook comparison
-- Market efficiency
-- Opening vs closing analytics
+- line movement
+- sportsbook comparison
+- market efficiency
+- steam detection
 
----
+## Dashboard Experience
 
-## 4. Platform Services
+Stable, not immediate priority.
 
-Status: Planned
+Later:
 
-Goals
-
-- Query services
-- Stable DTO contracts
-- REST API
-- Authentication
-- Public API
-
----
-
-## 5. Dashboard Experience
-
-Status: Active
-
-Completed
-
-- Recommendation Explorer foundation
-- Structured explanations
-- Recommendation Registry integration
-
-Next
-
-- Historical analytics
+- historical analytics
 - CLV views
-- Signal analysis
-- Health dashboards
-- Search and filtering
+- model-health views
+- bullpen transparency
+- search and filtering
+- palette refinements
 
----
+## Automation
 
-## 6. Automation
+Planned:
 
-Status: Planned
-
-Goals
-
-- Automated daily builds
-- Health reports
+- scheduled builds
+- health reports
 - Discord publishing
-- Alerting
-- Morning summaries
+- alerting
+- morning summaries
 
----
+## Multi-Sport Expansion
 
-## 7. Multi-Sport Expansion
-
-Status: Planned
-
-Order
+After MLB and shared platform maturity:
 
 1. KBO
 2. Soccer
@@ -155,54 +182,59 @@ Order
 4. NBA
 5. NHL
 
-Shared platform components will be completed before expanding models.
-
----
-
 # Research Queue
 
-These items require historical evidence before implementation.
+Requires evidence or a separately approved investigation:
 
 - Hammer calibration
-- Ranking calibration
-- Adaptive recommendation thresholds
-- Feature importance
-- Automatic model tuning
+- ranking calibration
+- adaptive thresholds
+- feature importance
+- automated tuning
 - Kelly optimization
-- Portfolio optimization
+- portfolio optimization
+- starter recency blending
+- metric-specific stabilization
+- pitch-mix and velocity features
+- Stuff+ or proprietary pitch-quality models
 
----
+# Explicit Anti-Drift Rule
 
-# Near-Term Priorities
+Until the bullpen provider and integration are complete, do not promote these into the active sprint without explicit approval:
 
-1. Complete Consensus Unification.
-2. Validate recommendation integrity.
-3. Expand historical grading.
-4. Implement CLV foundation.
-5. Improve ranking with historical evidence.
+- Starter Model v3
+- last-three/last-five-start weighting
+- metric-specific stabilization
+- starter dashboard enhancements
+- cosmetic dashboard changes
+- calibration
+- broad refactors
+- new sports
+- new public platform features
 
----
+Approved sequence:
 
-# Deferred
+```text
+Finish Starter Model v2
+    â†“
+Commit and push
+    â†“
+Bullpen provider and integration
+    â†“
+KBO confidence
+    â†“
+Historical calibration
+```
 
-- Mobile application
-- OAuth
-- Public API
-- User accounts
-- CI/CD
-- Kubernetes
-- Experiment tracking
-- Automatic retraining
+# Production Readiness
 
----
+SharpStack is production-ready when it can:
 
-# Success Definition
-
-SharpStack will be considered production-ready when it can:
-
-- Produce explainable recommendations.
-- Preserve immutable history.
-- Grade historical performance.
-- Measure ROI and CLV.
-- Deliver identical decisions across every consumer.
-- Support additional sports without architectural redesign.
+- ingest correct and role-aware provider data
+- produce explainable recommendations
+- preserve immutable history
+- grade performance
+- measure ROI and CLV
+- deliver identical decisions across every consumer
+- degrade safely when data is missing
+- support additional sports without duplicating platform logic

@@ -1,19 +1,84 @@
-# SharpStack Parking Lot
+﻿# SharpStack Parking Lot
 
-> This document captures valuable ideas that are intentionally deferred.
-> Nothing in this file represents approved or scheduled work.
-
----
+> Valuable ideas intentionally deferred. Nothing here is approved or scheduled unless moved to `ROADMAP.md`.
 
 # Purpose
 
-The Parking Lot exists to preserve good ideas without interrupting the current
-development objective.
+Use this file to preserve ideas without interrupting the active objective.
 
-If an item belongs on the active roadmap, move it there and remove it from this
-document.
+# Starter Model Research
 
----
+## Starter Recency Blend
+
+Potential future blend:
+
+- season starter profile for stability
+- last five starts for current form
+- last three starts for rapid change detection
+
+Questions:
+
+- What improves out-of-sample performance?
+- How should injury return, opener usage, or role changes be handled?
+- Should recency be separate rather than blended?
+
+Do not implement before bullpen provider work and historical validation.
+
+## Metric-Specific Stabilization
+
+Future research may test different stabilization rates for:
+
+- ERA
+- WHIP
+- K/9
+- BB/9
+- HR/9
+- H/9
+- K-BB%
+- strike%
+- pitches per inning
+- ground/air ratio
+
+Do not tune from one slate.
+
+## Pitch Quality and Arsenal Features
+
+Potential additions:
+
+- velocity changes
+- pitch-mix changes
+- swinging-strike rate
+- called-strike plus whiff rate
+- Stuff+ or comparable metrics
+- platoon-specific pitch quality
+
+Requires reliable provider and licensing/source review.
+
+## Starter Source Transparency
+
+Potential display:
+
+- starter-only game-log source
+- season fallback source
+- starts
+- starter innings
+- sample/confidence label
+
+Useful, not blocking bullpen work.
+
+# Bullpen Research Beyond the Provider
+
+After the base provider is correct:
+
+- leverage index
+- inherited-runner skill
+- closer/setup confidence
+- multi-day fatigue curves
+- travel and extra-inning burden
+- handedness availability
+- bullpen depth
+- opener/bulk interaction
+- postseason usage patterns
 
 # Recommendation Intelligence
 
@@ -24,130 +89,94 @@ Separate:
 - Model Confidence
 - Recommendation Attractiveness
 
-These are currently represented by overlapping concepts and should eventually
-be independent throughout the platform.
-
----
-
 ## Ranking Calibration
 
-Current observation:
+Hammer influences both qualification and ranking. Revisit only after sufficient historical data.
 
-Hammer influences both qualification and ranking.
+## Consensus Score Calibration
 
-This should be revisited only after sufficient historical recommendation data
-exists.
+Future questions:
 
----
-
-### Consensus score calibration
-
-Current behavior:
-
-- `agreement_pct` measures directional module agreement.
-- `consensus_score` blends participating signal scores, sample bonus, and contradiction penalty.
-- A play can therefore be `UNANIMOUS` while still having a modest `consensus_score`.
-
-Example observed:
-
-- Cincinnati Reds
-- Agreement: 100%
-- Consensus score: 55.3
-
-Decision:
-
-Do not change during Sprint 50. Sprint 50 is limited to canonical consensus ownership and serialization.
-
-Revisit when:
-
-- consensus is flowing correctly through Registry, Dashboard, Explorer, Discord, and Play of Day
-- sufficient recommendation history exists to compare consensus score against outcomes
-- ranking calibration work begins
-
-Questions to answer later:
-
-- Should low-scoring supportive modules reduce consensus strength this heavily?
-- Should Bomb Lab support require a minimum score?
-- Should consensus score represent agreement only, signal quality only, or a clearly documented blend?
+- Should low-quality supportive modules reduce consensus strength?
+- Should support require a minimum signal score?
+- Should consensus represent agreement, signal quality, or a documented blend?
 
 ## Automatic Hammer Calibration
 
-Use historical performance to optimize:
+Potentially optimize:
 
 - agreement bonus
 - contradiction penalty
 - thresholds
-- weighting
+- weights
 
 Must remain explainable.
 
----
-
 # Historical Analytics
 
-Future work:
-
-- Signal attribution
-- Confidence bands
-- Feature importance
-- Recommendation replay
-- Model version comparison
-
----
+- signal attribution
+- confidence bands
+- feature importance
+- recommendation replay
+- model-version comparison
+- component-level outcome analysis
+- starter and bullpen validation
 
 # Market Intelligence
 
-Future ideas:
-
 - Closing Line Value
-- Sportsbook performance
-- Line movement alerts
-- Market efficiency scoring
-- Steam move detection
+- sportsbook performance
+- line movement alerts
+- market efficiency
+- opening vs closing comparison
+- steam detection
 
----
+# Dashboard and Presentation
+
+Deferred:
+
+- starter source badge
+- bullpen availability summary
+- bullpen fatigue explanation
+- model-health diagnostics
+- palette refinement
+- stronger Explorer affordance
+- richer historical views
+
+Presentation must consume canonical data.
 
 # Platform
 
-Potential future work:
-
 - REST API
 - OAuth
-- Public API
-- Mobile application
-- User accounts
-- Saved filters
-
----
+- public API
+- mobile application
+- user accounts
+- saved filters
+- stable external DTOs
 
 # Infrastructure
 
-Potential future improvements:
-
 - Docker
 - CI/CD
-- Kubernetes
-- Automated deployments
-- Scheduled daily runs
-- Health monitoring
-- Alerting
+- automated deployments
+- scheduled runs
+- health monitoring
+- alerting
+- experiment tracking
 
----
+Kubernetes is not a near-term need.
 
 # AI
 
-Potential future capabilities:
-
-- Daily AI recap
-- Interactive recommendation assistant
-- Natural-language querying
-- Automated narrative generation
-
----
+- daily AI recap
+- interactive recommendation assistant
+- natural-language querying
+- automated narrative generation
 
 # Multi-Sport
 
-Planned expansion after MLB analytics mature:
+After MLB maturity:
 
 - KBO
 - Soccer
@@ -157,32 +186,17 @@ Planned expansion after MLB analytics mature:
 - College Baseball
 - College Football
 
----
-
 # Research Ideas
 
-Long-term investigations:
-
 - Kelly Criterion
-- Portfolio optimization
+- portfolio optimization
 - Monte Carlo simulation
-- Live betting
-- Umpire impact
-- Travel fatigue
-- Weather sensitivity
-- Arbitrage detection
+- live betting
+- umpire impact
+- travel fatigue
+- weather sensitivity
+- arbitrage detection
 
----
+# Parking Lot Rule
 
-# Parking Lot Rules
-
-An item belongs here when:
-
-- It is valuable.
-- It is not blocking current work.
-- It requires future evidence.
-- It deserves preservation.
-
-This document should remain intentionally short.
-
-If it becomes a backlog, it has failed its purpose.
+This file must remain selective. If it becomes the active backlog, it has failed its purpose.

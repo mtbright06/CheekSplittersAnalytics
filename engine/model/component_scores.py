@@ -1,9 +1,14 @@
 PITCHER_BASELINES = {
     "era": 4.50,
     "whip": 1.35,
-    "k9": 8.0,
-    "bb9": 3.2,
-    "hr9": 1.2,
+    "k9": 8.50,
+    "bb9": 3.20,
+    "hr9": 1.20,
+    "h9": 8.50,
+    "k_bb_pct": 14.0,
+    "strike_pct": 64.0,
+    "pitches_per_inning": 16.5,
+    "ground_air_ratio": 1.00,
 }
 
 PITCHER_STABILIZATION_IP = 50.0
@@ -78,12 +83,21 @@ def offense_score(offense):
 
 
 def starting_pitcher_score(pitcher):
+    """
+    Build a role-aware starting-pitcher score from stabilized performance
+    and underlying skill indicators.
+
+    All observed metrics are regressed toward league-average baselines using
+    starter-only innings pitched. Small samples therefore remain close to a
+    neutral score while established starter samples receive more influence.
+    """
     if not pitcher or pitcher.get("name") == "Unknown Starter":
         return 50
 
-    score = 50
-
     innings_pitched = pitcher.get("ip")
+
+    if innings_pitched is None or innings_pitched <= 0:
+        return 50
 
     era = stabilize_pitcher_stat(
         observed_value=pitcher.get("era"),
@@ -110,21 +124,95 @@ def starting_pitcher_score(pitcher):
         innings_pitched=innings_pitched,
         league_average=PITCHER_BASELINES["hr9"],
     )
+    h9 = stabilize_pitcher_stat(
+        observed_value=pitcher.get("h9"),
+        innings_pitched=innings_pitched,
+        league_average=PITCHER_BASELINES["h9"],
+    )
+    k_bb_pct = stabilize_pitcher_stat(
+        observed_value=pitcher.get("k_bb_pct"),
+        innings_pitched=innings_pitched,
+        league_average=PITCHER_BASELINES["k_bb_pct"],
+    )
+    strike_pct = stabilize_pitcher_stat(
+        observed_value=pitcher.get("strike_pct"),
+        innings_pitched=innings_pitched,
+        league_average=PITCHER_BASELINES["strike_pct"],
+    )
+    pitches_per_inning = stabilize_pitcher_stat(
+        observed_value=pitcher.get("pitches_per_inning"),
+        innings_pitched=innings_pitched,
+        league_average=PITCHER_BASELINES["pitches_per_inning"],
+    )
+    ground_air_ratio = stabilize_pitcher_stat(
+        observed_value=pitcher.get("ground_air_ratio"),
+        innings_pitched=innings_pitched,
+        league_average=PITCHER_BASELINES["ground_air_ratio"],
+    )
 
+    score = 50
+
+    # Run prevention: 30% of the practical scoring influence.
     if era is not None:
-        score += (PITCHER_BASELINES["era"] - era) * 6
+        score += (
+            PITCHER_BASELINES["era"] - era
+        ) * 3.0
 
     if whip is not None:
-        score += (PITCHER_BASELINES["whip"] - whip) * 18
+        score += (
+            PITCHER_BASELINES["whip"] - whip
+        ) * 10.0
 
+    # Bat-missing and command skills.
     if k9 is not None:
-        score += (k9 - PITCHER_BASELINES["k9"]) * 2
+        score += (
+            k9 - PITCHER_BASELINES["k9"]
+        ) * 1.25
 
     if bb9 is not None:
-        score += (PITCHER_BASELINES["bb9"] - bb9) * 2
+        score += (
+            PITCHER_BASELINES["bb9"] - bb9
+        ) * 1.5
 
+    if k_bb_pct is not None:
+        score += (
+            k_bb_pct - PITCHER_BASELINES["k_bb_pct"]
+        ) * 0.30
+
+    if strike_pct is not None:
+        score += (
+            strike_pct - PITCHER_BASELINES["strike_pct"]
+        ) * 0.35
+
+    # Contact management.
     if hr9 is not None:
-        score += (PITCHER_BASELINES["hr9"] - hr9) * 6
+        score += (
+            PITCHER_BASELINES["hr9"] - hr9
+        ) * 4.0
+
+    if h9 is not None:
+        score += (
+            PITCHER_BASELINES["h9"] - h9
+        ) * 0.75
+
+    # Efficiency and batted-ball tendency receive modest influence.
+    if pitches_per_inning is not None:
+        score += (
+            PITCHER_BASELINES["pitches_per_inning"]
+            - pitches_per_inning
+        ) * 0.40
+
+    if ground_air_ratio is not None:
+        ground_ball_edge = clamp(
+            ground_air_ratio,
+            low=0.50,
+            high=2.00,
+        )
+
+        score += (
+            ground_ball_edge
+            - PITCHER_BASELINES["ground_air_ratio"]
+        ) * 1.5
 
     return round(clamp(score), 1)
 

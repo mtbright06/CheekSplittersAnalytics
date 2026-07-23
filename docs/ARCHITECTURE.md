@@ -1,207 +1,218 @@
-# SharpStack Architecture
+﻿# SharpStack Architecture
 
-> The architecture document is the long-term technical constitution of SharpStack.
-> It describes **how the platform is intentionally designed**, not what a single
-> sprint happens to be implementing.
-
----
+> Long-term technical constitution of SharpStack.
 
 # 1. Vision
 
-SharpStack is an explainable sports analytics platform built around reproducible
-models, canonical decision contracts, immutable historical records, and
-evidence-driven evolution.
+SharpStack is an explainable sports analytics platform built around:
 
-Every architectural decision should improve one or more of:
-
-- Accuracy
-- Explainability
-- Reproducibility
-- Maintainability
-- Historical analysis
-
----
+- correct and traceable provider data
+- role-aware sport models
+- canonical decision contracts
+- immutable historical records
+- reproducible builds
+- evidence-driven model evolution
 
 # 2. Engineering Principles
 
-These principles guide every design decision.
-
-1. Fix plumbing before tuning models.
-2. One source of truth is always preferred over duplicated calculations.
+1. Fix provider data and plumbing before tuning models.
+2. Prefer one source of truth over duplicated calculations.
 3. Presentation consumes data; it never computes recommendations.
-4. Small targeted changes are preferred over broad refactors.
-5. Explainability is a feature—not an afterthought.
-6. Historical evidence beats intuition when calibrating models.
-7. Every recommendation should be reproducible.
-
----
+4. Sport models own sport-specific projections and inputs.
+5. Decision Builder owns cross-signal integration.
+6. Prefer small targeted changes over broad refactors.
+7. Explainability is a first-class feature.
+8. Historical evidence beats intuition for calibration.
+9. Every recommendation should be reproducible.
+10. Missing data must degrade safely and visibly.
 
 # 3. Layered Architecture
 
+```text
 External Providers
-        │
-        ▼
-Provider / Ingestion Layer
-        │
-        ▼
+        â†“
+Provider / Ingestion
+        â†“
+Normalization / Role-Aware Profiles
+        â†“
 Sport Models
-        │
-        ▼
+        â†“
 Decision Builder
-        │
-        ▼
+        â†“
 Recommendation Registry
-        │
-        ▼
-Persistence / Analytics
-        │
-        ▼
+        â†“
+Persistence / Historical Analytics
+        â†“
 Presentation
-(Dashboard, Discord, Reports, API)
-
-Each layer has a single responsibility.
-
----
+```
 
 # 4. Canonical Ownership
 
-To prevent duplicated logic, every major concept has a single owner.
-
 | Concept | Canonical Owner |
-|---------|-----------------|
-| Model projections | Sport-specific models |
+|---|---|
+| Raw provider retrieval | Provider / ingestion modules |
+| Role-aware profiles | Sport normalization modules |
+| Sport projections | Sport-specific models |
+| Starter profile | `engine/mlb/pitchers.py` |
+| Bullpen snapshot | MLB bullpen provider feeding `engine/mlb/bullpen/` |
 | Signal integration | Decision Builder |
 | Consensus | Decision Builder |
 | Hammer Score | Decision Builder |
-| Recommendation Registry | Recommendation Registry builder |
+| Recommendation Registry | Registry builder |
 | Play of the Day | Play of the Day service |
 | Historical grading | Analytics layer |
 | Rendering | Presentation layer |
 
-Downstream consumers must never rebuild upstream decisions.
+Downstream consumers must not rebuild upstream decisions.
 
----
+# 5. MLB Provider and Normalization
 
-# 5. Decision Builder
+## Starter path
 
-Decision Builder is the heart of SharpStack.
+```text
+MLB game logs
+    â†“
+fetch_pitcher_stats()
+    â†“
+filter gamesStarted > 0
+    â†“
+aggregate raw counts
+    â†“
+recompute rates
+    â†“
+starter profile
+    â†“
+game_builder
+    â†“
+sport models / component scores
+```
+
+Rules:
+
+- Do not average game-log rate fields.
+- Aggregate raw counts and recompute rates.
+- Preserve a safe fallback.
+- Surface source through `data_source`.
+- Keep unknown or unusable samples neutral.
+- A mixed-role season fallback is resilience, not the preferred path.
+
+## Bullpen path
+
+```text
+MLB roster and pitching data
+    â†“
+Bullpen provider / role normalization
+    â†“
+BullpenSnapshot
+    â†“
+existing quality, fatigue, projection, adjustment modules
+    â†“
+game_builder
+    â†“
+totals and SharpScore
+```
+
+The existing `engine/mlb/bullpen/` subsystem is canonical and must be extended, not replaced.
+
+Provider responsibilities:
+
+- active roster retrieval
+- reliever identification
+- starter/reliever separation
+- recent usage
+- season performance
+- availability inputs
+- source quality and fallback
+
+Bullpen model responsibilities:
+
+- quality
+- fatigue
+- projection
+- game adjustment
+
+Presentation must not infer bullpen availability or quality.
+
+# 6. Model Scoring
+
+Component scores should:
+
+- start from an explainable neutral baseline
+- use normalized inputs
+- handle missing values explicitly
+- stabilize small samples
+- clamp outputs
+- avoid market leakage unless explicitly market-based
+
+Starting-pitcher scoring currently uses stabilized:
+
+- ERA
+- WHIP
+- K/9
+- BB/9
+- HR/9
+- H/9
+- K-BB%
+- strike%
+- pitches per inning
+- ground/air ratio
+
+The structure is approved; calibration is not complete.
+
+# 7. Decision Builder
 
 Responsibilities:
 
-- Normalize model outputs.
-- Match games.
-- Integrate model signals.
-- Determine agreement and contradiction.
-- Validate markets.
-- Calculate Hammer.
-- Produce canonical recommendation data.
-- Produce canonical consensus.
+- normalize model outputs
+- match games
+- integrate signals
+- determine agreement and contradiction
+- validate markets
+- calculate Hammer
+- produce canonical recommendation data
+- produce canonical consensus
 
-No downstream component should reinterpret these decisions.
+Do not redesign Decision Builder without concrete evidence and approval.
 
----
-
-# 6. Consensus Architecture
-
-Consensus is a first-class architectural contract.
+# 8. Consensus
 
 Decision Builder owns:
 
-- support / oppose direction
+- support and opposition direction
 - agreement counts
 - contradiction counts
 - agreement percentage
 - supporting modules
 - opposing modules
+- consensus score and diagnostics
 
-Recommendation Registry serializes this information.
+Registry serializes it. Consumers display it. Consumers do not recompute it.
 
-Consumers display it.
+# 9. Recommendation Lifecycle
 
-Consumers do not recompute it.
-
----
-
-# 7. Recommendation Lifecycle
-
+```text
 Provider Data
-
-↓
-
-Model Outputs
-
-↓
-
+    â†“
+Role-Aware Normalization
+    â†“
+Sport Models
+    â†“
 Decision Builder
-
-↓
-
+    â†“
 Recommendation Registry
-
-↓
-
+    â†“
 Play of the Day
+    â†“
+Dashboard / Discord / Reports / API
+```
 
-↓
+# 10. Hammer and Ranking
 
-Dashboard / Discord / Reports
+Hammer is an explainable composite score.
 
-Every consumer should observe identical recommendation semantics.
+Ranking orders already-qualified recommendations.
 
----
-
-# 8. Hammer Philosophy
-
-Hammer is an explainable composite recommendation score.
-
-It incorporates approved model inputs such as:
-
-- model strength
-- agreement
-- contradiction penalties
-- market quality
-- edge
-- approved adjustments
-
-Hammer must always remain explainable.
-
----
-
-# 9. Ranking Philosophy
-
-Ranking determines ordering among already-qualified recommendations.
-
-Current weighting:
-
-- Hammer 60%
-- Consensus 18%
-- Edge 10%
-- EV 7%
-- Market Quality 5%
-
-Observation:
-
-Hammer currently influences both qualification and ranking.
-
-This is intentional for now.
-
-Future changes require historical evidence—not individual slate results.
-
----
-
-# 10. Recommendation Philosophy
-
-Recommendation quality is determined by:
-
-1. Correct data.
-2. Correct plumbing.
-3. Correct integration.
-4. Correct scoring.
-5. Historical validation.
-
-Never reverse this order.
-
----
+Do not recalibrate Hammer or ranking from anecdotal slate results.
 
 # 11. Explainability
 
@@ -211,84 +222,48 @@ Every recommendation should answer:
 - Why not?
 - What helped?
 - What hurt?
+- What source was used?
+- What uncertainty exists?
 - How confident is the platform?
 
-Explainability is shared across all presentation layers through common
-contracts.
+# 12. Persistence
 
----
-
-# 12. Persistence Principles
-
-Recommendations are immutable.
-
-Odds history is append-only.
-
-Every recommendation traces back to:
-
-- Game
-- Model Version
-- Model Run
-- Timestamp
-- Supporting evidence
-
----
+- Recommendations are immutable.
+- Odds history is append-only.
+- Every recommendation should trace to game, model version, run, timestamp, market snapshot, and supporting evidence.
+- Prediction engines must not depend directly on persistence.
 
 # 13. Architecture Change Gate
 
 Before changing architecture, document:
 
-- Current rule
-- Feature blocked
-- Evidence
-- Smallest change
-- Files affected
-- Compatibility
-- Testing
-- Rollback
+- current rule
+- problem
+- evidence
+- smallest viable change
+- files affected
+- compatibility
+- testing
+- rollback
 
-Architecture changes require explicit approval.
+# 14. What Must Never Happen
 
----
+- Duplicate recommendation logic
+- Duplicate consensus calculations
+- Presentation-layer scoring
+- Database access from prediction engines
+- Historical recommendation mutation
+- Odds-history rewriting
+- Averaging incompatible provider rate fields
+- Treating mixed-role data as starter-specific without disclosure
+- Creating a second bullpen model
+- Calibration from a single slate
+- Broad refactors without a validated need
 
-# 14. Current Focus
+# 15. Current Focus
 
-Current development is improving decision quality rather than adding new
-features.
-
-Primary objectives:
-
-- Canonical consensus ownership
-- Analytics refinement
-- Historical performance
-- Closing Line Value
-- Multi-sport readiness
-
----
-
-# 15. What Must Never Happen
-
-- Duplicate recommendation logic.
-- Duplicate consensus calculations.
-- Presentation-layer scoring.
-- Database access from prediction engines.
-- Historical recommendation mutation.
-- Hammer recalibration from anecdotal results.
-- Broad refactors without a feature need.
-
----
-
-# 16. Long-Term Direction
-
-SharpStack should evolve through measurable improvements supported by historical
-results.
-
-Every major enhancement should preserve:
-
-- explainability
-- reproducibility
-- architectural separation
-- canonical ownership
-- long-term maintainability
-
-When in doubt, prefer the simpler design that produces one trustworthy answer.
+1. Finish role-aware starter profiles and scoring.
+2. Connect MLB data to the existing bullpen subsystem.
+3. Improve explainable uncertainty.
+4. Expand historical validation and CLV.
+5. Preserve shared contracts for multi-sport growth.

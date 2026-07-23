@@ -119,7 +119,7 @@ def build_sharpscore_decision(
         market_edge = market_edge_to_dict(calculated)
         edge = market_edge.get("edge") or 0
 
-    confidence = calculate_confidence(
+    confidence, confidence_breakdown = calculate_confidence(
         abs(selected_score - opponent_score),
         away_pitcher,
         home_pitcher,
@@ -134,6 +134,7 @@ def build_sharpscore_decision(
         "model_probability": model_probability,
         "edge": edge,
         "confidence": confidence,
+        "confidence_breakdown": confidence_breakdown,
         "recommendation": recommendation(edge, confidence),
         "signals": [
             {"name": "Offense", "value": selected_components["offense"] / 100},
@@ -207,8 +208,25 @@ def build_reasons(
 
     pitcher_name = selected_pitcher.get("name")
     if pitcher_name and pitcher_name != "Unknown Starter":
+        reasons.append(f"Projected starter: {pitcher_name}.")
+
+    if selected_components["bullpen"] > opponent_components["bullpen"]:
         reasons.append(
-            f"Projected starter: {pitcher_name}."
+            f"{play} has the stronger bullpen score ({selected_components['bullpen']:.1f} vs {opponent_components['bullpen']:.1f})."
+        )
+
+    if selected_components["home_field"] > opponent_components["home_field"]:
+        reasons.append(
+            f"{play} benefits from home field advantage."
+        )
+
+
+    if (
+        selected_pitcher.get("name") == "Unknown Starter"
+        or opponent_pitcher.get("name") == "Unknown Starter"
+    ):
+        reasons.append(
+            "Confidence reduced because one or more probable starters are unconfirmed."
         )
 
     reasons.append(

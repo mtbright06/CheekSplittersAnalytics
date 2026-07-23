@@ -115,10 +115,12 @@ def fetch_team_hitting(team_id: int | None) -> dict:
 
     data = request_json(
         url,
+
         params={
             "stats": "season",
             "group": "hitting",
             "season": year,
+            "gameType": "R",
         },
     )
 
@@ -177,6 +179,7 @@ def fetch_pitcher_metrics(pitcher_id: int | None) -> dict:
             "stats": "season",
             "group": "pitching",
             "season": year,
+            "gameType": "R",
         },
     )
 

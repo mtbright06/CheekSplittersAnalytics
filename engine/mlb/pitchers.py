@@ -1,3 +1,5 @@
+from datetime import date
+
 import requests
 from scipy import stats
 
@@ -14,6 +16,8 @@ def fetch_pitcher_stats(person_id):
     params = {
         "stats": "season",
         "group": "pitching",
+        "season": date.today().year,
+        "gameType": "R",
     }
 
     try:

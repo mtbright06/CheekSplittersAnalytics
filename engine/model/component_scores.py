@@ -1,5 +1,46 @@
+PITCHER_BASELINES = {
+    "era": 4.50,
+    "whip": 1.35,
+    "k9": 8.0,
+    "bb9": 3.2,
+    "hr9": 1.2,
+}
+
+PITCHER_STABILIZATION_IP = 50.0
+
+
 def clamp(value, low=0, high=100):
     return max(low, min(high, value))
+
+
+def stabilize_pitcher_stat(
+    observed_value,
+    innings_pitched,
+    league_average,
+    stabilization_ip=PITCHER_STABILIZATION_IP,
+):
+    """
+    Regress a pitcher's observed statistic toward league average based on
+    innings pitched.
+
+    A small innings sample receives more league-average influence. As innings
+    increase, the stabilized value moves progressively closer to the pitcher's
+    observed value.
+
+    Raw pitcher values are not modified; stabilization is used only for model
+    scoring.
+    """
+    if observed_value is None:
+        return None
+
+    if innings_pitched is None or innings_pitched <= 0:
+        return league_average
+
+    reliability = innings_pitched / (innings_pitched + stabilization_ip)
+
+    return league_average + reliability * (
+        observed_value - league_average
+    )
 
 
 def offense_score(offense):
@@ -42,26 +83,48 @@ def starting_pitcher_score(pitcher):
 
     score = 50
 
-    era = pitcher.get("era")
-    whip = pitcher.get("whip")
-    k9 = pitcher.get("k_rate")
-    bb9 = pitcher.get("bb_rate")
-    hr9 = pitcher.get("hr9")
+    innings_pitched = pitcher.get("ip")
+
+    era = stabilize_pitcher_stat(
+        observed_value=pitcher.get("era"),
+        innings_pitched=innings_pitched,
+        league_average=PITCHER_BASELINES["era"],
+    )
+    whip = stabilize_pitcher_stat(
+        observed_value=pitcher.get("whip"),
+        innings_pitched=innings_pitched,
+        league_average=PITCHER_BASELINES["whip"],
+    )
+    k9 = stabilize_pitcher_stat(
+        observed_value=pitcher.get("k_rate"),
+        innings_pitched=innings_pitched,
+        league_average=PITCHER_BASELINES["k9"],
+    )
+    bb9 = stabilize_pitcher_stat(
+        observed_value=pitcher.get("bb_rate"),
+        innings_pitched=innings_pitched,
+        league_average=PITCHER_BASELINES["bb9"],
+    )
+    hr9 = stabilize_pitcher_stat(
+        observed_value=pitcher.get("hr9"),
+        innings_pitched=innings_pitched,
+        league_average=PITCHER_BASELINES["hr9"],
+    )
 
     if era is not None:
-        score += (4.50 - era) * 6
+        score += (PITCHER_BASELINES["era"] - era) * 6
 
     if whip is not None:
-        score += (1.35 - whip) * 18
+        score += (PITCHER_BASELINES["whip"] - whip) * 18
 
     if k9 is not None:
-        score += (k9 - 8.0) * 2
+        score += (k9 - PITCHER_BASELINES["k9"]) * 2
 
     if bb9 is not None:
-        score += (3.2 - bb9) * 2
+        score += (PITCHER_BASELINES["bb9"] - bb9) * 2
 
     if hr9 is not None:
-        score += (1.2 - hr9) * 6
+        score += (PITCHER_BASELINES["hr9"] - hr9) * 6
 
     return round(clamp(score), 1)
 

@@ -1,3 +1,5 @@
+from datetime import date
+
 import requests
 
 
@@ -10,9 +12,12 @@ def fetch_team_batting_stats(team_id):
 
     url = f"{BASE_URL}/teams/{team_id}/stats"
 
+
     params = {
         "stats": "season",
         "group": "hitting",
+        "season": date.today().year,
+        "gameType": "R",
     }
 
     try:

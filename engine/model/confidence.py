@@ -13,6 +13,13 @@ def data_completeness_score(*values):
     return present / total
 
 
+def is_unknown_starter(pitcher):
+    return (
+        not pitcher
+        or pitcher.get("name") == "Unknown Starter"
+    )
+
+
 def calculate_confidence(
     score_diff,
     away_pitcher,
@@ -21,9 +28,15 @@ def calculate_confidence(
     away_offense,
     home_offense,
 ):
-    confidence = 45
+    breakdown = {
+        "base": 45,
+        "matchup_strength": 0,
+        "data_quality": 0,
+        "starter_certainty": 0,
+    }
 
-    confidence += min(score_diff * 1.1, 30)
+    # Bigger model separation = more confidence
+    breakdown["matchup_strength"] = min(score_diff * 1.1, 30)
 
     completeness = data_completeness_score(
         away_pitcher.get("era"),
@@ -35,6 +48,26 @@ def calculate_confidence(
         home_offense.get("ops"),
     )
 
-    confidence += completeness * 20
+    breakdown["data_quality"] = completeness * 20
 
-    return round(clamp(confidence, 35, 95), 1)
+    unknown_count = sum([
+        is_unknown_starter(away_pitcher),
+        is_unknown_starter(home_pitcher),
+    ])
+
+    if unknown_count == 0:
+        breakdown["starter_certainty"] = 0
+    elif unknown_count == 1:
+        breakdown["starter_certainty"] = -10
+    else:
+        breakdown["starter_certainty"] = -20
+
+    confidence = sum(breakdown.values())
+
+    for key in breakdown:
+        breakdown[key] = round(breakdown[key], 1)
+
+    return (
+        round(clamp(confidence, 35, 95), 1),
+        breakdown,
+    )

@@ -13,6 +13,8 @@ def fetch_mlb_schedule(target_date=None):
     params = {
         "sportId": MLB_SPORT_ID,
         "date": target_date,
+        "season": date.today().year,
+        "gameType": "R",
         "hydrate": "probablePitcher",
     }
 

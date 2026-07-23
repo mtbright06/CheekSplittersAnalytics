@@ -139,6 +139,26 @@ Goals:
 - recommendation replay
 - model-version comparison
 
+## Pitching Intelligence
+
+Foundation:
+
+- Starter Model v2
+- MLB bullpen provider
+- Bullpen quality model
+
+Future:
+
+- Starter Model v3 / recency
+- metric-specific stabilization
+- pitch quality
+- expected metrics
+- pitch arsenal intelligence
+- historical calibration
+
+This initiative should not expand until starter data correctness, bullpen
+provider integration, and historical validation foundations are in place.
+
 ## Market Intelligence
 
 Planned:
@@ -195,8 +215,9 @@ Requires evidence or a separately approved investigation:
 - portfolio optimization
 - starter recency blending
 - metric-specific stabilization
-- pitch-mix and velocity features
-- Stuff+ or proprietary pitch-quality models
+- pitch quality and arsenal intelligence
+- expected pitching metrics
+- Stuff+, Location+, Pitching+, or comparable proprietary models
 
 # Explicit Anti-Drift Rule
 

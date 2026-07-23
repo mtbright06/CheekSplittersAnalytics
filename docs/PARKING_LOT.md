@@ -26,33 +26,69 @@ Do not implement before bullpen provider work and historical validation.
 
 ## Metric-Specific Stabilization
 
-Future research may test different stabilization rates for:
+Current state:
+
+- Starter Model v2 uses one global stabilization constant.
+- That is acceptable for the current model because the priority was
+  role-aware starter data correctness, not fine-grained calibration.
+
+Future research may replace the global factor with metric-specific
+stabilization constants backed by sabermetric research.
+
+Different baseball statistics stabilize at different sample sizes. For
+example:
+
+- Strike%
+- K%
+- BB%
+
+These tend to become meaningful relatively quickly.
+
+Other metrics need larger samples:
 
 - ERA
 - WHIP
-- K/9
-- BB/9
-- HR/9
 - H/9
-- K-BB%
-- strike%
-- pitches per inning
-- ground/air ratio
+
+HR/9 usually requires an even larger sample because home runs are sparse
+events.
+
+Potential future work:
+
+- research stabilization points by metric
+- replace the single constant with metric-specific constants
+- document the source and rationale for each constant
+- validate whether the added complexity improves historical performance
 
 Do not tune from one slate.
 
-## Pitch Quality and Arsenal Features
+## Future Pitching Intelligence
 
-Potential additions:
+Potential additions after the current provider and validation work:
 
-- velocity changes
-- pitch-mix changes
-- swinging-strike rate
-- called-strike plus whiff rate
-- Stuff+ or comparable metrics
-- platoon-specific pitch quality
+- velocity trends
+- pitch mix evolution
+- Swinging Strike%
+- CSW%
+- Chase%
+- Stuff+
+- Location+
+- Pitching+
+- xERA
+- xwOBA allowed
+- Barrel%
+- HardHit%
+- contact quality suppression
+- platoon-specific pitch quality and arsenal fit
 
-Requires reliable provider and licensing/source review.
+These are intentionally deferred until:
+
+1. starter data correctness is complete
+2. bullpen provider integration is complete
+3. historical validation exists
+
+Requires reliable providers, licensing/source review, and evidence that the
+metrics improve out-of-sample decisions.
 
 ## Starter Source Transparency
 

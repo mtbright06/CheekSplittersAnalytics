@@ -10,10 +10,10 @@
 **Repository:** `C:\CheekSplittersAnalytics`
 **Primary branch:** `feature/recommendation-history`
 **Environment:** Windows 11 / PowerShell / Python 3.13+
-**Current milestone:** Sprint 53 â€” MLB bullpen provider and integration
-**Current work item:** S53-001 â€” MLB bullpen provider plumbing
-**Working tree:** Intentionally modified and not yet committed
-**Next approved priority after Sprint 53:** KBO confidence improvements
+**Current milestone:** Epic 1 â€” Model Correctness
+**Current work item:** Sprint 55 â€” Better Pitching Metrics Investigation
+**Working tree:** Documentation updates pending review; do not commit or push
+**Sprint 54 status:** Complete; no Sprint 55 implementation has begun
 
 SharpStack is stable and actively developed. The platform already has a functioning MLB recommendation pipeline, Recommendation Registry, Play of the Day, structured explanations, dashboard, Discord reporting, recommendation history, and an Azure PostgreSQL persistence foundation.
 
@@ -43,49 +43,145 @@ That inspection revealed a more immediate structural flaw:
 
 This was a provider/data-correctness issue, and SharpStack's architecture requires plumbing and data integrity to be fixed before model tuning.
 
-The approved course correction became:
+The active execution sequence is:
 
-1. Complete Starter Model v2.
-2. Return immediately to the bullpen provider and integration.
-3. Improve KBO confidence handling.
-4. Resume calibration only after enough historical evidence exists.
+1. Conduct Sprint 55 - Better Pitching Metrics Investigation.
+2. Complete Sprint 56 - KBO Confidence Correctness.
 
-Do not drift into Starter Model v3, recency blending, metric-specific stabilization, dashboard polish, or broader scoring experimentation before the bullpen work. Those ideas are preserved in `PARKING_LOT.md`.
+Do not drift into Epic 2 enhancements, calibration, dashboard work, or future
+sports before Epic 1 completes. Those ideas remain deferred.
 
 ---
 
 # 3. Sprint 53 Status
 
-Completed before this session:
+Completed:
 
 - S52-001 â€” Remove market leakage
 - S52-002 â€” Explainable confidence / unknown starters
 - S52-003 â€” Default audit
 - Explicit MLB API `season` and `gameType` parameters
-- S52-005 â€” Pitcher sample stabilization
 
-Deferred:
+Sprint 53 completed:
 
-- S52-004 â€” Calibration
-  - Must wait for sufficient recommendation history and outcome evidence.
-
-Completed:
-
-- S52-006 â€” Starter Model v2
-  - Role-aware starter-only game-log aggregation
-  - Richer starter profile
-  - Modernized starting-pitcher score using stabilized skill metrics
-
-In progress:
-
-- S53-001 â€” Bullpen provider and integration
+- Sprint 53 â€” MLB Bullpen Provider
+  - completes the original Real Bullpen Model work item, formerly S52-006
   - Active pitcher roster and reliever game-log ingestion
   - Normalized bullpen payload shared by totals and SharpScore
   - Source-quality metadata and neutral availability handling
 
 ---
 
-# 4. Work Completed in This Session
+# 4. Sprint 53 Completion Record
+
+## 4.1 Sprint Summary
+
+**Objective:** complete the existing MLB bullpen pipeline without replacing its
+quality, fatigue, projection, adjustment, totals, or SharpScore systems.
+
+**Completed:** added MLB active-pitcher roster and game-log ingestion, reliever
+classification, raw-count aggregation, a normalized bullpen payload, game-card
+integration, focused tests, and source-quality/fallback metadata.
+
+**Outcome:** the live MLB build completed successfully with bullpen data flowing
+through the existing totals and SharpScore consumers. Unavailable provider data
+remains neutral and partial rather than blocking the card.
+
+## 4.2 Architecture Decisions
+
+- The provider owns retrieval, role classification, raw aggregation,
+  normalization, and metadata because provider correctness belongs upstream of
+  model scoring.
+- The existing bullpen subsystem remains canonical. Adding another model or
+  recalculating fatigue, quality, confidence, or run adjustments in the provider
+  would duplicate ownership and make results harder to trace.
+- One normalized payload is published to `game["bullpen"]` for totals and
+  adapted with existing `era`/`whip` aliases for SharpScore. This preserves
+  compatibility without changing `component_scores.py`.
+- Availability is intentionally `UNCONFIRMED_NEUTRAL`: the current boolean
+  contract receives neutral defaults while metadata exposes the uncertainty.
+  A depth chart or high-precision availability model was deliberately deferred.
+
+## 4.3 Files Changed
+
+Added:
+
+- `engine/mlb/bullpen/provider.py`
+- `tests/test_mlb_bullpen_provider.py`
+
+Modified:
+
+- `engine/mlb/game_builder.py`
+- `docs/PROJECT_HANDOFF.md`
+- `docs/ROADMAP.md`
+
+Unchanged by design:
+
+- `engine/mlb/bullpen/bullpen_model.py`, `quality.py`, `fatigue.py`, and
+  `game_adjustment.py`
+- `engine/model/component_scores.py`
+- Decision Builder and SharpScore weights
+
+## 4.4 Validation
+
+- Live MLB card build, Odds API integration, and totals-market integration
+  passed.
+- `py_compile`, `tools_test_bullpen.py`, `tools_test_mlb_totals.py`, and
+  `git diff --check` passed.
+- Provider tests passed.
+
+## 4.5 Known Limitations
+
+- Availability remains conservative; there is no closer/setup prediction model.
+- Swingmen and converted starters may require role-classification refinement.
+- Per-pitcher API requests could be optimized in a future sprint.
+
+## 4.6 Parking Lot Updates
+
+Deferred: bullpen quality enhancements, usage forecasting, advanced bullpen
+metrics, velocity/Stuff+ integration, and closer availability modeling.
+
+## 4.7 Next Execution Item
+
+Sprint 54 is complete. Sprint 55 is Better Pitching Metrics Investigation,
+formerly S52-007. It is research only: evaluate FIP, xFIP, xERA, and SIERA;
+do not integrate any metric into production during this sprint.
+
+## 4.8 Notes for Future Chats
+
+Read the architecture, roadmap, handoff, and parking lot before proposing code.
+Keep the provider upstream, retain the canonical bullpen modules, do not tune
+bullpen weights yet, and do not infer precision that the available MLB data does
+not support. Rebuild generated artifacts before diagnosing a presentation issue.
+
+## 4.9 Sprint 54 Completion Record
+
+**Objective:** reduce volatility from limited starter samples without changing
+model weights, confidence, recommendation thresholds, or scoring philosophy.
+
+**Approach:** `engine/model/pitcher_stabilization.py` centralizes the existing
+empirical-Bayes formula: `IP / (IP + 50)`. At 50 innings, a metric is weighted
+50% observed value and 50% league baseline; at 150 innings, it is 75% observed.
+The 50-IP constant was retained to preserve established SharpScore behavior.
+
+**Integration:** stabilized views now feed starter scoring, MLB totals, and
+First Five pitcher inputs for ERA, WHIP, HR/9, K/9, and BB/9. Raw provider data
+is not mutated. When innings are unavailable, raw-stat fallbacks are preserved;
+unknown starters remain neutral through the existing scorer behavior.
+
+**Validation:** focused low-, medium-, established-, and missing-innings tests;
+`py_compile`; `tools_test_mlb_totals.py`; and `git diff --check` passed. The
+live MLB card build could not run because this environment could not resolve
+`statsapi.mlb.com` before model execution.
+
+**Known limitations and deferrals:** baselines and the 50-IP constant are shared
+across metrics; metric-specific stabilization remains deferred. Sprint 55 will
+research FIP, xFIP, xERA, and SIERA only; it does not authorize production
+integration.
+
+---
+
+# 5. Historical Sprint 52 Detail
 
 ## 4.1 Starter-only provider path
 
@@ -248,7 +344,7 @@ This is a sanity check, not calibration proof.
 
 ---
 
-# 6. Files Expected to Be Modified
+# 6. Historical Starter Files Changed
 
 Core changes:
 
@@ -273,7 +369,10 @@ Before commit, either delete `tools_validate_pitchers.py` if it was only a one-t
 
 ---
 
-# 7. Immediate Next Actions Before Commit
+# 7. Historical Starter Validation Procedure
+
+The following was the Sprint 52 pre-commit checklist and is retained only as a
+record of that completed work.
 
 Run:
 
@@ -329,7 +428,10 @@ git diff --stat
 
 ---
 
-# 8. Proposed Commit Scope
+# 8. Historical Starter Commit Record
+
+Sprint 52 was committed before Sprint 53; this section is retained for context
+and is not an active instruction.
 
 One logical objective:
 
@@ -368,7 +470,7 @@ Expected final state:
 
 ---
 
-# 9. Current Objective: MLB Bullpen Provider and Integration
+# 9. Completed Bullpen Architecture
 
 The repository already contains:
 
@@ -404,7 +506,7 @@ The prior game-builder placeholder was:
 }
 ```
 
-The active implementation adds a provider/normalization layer that produces a
+Sprint 53 added a provider/normalization layer that produces a
 reliable `BullpenSnapshot`-shaped payload from MLB data without duplicating
 quality, fatigue, projection, adjustment, or component scoring.
 
@@ -460,7 +562,7 @@ Not the next priority:
 - Hammer recalibration
 - Cosmetic dashboard work
 
-These ideas may be valuable. They are not blocking the approved bullpen objective.
+These ideas may be valuable. They are not blocking the active Epic 1 objective.
 
 ---
 
@@ -489,14 +591,13 @@ feature/recommendation-history.
 Read PROJECT_HANDOFF.md, ARCHITECTURE.md, ROADMAP.md, CHAT_PROTOCOL.md,
 DEVELOPMENT_ENVIRONMENT.md, and PARKING_LOT.md before proposing code.
 
-The current uncommitted objective is Sprint 52 Starter Model v2:
-starter-only MLB game-log aggregation, richer starter payloads, and stabilized
-skill-based starter scoring. Validate and commit that work first.
+Sprint 53 is complete in commit 139a364: the MLB bullpen provider retrieves
+active pitcher roster and reliever game logs, publishes one normalized payload
+for totals and SharpScore, and leaves existing bullpen models unchanged.
 
-After the commit and push, the next approved priority is the MLB bullpen provider
-and integration. The repository already contains engine/mlb/bullpen modules; do
-not replace them. Investigate their contracts and build the missing MLB provider
-and BullpenSnapshot plumbing.
+Sprint 54 is complete: starter ERA, WHIP, HR/9, K/9, and BB/9 now use the
+shared 50-IP stabilization view in SharpScore, totals, and First Five inputs.
+Sprint 55 is research only, and Sprint 56 addresses KBO confidence correctness.
 
 Do not drift into starter recency blending, metric-specific stabilization,
 dashboard polish, calibration, or broad refactors. Use small targeted edits,
@@ -520,4 +621,5 @@ SharpStack is evolving into an explainable, evidence-driven sports analytics pla
 
 The immediate discipline is simple:
 
-**Finish Starter Model v2 cleanly, then build the bullpen provider correctly.**
+**Complete Epic 1 model correctness before Epic 2 intelligence, Epic 3
+calibration and persistence, or Epic 4 platform work.**

@@ -13,79 +13,122 @@
 - Keep presentation separate from prediction logic.
 - Prefer small targeted changes over broad refactors.
 
-# Current Milestone
-
-## Sprint 53 â€” MLB Bullpen Provider and Integration
+# Current Status
 
 Completed:
 
-- S52-001 â€” Remove market leakage
-- S52-002 â€” Explainable confidence / unknown starters
-- S52-003 â€” Default audit
-- Explicit MLB API season and regular-season parameters
-- S52-005 â€” Pitcher sample stabilization
+- S52-001 - Remove Market Leakage
+- S52-002 - Explainable MLB Confidence
+- S52-003 - Default Value Audit
+- Explicit MLB API Parameters
+- Sprint 53 - MLB Bullpen Provider
+  - satisfies the original Real Bullpen Model work item, formerly S52-006
+  - active roster and reliever game-log ingestion
+  - canonical bullpen payload for totals and SharpScore compatibility aliases
+- Sprint 54 - Pitcher Sample Stabilization
+  - shared innings-based blending for starter ERA, WHIP, HR/9, K/9, and BB/9
+
+# Epic 1: Model Correctness
+
+**Status:** Active
 
 Completed:
 
-- S52-006 â€” Starter Model v2
-  - starter-only game-log aggregation
-  - safe season fallback
-  - richer starter profile
-  - stabilized skill-based starter score
-  - end-to-end artifact validation
+- Remove Market Leakage
+- Explainable MLB Confidence
+- Default Value Audit
+- Explicit MLB API Parameters
+- Sprint 53 - MLB Bullpen Provider
+- Sprint 54 - Pitcher Sample Stabilization
 
-In progress:
+## Sprint 54: Pitcher Sample Stabilization
 
-- S53-001 â€” MLB bullpen provider and integration
-  - active pitcher roster and reliever game-log ingestion
-  - raw season and recent-use aggregation
-  - normalized bullpen payload for totals and SharpScore
-  - conservative availability metadata and neutral fallback behavior
+Formerly S52-005. Completed.
 
-Deferred:
+Delivered:
 
-- S52-004 â€” Calibration
-  - requires sufficient historical recommendations, outcomes, and market context
+- Centralized the existing 50-inning empirical-Bayes blend for ERA, WHIP,
+  HR/9, K/9, and BB/9.
+- Applied stabilized views to SharpScore, MLB totals, and First Five starter
+  inputs without changing weights, confidence, or recommendation thresholds.
+- Preserved raw-stat fallbacks when innings are absent; unknown starters remain
+  a separate neutral-scoring state.
 
-# Approved Near-Term Priority Order
+## Sprint 55: Better Pitching Metrics Investigation
 
-## 1. MLB Bullpen Provider and Integration
+Formerly S52-007. Research only; no production integration during this sprint.
 
-This is the active priority after Starter Model v2.
+Evaluate:
 
-Deliverables:
+- FIP
+- xFIP
+- xERA
+- SIERA
 
-- Inspect existing `engine/mlb/bullpen/` contracts.
-- Build MLB roster and reliever ingestion.
-- Normalize season and recent-use data.
-- Produce `BullpenSnapshot`.
-- Feed existing quality, fatigue, projection, and game-adjustment modules.
-- Populate game-builder bullpen data.
-- Share one normalized bullpen contract across totals and SharpScore.
-- Add safe fallbacks and source-quality indicators.
-- Validate provider data before tuning weights.
+## Sprint 56: KBO Confidence Correctness
 
-Success criteria:
+Formerly S52-008.
 
-- Bullpen payloads are populated for normal MLB games.
-- Reliever identification is role-aware.
-- Recent usage and availability are plausible.
-- Existing bullpen modules remain canonical.
-- Missing data degrades safely to neutral behavior.
+Correct confidence behavior for missing starters and missing market information.
 
-## 2. KBO Confidence Improvements
+# Epic 2: Model Intelligence
 
-Expected themes:
+**Status:** Not started
 
-- unknown starter handling
-- source quality
-- confidence degradation
-- role and sample awareness
-- clear separation among playable, lean, recommendation, and pass
+These enhancements intentionally occur after Epic 1 completes:
 
-## 3. Historical Validation and Calibration
+- Source Quality Confidence
+- Lineup-Aware Offense
+- Rolling Form
+- Park & Weather Integration
 
-Only after the data and plumbing work above:
+# Epic 3: Calibration & Persistence
+
+**Status:** Deferred
+
+No implementation begins until sufficient graded recommendation history exists.
+
+Includes:
+
+- S52-004 - calibration and persistence work remains deferred
+- Azure persistence verification
+- Recommendation grading
+- Weight optimization
+- Probability calibration
+- Hammer Score calibration
+- CLV analysis
+- ROI analysis
+
+# Epic 4: Platform
+
+**Status:** Future
+
+- Explainability Dashboard
+- Analytics Dashboard
+- NFL
+- NHL
+
+# Technical Debt and Research Queue
+
+Preserve existing technical debt and research items until completed or separately
+approved. Current items include:
+
+- provider caching or batched MLB retrieval
+- pitcher stabilization requires innings pitched; when innings are unavailable,
+  observed statistics are preserved. Revisit this behavior as part of future
+  source-quality work.
+- explicit closer/setup availability inference
+- reliever role-transition handling
+- Hammer and ranking calibration research
+- adaptive thresholds, feature importance, and automated tuning
+- portfolio and Kelly optimization
+- starter recency blending and metric-specific stabilization
+- pitch quality, arsenal intelligence, and expected pitching metrics
+- Stuff+, Location+, Pitching+, or comparable proprietary models
+
+# Validation Queue
+
+Preserve validation work until sufficient historical evidence exists:
 
 - starter score validation
 - bullpen component validation
@@ -93,8 +136,13 @@ Only after the data and plumbing work above:
 - Hammer and ranking review
 - threshold calibration
 - model-version comparison
+- historical grading, ROI, and CLV analysis
 
-No calibration should be justified by a single slate.
+# Design Decision Register
+
+Architecture decisions remain governed by `ARCHITECTURE.md`: provider data and
+normalization precede model tuning; sport models own projections; Decision
+Builder owns integration; presentation consumes canonical outputs.
 
 # Strategic Workstreams
 
@@ -137,23 +185,8 @@ Goals:
 
 ## Pitching Intelligence
 
-Foundation:
-
-- Starter Model v2
-- MLB bullpen provider
-- Bullpen quality model
-
-Future:
-
-- Starter Model v3 / recency
-- metric-specific stabilization
-- pitch quality
-- expected metrics
-- pitch arsenal intelligence
-- historical calibration
-
-This initiative should not expand until starter data correctness, bullpen
-provider integration, and historical validation foundations are in place.
+Epic 1 owns the active pitching-correctness queue. Pitching enhancements remain
+deferred until that queue completes.
 
 ## Market Intelligence
 
@@ -190,58 +223,16 @@ Planned:
 
 ## Multi-Sport Expansion
 
-After MLB and shared platform maturity:
+Epic 4 future work, after MLB reaches production quality:
 
-1. KBO
-2. Soccer
-3. NFL
-4. NBA
-5. NHL
-
-# Research Queue
-
-Requires evidence or a separately approved investigation:
-
-- Hammer calibration
-- ranking calibration
-- adaptive thresholds
-- feature importance
-- automated tuning
-- Kelly optimization
-- portfolio optimization
-- starter recency blending
-- metric-specific stabilization
-- pitch quality and arsenal intelligence
-- expected pitching metrics
-- Stuff+, Location+, Pitching+, or comparable proprietary models
+- NFL
+- NHL
 
 # Explicit Anti-Drift Rule
 
-Until the bullpen provider and integration are complete, do not promote these into the active sprint without explicit approval:
-
-- Starter Model v3
-- last-three/last-five-start weighting
-- metric-specific stabilization
-- starter dashboard enhancements
-- cosmetic dashboard changes
-- calibration
-- broad refactors
-- new sports
-- new public platform features
-
-Approved sequence:
-
-```text
-Finish Starter Model v2
-    â†“
-Commit and push
-    â†“
-Bullpen provider and integration
-    â†“
-KBO confidence
-    â†“
-Historical calibration
-```
+Do not promote Epic 2, Epic 3, or Epic 4 work while Epic 1 remains active.
+Do not redesign scoring or confidence during Sprint 54, and do not integrate
+research metrics from Sprint 55 into production.
 
 # Production Readiness
 

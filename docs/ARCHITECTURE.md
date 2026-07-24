@@ -262,8 +262,10 @@ Before changing architecture, document:
 
 # 15. Current Focus
 
-1. Finish role-aware starter profiles and scoring.
-2. Connect MLB data to the existing bullpen subsystem.
-3. Improve explainable uncertainty.
-4. Expand historical validation and CLV.
-5. Preserve shared contracts for multi-sport growth.
+1. Complete Epic 1 model correctness.
+2. Sprint 54: stabilize pitcher samples by innings pitched without changing
+   weights, scoring, or confidence behavior.
+3. Sprint 55: investigate better pitching metrics without production integration.
+4. Sprint 56: correct KBO confidence behavior for missing starters and markets.
+5. Defer model intelligence, calibration, persistence expansion, and platform
+   work until their governing prerequisites are satisfied.

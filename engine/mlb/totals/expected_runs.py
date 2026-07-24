@@ -8,6 +8,9 @@ from engine.mlb.totals.helpers import (
     first_number,
     safe_float,
 )
+from engine.model.pitcher_stabilization import (
+    stabilize_pitcher_metrics,
+)
 from engine.mlb.totals.park_factors import (
     ParkFactorResult,
 )
@@ -221,9 +224,17 @@ def calculate_starter_adjustment(
 ) -> tuple[float, int, list[str]]:
     adjustments: list[float] = []
     reasons: list[str] = []
+    pitcher_metrics = dict(opposing_pitcher)
+    pitcher_metrics["hr9"] = first_number(
+        opposing_pitcher.get("hr9"),
+        opposing_pitcher.get("hr_per_9"),
+    )
+    stabilized_metrics = stabilize_pitcher_metrics(
+        pitcher_metrics,
+    )
 
     era = safe_float(
-        opposing_pitcher.get("era")
+        stabilized_metrics.get("era")
     )
 
     if era is not None:
@@ -241,12 +252,12 @@ def calculate_starter_adjustment(
         )
 
         reasons.append(
-            f"Opposing starter ERA is "
+            f"Stabilized opposing starter ERA is "
             f"{era:.2f}."
         )
 
     whip = safe_float(
-        opposing_pitcher.get("whip")
+        stabilized_metrics.get("whip")
     )
 
     if whip is not None:
@@ -264,14 +275,11 @@ def calculate_starter_adjustment(
         )
 
         reasons.append(
-            f"Opposing starter WHIP is "
+            f"Stabilized opposing starter WHIP is "
             f"{whip:.2f}."
         )
 
-    hr9 = first_number(
-        opposing_pitcher.get("hr9"),
-        opposing_pitcher.get("hr_per_9"),
-    )
+    hr9 = safe_float(stabilized_metrics.get("hr9"))
 
     if hr9 is not None:
         hr_adjustment = (
@@ -288,7 +296,7 @@ def calculate_starter_adjustment(
         )
 
         reasons.append(
-            f"Opposing starter HR/9 is "
+            f"Stabilized opposing starter HR/9 is "
             f"{hr9:.2f}."
         )
 

@@ -1,51 +1,11 @@
-PITCHER_BASELINES = {
-    "era": 4.50,
-    "whip": 1.35,
-    "k9": 8.50,
-    "bb9": 3.20,
-    "hr9": 1.20,
-    "h9": 8.50,
-    "k_bb_pct": 14.0,
-    "strike_pct": 64.0,
-    "pitches_per_inning": 16.5,
-    "ground_air_ratio": 1.00,
-}
-
-PITCHER_STABILIZATION_IP = 50.0
+from engine.model.pitcher_stabilization import (
+    PITCHER_BASELINES,
+    stabilize_pitcher_stat,
+)
 
 
 def clamp(value, low=0, high=100):
     return max(low, min(high, value))
-
-
-def stabilize_pitcher_stat(
-    observed_value,
-    innings_pitched,
-    league_average,
-    stabilization_ip=PITCHER_STABILIZATION_IP,
-):
-    """
-    Regress a pitcher's observed statistic toward league average based on
-    innings pitched.
-
-    A small innings sample receives more league-average influence. As innings
-    increase, the stabilized value moves progressively closer to the pitcher's
-    observed value.
-
-    Raw pitcher values are not modified; stabilization is used only for model
-    scoring.
-    """
-    if observed_value is None:
-        return None
-
-    if innings_pitched is None or innings_pitched <= 0:
-        return league_average
-
-    reliability = innings_pitched / (innings_pitched + stabilization_ip)
-
-    return league_average + reliability * (
-        observed_value - league_average
-    )
 
 
 def offense_score(offense):

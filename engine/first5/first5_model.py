@@ -7,6 +7,9 @@ import requests
 
 from engine.bomb_lab.constants import PARK_FACTORS
 from engine.mlb.schedule import fetch_mlb_schedule
+from engine.model.pitcher_stabilization import (
+    stabilize_pitcher_metrics,
+)
 
 
 MLB_API = "https://statsapi.mlb.com/api/v1"
@@ -204,7 +207,7 @@ def fetch_pitcher_metrics(pitcher_id: int | None) -> dict:
     bb9 = (walks / innings) * 9 if innings else DEFAULT_PITCHER_METRICS["bb9"]
     hr9 = (home_runs / innings) * 9 if innings else DEFAULT_PITCHER_METRICS["hr9"]
 
-    return {
+    metrics = {
         "era": safe_float(stat.get("era"), DEFAULT_PITCHER_METRICS["era"]),
         "whip": safe_float(stat.get("whip"), DEFAULT_PITCHER_METRICS["whip"]),
         "innings": round(innings, 2),
@@ -217,6 +220,37 @@ def fetch_pitcher_metrics(pitcher_id: int | None) -> dict:
         "k_minus_bb9": round(k9 - bb9, 2),
         "available": True,
     }
+
+    if innings <= 0:
+        return metrics
+
+    stabilized = stabilize_pitcher_metrics(
+        metrics,
+        innings_key="innings",
+        metric_keys={
+            "era": "era",
+            "whip": "whip",
+            "k9": "k9",
+            "bb9": "bb9",
+            "hr9": "hr9",
+        },
+    )
+
+    metrics.update(
+        {
+            "era": round(stabilized["era"], 2),
+            "whip": round(stabilized["whip"], 2),
+            "k9": round(stabilized["k9"], 2),
+            "bb9": round(stabilized["bb9"], 2),
+            "hr9": round(stabilized["hr9"], 2),
+        }
+    )
+    metrics["k_minus_bb9"] = round(
+        metrics["k9"] - metrics["bb9"],
+        2,
+    )
+
+    return metrics
 
 
 def offense_score(stats: dict) -> float:

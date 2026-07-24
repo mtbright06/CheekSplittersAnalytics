@@ -48,7 +48,7 @@ div.stButton > button:hover {
 
 .app-header {
     position: relative;
-    overflow: visible;
+    overflow: hidden;
     padding: 22px 330px 18px 26px;
     min-height: 185px;
     border-radius: 24px;
@@ -92,9 +92,9 @@ div.stButton > button:hover {
 
 .mascot-img {
     position: absolute;
-    top: -34px;
-    right: -8px;
-    width: 420px;
+    top: 0;
+    right: 12px;
+    width: min(380px, 38vw);
     height: auto;
     z-index: 10;
     pointer-events: none;
@@ -725,7 +725,7 @@ div.stButton > button:hover {
 
 .value-row {
     display: grid;
-    grid-template-columns: 120px 1fr 64px;
+    grid-template-columns: 120px minmax(0, 1fr) 92px;
     align-items: center;
     gap: 12px;
     margin-bottom: 10px;
@@ -758,6 +758,7 @@ div.stButton > button:hover {
     font-size: 13px;
     font-weight: 900;
     text-align: right;
+    white-space: nowrap;
 }
 
 .value-edge {
@@ -1986,6 +1987,8 @@ div.stButton > button:hover {
 
 hr {
     margin: 0.9rem 0;
+    border: 0;
+    border-top: 1px solid rgba(160, 190, 230, 0.16);
 }
 
 @media (max-width: 1100px) {

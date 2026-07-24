@@ -1,27 +1,13 @@
 from __future__ import annotations
-import html
 from typing import Any
-from components.logos import team_logo_html
 import pandas as pd
 import streamlit as st
-
-
-def compact_html(value):
-    return "\n".join(
-        line.strip()
-        for line in value.splitlines()
-        if line.strip()
-    )
 
 def safe(value: Any, default: str = "N/A") -> str:
     if value in [None, "", "None"]:
         return default
 
     return str(value)
-
-
-def esc(value: Any, default: str = "N/A") -> str:
-    return html.escape(safe(value, default))
 
 
 def number(
@@ -73,7 +59,11 @@ def american(value: Any) -> str:
         return "N/A"
 
 
-def render_decision_summary(summary: dict):
+def render_decision_summary(
+    summary: dict,
+    *,
+    top_decision: dict | None = None,
+):
     columns = st.columns(6)
 
     columns[0].metric(
@@ -101,49 +91,21 @@ def render_decision_summary(summary: dict):
         summary.get("real_market_games", 0),
     )
 
-    columns[5].metric(
-        "Top Play",
-        summary.get("top_play", "PASS"),
-    )
+    top_label = "Unavailable"
+    top_status = "No decision rows"
 
-
-def render_target_list(targets: list[dict]) -> str:
-    if not targets:
-        return (
-            '<div class="decision-empty">'
-            "No hitter targets attached."
-            "</div>"
+    if isinstance(top_decision, dict):
+        top_label = top_decision.get("selected_team") or "Unavailable"
+        top_status = (
+            f"{top_decision.get('recommendation') or 'PASS'} · "
+            f"{top_decision.get('market') or 'MODEL ONLY'}"
         )
 
-    rendered = []
-
-    for target in targets[:3]:
-        if isinstance(target, dict):
-            name = (
-                target.get("name")
-                or target.get("player")
-                or target.get("hitter")
-            )
-
-            score = (
-                target.get("target_score")
-                or target.get("score")
-            )
-
-            rendered.append(
-                '<div class="decision-target">'
-                f"<span>{esc(name)}</span>"
-                f"<strong>{number(score, 1, '')}</strong>"
-                "</div>"
-            )
-        else:
-            rendered.append(
-                '<div class="decision-target">'
-                f"<span>{esc(target)}</span>"
-                "</div>"
-            )
-
-    return "".join(rendered)
+    columns[5].metric(
+        "Top Model Signal",
+        top_label,
+        top_status,
+    )
 
 
 def render_decision_card(
@@ -167,163 +129,135 @@ def render_decision_card(
         .replace(" ", "-")
     )
 
-    targets_html = render_target_list(
-        decision.get("top_hr_targets", [])
-    )
-
-    team_name = decision.get("selected_team")
-    sport = str(decision.get("sport", "mlb")).lower()
-
-    logo_html = team_logo_html(
-        team_name,
-        sport,
-    )
-
-    html_block = f"""
-    <div class="decision-card decision-{recommendation_class}">
-        <div class="decision-top-row">
-            <div class="decision-rank decision-team-logo">
-                {logo_html}
-            </div>
-
-            <div class="decision-main">
-                <div class="decision-kicker">
-                    {esc(recommendation)}
-                    <span>{esc(market_status)}</span>
-                </div>
-
-                <div class="decision-team">
-                    {esc(decision.get("selected_team"))}
-                </div>
-
-                <div class="decision-matchup">
-                    {esc(decision.get("matchup"))}
-                </div>
-
-                <div class="decision-stars">
-                    {esc(decision.get("stars"), "")}
-                </div>
-            </div>
-
-            <div class="decision-score">
-                <span>Hammer Score</span>
-                <strong>{number(score, 1)}</strong>
-                <small>{esc(decision.get("confidence"))}</small>
-            </div>
-        </div>
-
-        <div class="decision-metrics">
-            <div>
-                <span>Model Win</span>
-                <strong>
-                    {percent(decision.get("model_probability"))}
-                </strong>
-            </div>
-
-            <div>
-                <span>F5 Score</span>
-                <strong>
-                    {number(decision.get("first5_score"))}
-                </strong>
-            </div>
-
-            <div>
-                <span>Bomb</span>
-                <strong>
-                    {number(decision.get("bomb_score"))}
-                </strong>
-            </div>
-
-            <div>
-                <span>Agreement</span>
-                <strong>
-                    {safe(decision.get("agreement_count"), "0")}
-                </strong>
-            </div>
-
-            <div>
-                <span>Market Edge</span>
-                <strong>
-                    {signed_percent(decision.get("market_edge_pct"))}
-                </strong>
-            </div>
-
-            <div>
-                <span>Book</span>
-                <strong>
-                    {american(decision.get("book_odds"))}
-                </strong>
-            </div>
-        </div>
-
-        <div class="decision-lower">
-            <div>
-                <div class="decision-subtitle">
-                    Why SharpStack Likes It
-                </div>
-            </div>
-
-            <div>
-                <div class="decision-subtitle">
-                    HR Support
-                </div>
-                {targets_html}
-            </div>
-        </div>
-    </div>
-    """
-
-    st.markdown(
-        compact_html(html_block),
-        unsafe_allow_html=True,
-    )
-
     with st.expander(
-        f"Why {decision.get('selected_team')}?",
+        (
+            f"#{rank} {safe(decision.get('matchup'))} · "
+            f"{safe(recommendation, 'PASS')} · {safe(market_status)}"
+        ),
         expanded=False,
     ):
-        reasons = decision.get("reasons", [])
+        render_decision_details(decision)
 
-        if not reasons:
-            st.info("No supporting reasons were generated.")
-        else:
-            for reason in reasons:
-                st.markdown(f"- {reason}")
 
-        st.markdown("#### Component Breakdown")
+def render_decision_details(decision: dict):
+    """Render the canonical Decision Builder explanation without an expander."""
+    recommendation_columns = st.columns(4)
+    recommendation_columns[0].metric(
+        "Recommendation",
+        safe(decision.get("recommendation"), "PASS"),
+    )
+    recommendation_columns[1].metric(
+        "Selection",
+        safe(decision.get("selected_team")),
+    )
+    recommendation_columns[2].metric(
+        "Hammer Score",
+        number(decision.get("hammer_score"), 1),
+    )
+    recommendation_columns[3].metric(
+        "Confidence",
+        safe(decision.get("confidence")),
+    )
 
-        breakdown = decision.get(
-            "score_breakdown",
-            {},
-        )
+    st.markdown("#### Why We Like It")
+    reasons = decision.get("reasons", [])
 
-        rows = []
+    if not reasons:
+        st.info("No supporting reasons were generated.")
+    else:
+        for reason in reasons:
+            st.markdown(f"- {reason}")
 
-        for name, details in breakdown.items():
-            rows.append(
+    targets = decision.get("top_hr_targets", [])
+    if targets:
+        st.markdown("**HR Support**")
+        for target in targets[:3]:
+            if isinstance(target, dict):
+                st.markdown(
+                    f"- {safe(target.get('name') or target.get('player') or target.get('hitter'))}"
+                )
+            else:
+                st.markdown(f"- {safe(target)}")
+
+    st.markdown("#### Pitching")
+    pitching_columns = st.columns(2)
+    pitching_columns[0].metric(
+        "Starter Score",
+        number(decision.get("starter_score")),
+    )
+    pitching_columns[1].metric(
+        "First Five Score",
+        number(decision.get("first5_score")),
+    )
+
+    st.markdown("#### Bullpen")
+    st.metric(
+        "Bullpen Score",
+        number(decision.get("bullpen_score")),
+    )
+
+    st.markdown("#### Model Signals")
+    source_signals = decision.get("source_signals", [])
+    if source_signals:
+        signal_rows = []
+        for signal in source_signals:
+            signal_rows.append(
                 {
-                    "Component": name.replace(
-                        "_",
-                        " ",
-                    ).title(),
-                    "Available": details.get(
-                        "available",
-                        False,
-                    ),
-                    "Score": details.get("score"),
-                    "Weight": details.get("weight"),
-                    "Contribution": details.get(
-                        "contribution"
-                    ),
+                    "Signal": signal.get("name"),
+                    "Available": signal.get("available"),
+                    "Supports": signal.get("supports"),
+                    "Score": signal.get("score"),
+                    "Reason": signal.get("reason"),
                 }
             )
+        st.dataframe(
+            pd.DataFrame(signal_rows),
+            width="stretch",
+            hide_index=True,
+        )
+    else:
+        st.info("No model signals were generated.")
 
-        if rows:
-            st.dataframe(
-                pd.DataFrame(rows),
-                width="stretch",
-                hide_index=True,
-            )
+    st.markdown("#### Market Information")
+    market_columns = st.columns(4)
+    market_columns[0].metric(
+        "Market Status",
+        safe(decision.get("market"), "MODEL ONLY"),
+    )
+    market_columns[1].metric(
+        "Book Odds",
+        american(decision.get("book_odds")),
+    )
+    market_columns[2].metric(
+        "Market Edge",
+        signed_percent(decision.get("market_edge_pct")),
+    )
+    market_columns[3].metric(
+        "Expected Value",
+        signed_percent(decision.get("expected_value_pct")),
+    )
+
+    st.markdown("#### Component Breakdown")
+    breakdown = decision.get("score_breakdown", {})
+    rows = []
+
+    for name, details in breakdown.items():
+        rows.append(
+            {
+                "Component": name.replace("_", " ").title(),
+                "Available": details.get("available", False),
+                "Score": details.get("score"),
+                "Weight": details.get("weight"),
+                "Contribution": details.get("contribution"),
+            }
+        )
+
+    if rows:
+        st.dataframe(
+            pd.DataFrame(rows),
+            width="stretch",
+            hide_index=True,
+        )
 
 
 def render_decision_table(decisions: list[dict]):

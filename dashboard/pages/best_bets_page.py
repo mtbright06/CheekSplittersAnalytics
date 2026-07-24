@@ -3,6 +3,7 @@ from __future__ import annotations
 from components.registry.play_of_day_card import (
     render_play_of_day,
 )
+from components.page_header import render_compact_header
 
 import json
 from pathlib import Path
@@ -11,8 +12,6 @@ import streamlit as st
 
 from components.registry.registry_cards import (
     render_registry_card,
-    render_registry_summary,
-    render_registry_table,
 )
 
 def load_play_of_day() -> dict:
@@ -66,48 +65,48 @@ def load_registry() -> dict:
         return {}
 
 
+ACTIONABLE_TIERS = {"HAMMER", "BET", "LEAN"}
+
+
+def top_market_plays(
+    recommendations: list[dict],
+    league: str,
+    market: str,
+) -> list[dict]:
+    """Filter the canonical registry order; ranking remains registry-owned."""
+    return [
+        row
+        for row in recommendations
+        if row.get("league") == league
+        and row.get("market") == market
+        and row.get("recommendation") in ACTIONABLE_TIERS
+    ][:3]
+
+
+def render_market_card(
+    recommendations: list[dict],
+    league: str,
+    market: str,
+):
+    plays = top_market_plays(recommendations, league, market)
+
+    if not plays:
+        st.info("No qualifying plays today.")
+        return
+
+    for rank, item in enumerate(plays, start=1):
+        render_registry_card(item, rank)
+
+
 def render_best_bets():
     registry = load_registry()
 
-    st.markdown(
-        '<div class="section-title">'
-        "🏆 Best Bets"
-        "</div>",
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-        <div class="decision-hero">
-            <div>
-                <span>SHARPSTACK REGISTRY</span>
-                <h1>
-                    Every Sport. One Ranked Board.
-                </h1>
-                <p>
-                    MLB and KBO recommendations now flow
-                    through the shared SharpStack recommendation
-                    registry. NHL and football will join the same
-                    board as their engines are added.
-                </p>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    play_of_day = (
-        load_play_of_day()
-    )
-
-    if play_of_day:
-        render_play_of_day(
-            play_of_day
-        )
-
-        st.markdown("---")
-
     if not registry:
+        render_compact_header(
+            "🏆",
+            "Best Bets",
+            "Official betting card from the SharpStack registry.",
+        )
         st.warning(
             "No recommendation registry found. "
             "Run `py tools_build_recommendation_registry.py`."
@@ -124,7 +123,22 @@ def render_best_bets():
         [],
     )
 
-    render_registry_summary(summary)
+    render_compact_header(
+        "🏆",
+        "Best Bets",
+        "Official betting card from the SharpStack registry.",
+        [
+            ("Actionable", summary.get("actionable", 0)),
+            ("Hammers", summary.get("hammers", 0)),
+            ("Real Markets", summary.get("real_market", 0)),
+            ("Recommendations", summary.get("recommendations", 0)),
+        ],
+    )
+
+    play_of_day = load_play_of_day()
+    if play_of_day:
+        render_play_of_day(play_of_day)
+        st.markdown("---")
 
     if not recommendations:
         st.info(
@@ -133,197 +147,19 @@ def render_best_bets():
         )
         return
 
-    sports = sorted(
-        {
-            row.get("sport")
-            for row in recommendations
-            if row.get("sport")
-        }
-    )
-
-    leagues = sorted(
-        {
-            row.get("league")
-            for row in recommendations
-            if row.get("league")
-        }
-    )
-
-    markets = sorted(
-        {
-            row.get("market")
-            for row in recommendations
-            if row.get("market")
-        }
-    )
-
-    filter_columns = st.columns(4)
-
-    sport_filter = (
-        filter_columns[0].selectbox(
-            "Sport",
-            ["All"] + sports,
-        )
-    )
-
-    league_filter = (
-        filter_columns[1].selectbox(
-            "League",
-            ["All"] + leagues,
-        )
-    )
-
-    market_filter = (
-        filter_columns[2].selectbox(
-            "Market",
-            ["All"] + markets,
-        )
-    )
-
-    price_filter = (
-        filter_columns[3].selectbox(
-            "Price Status",
-            [
-                "All",
-                "Real Market",
-                "Model Only",
-            ],
-        )
-    )
-
-    filtered = recommendations
-
-    if sport_filter != "All":
-        filtered = [
-            row
-            for row in filtered
-            if row.get("sport")
-            == sport_filter
-        ]
-
-    if league_filter != "All":
-        filtered = [
-            row
-            for row in filtered
-            if row.get("league")
-            == league_filter
-        ]
-
-    if market_filter != "All":
-        filtered = [
-            row
-            for row in filtered
-            if row.get("market")
-            == market_filter
-        ]
-
-    if price_filter == "Real Market":
-        filtered = [
-            row
-            for row in filtered
-            if row.get(
-                "real_market_loaded"
-            )
-        ]
-
-    if price_filter == "Model Only":
-        filtered = [
-            row
-            for row in filtered
-            if not row.get(
-                "real_market_loaded"
-            )
-        ]
-
-    tabs = st.tabs(
+    moneyline_tab, totals_tab, kbo_tab = st.tabs(
         [
-            "Official Card",
-            "Full Board",
-            "Real Markets",
-            "By League",
+            "MLB Moneyline",
+            "MLB Totals",
+            "KBO Moneyline",
         ]
     )
 
-    with tabs[0]:
-        actionable = [
-            row
-            for row in filtered
-            if row.get(
-                "recommendation"
-            )
-            in {
-                "HAMMER",
-                "BET",
-                "LEAN",
-            }
-        ]
+    with moneyline_tab:
+        render_market_card(recommendations, "MLB", "moneyline")
 
-        if not actionable:
-            st.info(
-                "No actionable recommendations "
-                "match the current filters."
-            )
-        else:
-            for rank, item in enumerate(
-                actionable[:10],
-                start=1,
-            ):
-                render_registry_card(
-                    item,
-                    rank,
-                )
+    with totals_tab:
+        render_market_card(recommendations, "MLB", "totals")
 
-    with tabs[1]:
-        render_registry_table(
-            filtered
-        )
-
-    with tabs[2]:
-        real_market_rows = [
-            row
-            for row in filtered
-            if row.get(
-                "real_market_loaded"
-            )
-        ]
-
-        if not real_market_rows:
-            st.info(
-                "No real sportsbook prices "
-                "are currently loaded."
-            )
-        else:
-            render_registry_table(
-                real_market_rows
-            )
-
-    with tabs[3]:
-        if not filtered:
-            st.info(
-                "No recommendations match "
-                "the current filters."
-            )
-        else:
-            league_values = sorted(
-                {
-                    row.get("league")
-                    for row in filtered
-                    if row.get("league")
-                }
-            )
-
-            for league in league_values:
-                st.markdown(
-                    f"### {league}"
-                )
-
-                league_rows = [
-                    row
-                    for row in filtered
-                    if row.get("league")
-                    == league
-                ]
-
-                render_registry_table(
-                    league_rows
-                )
+    with kbo_tab:
+        render_market_card(recommendations, "KBO", "moneyline")

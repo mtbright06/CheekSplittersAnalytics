@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import streamlit as st
 
+from components.decision.decision_cards import render_decision_details
 from components.mlb.mlb_card import render_mlb_totals_card
+
+
+ROOT = Path(__file__).resolve().parents[3]
+DECISION_PATH = ROOT / "output" / "cards" / "decision_card.json"
 
 
 def _safe(value, default="N/A"):
@@ -225,79 +233,178 @@ def _render_moneyline(game):
         st.info("No moneyline supporting evidence is available.")
 
 
-def render_recommendation_explorer(game):
-    if (game.get("sport") or "").lower() != "mlb":
+def decision_for_game(
+    decision_card: dict,
+    game: dict,
+) -> tuple[int, dict] | None:
+    game_id = str(game.get("game_id") or "")
+    matchup = game.get("matchup", {})
+    matchup_text = f"{matchup.get('away', '')} @ {matchup.get('home', '')}"
+
+    for index, decision in enumerate(
+        decision_card.get("decisions", []),
+        start=1,
+    ):
+        if game_id and game_id == str(decision.get("game_pk") or ""):
+            return index, decision
+
+        if matchup_text and matchup_text == decision.get("matchup"):
+            return index, decision
+
+    return None
+
+
+def _load_decision_card() -> dict:
+    try:
+        with DECISION_PATH.open(encoding="utf-8") as file:
+            return json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _render_decision(game):
+    match = decision_for_game(_load_decision_card(), game)
+
+    if match is None:
+        st.info("No canonical Decision Builder detail is available for this matchup.")
         return
 
+    _, decision = match
+    render_decision_details(decision)
+
+
+def render_recommendation_explorer(
+    game,
+    *,
+    details_renderer=None,
+):
     with st.expander(
         "🧠 SharpStack Intelligence",
         expanded=False,
     ):
-        (
-            overview_tab,
-            moneyline_tab,
-            totals_tab,
-            hammer_tab,
-            bomb_tab,
-            market_tab,
-            history_tab,
-        ) = st.tabs(
-            [
-                "Overview",
-                "Moneyline",
-                "Totals",
-                "Hammer",
-                "Bomb Lab",
-                "Market",
-                "History",
-            ]
+        st.caption(
+            "Canonical model, market, and diagnostic inputs for this matchup."
+        )
+        sport = (game.get("sport") or "").lower()
+
+        if sport == "mlb":
+            _render_mlb_intelligence_tabs(game, details_renderer)
+        else:
+            _render_kbo_intelligence_tabs(game, details_renderer)
+
+
+def _render_mlb_intelligence_tabs(game, details_renderer):
+    (
+        overview_tab,
+        moneyline_tab,
+        totals_tab,
+        details_tab,
+        decision_tab,
+        hammer_tab,
+        bomb_tab,
+        market_tab,
+        history_tab,
+    ) = st.tabs(
+        [
+            "Overview",
+            "Moneyline",
+            "Totals",
+            "Pitching/Bullpen/Signals",
+            "Decision",
+            "Hammer",
+            "Bomb Lab",
+            "Market",
+            "History",
+        ]
+    )
+
+    with overview_tab:
+        _render_overview(game)
+
+    with moneyline_tab:
+        _render_moneyline(game)
+
+    with totals_tab:
+        render_mlb_totals_card(game)
+
+    with details_tab:
+        _render_details(game, details_renderer)
+
+    with decision_tab:
+        _render_decision(game)
+
+    with hammer_tab:
+        _render_placeholder(
+            "Hammer",
+            (
+                "Hammer diagnostics will be surfaced here from "
+                "existing recommendation output. No score will be "
+                "recalculated in the dashboard."
+            ),
         )
 
-        with overview_tab:
-            _render_overview(game)
+    with bomb_tab:
+        _render_placeholder(
+            "Bomb Lab",
+            (
+                "Bomb Lab matchup context will be added when its "
+                "existing game-level output is connected to the "
+                "dashboard card."
+            ),
+        )
 
-        with moneyline_tab:
-            _render_moneyline(game)
+    with market_tab:
+        _render_placeholder(
+            "Market Intelligence",
+            (
+                "Sportsbook comparisons, line movement and closing-line "
+                "value will appear here after the market query contracts "
+                "are available."
+            ),
+        )
 
-        with totals_tab:
-            render_mlb_totals_card(game)
+    with history_tab:
+        _render_placeholder(
+            "Recommendation History",
+            (
+                "Historical recommendations, grading, ROI and model-run "
+                "context will appear here through the Azure-backed query "
+                "and analytics services."
+            ),
+        )
 
-        with hammer_tab:
-            _render_placeholder(
-                "Hammer",
-                (
-                    "Hammer diagnostics will be surfaced here from "
-                    "existing recommendation output. No score will be "
-                    "recalculated in the dashboard."
-                ),
-            )
 
-        with bomb_tab:
-            _render_placeholder(
-                "Bomb Lab",
-                (
-                    "Bomb Lab matchup context will be added when its "
-                    "existing game-level output is connected to the "
-                    "dashboard card."
-                ),
-            )
+def _render_kbo_intelligence_tabs(game, details_renderer):
+    overview_tab, market_tab, pitching_tab, history_tab = st.tabs(
+        [
+            "Overview",
+            "Market vs Model",
+            "Pitching",
+            "History",
+        ]
+    )
 
-        with market_tab:
-            _render_placeholder(
-                "Market Intelligence",
-                (
-                    "Sportsbook comparisons, line movement and closing-line "
-                    "value will appear here after the market query contracts "
-                    "are available."
-                ),
-            )
+    with overview_tab:
+        _render_overview(game)
 
-        with history_tab:
-            _render_placeholder(
-                "Recommendation History",
-                (
-                    "Historical recommendations, grading, ROI and model-run "
-                    "context will appear here through the Azure-backed query "
-                    "and analytics services."
-                ),
-            )
+    with market_tab:
+        _render_moneyline(game)
+
+    with pitching_tab:
+        _render_details(game, details_renderer)
+
+    with history_tab:
+        _render_placeholder(
+            "Recommendation History",
+            (
+                "Historical recommendations and grading will appear here "
+                "when the existing analytics services expose KBO history."
+            ),
+        )
+
+
+def _render_details(game, details_renderer):
+    if details_renderer is None:
+        st.info("No game-level intelligence is available.")
+    else:
+        details_renderer(game)

@@ -3,6 +3,8 @@ import base64
 
 import streamlit as st
 
+from components.page_header import render_compact_header
+
 from components.sidebar import render_sidebar
 from version import VERSION, BUILD, SPORT
 
@@ -86,10 +88,10 @@ Sports Analytics Platform
     labels = [
         ("🏠 Dashboard", "Dashboard"),
         ("🏆Best Bets", "Best Bets"),
-        ("🔨 Decisions", "Decisions"),
         ("⚾ MLB", "MLB"),
         ("🇰🇷 KBO", "KBO"),
         ("💣 Bomb Lab", "Bomb Lab"),
+        ("🔨 Decisions", "Decisions"),
         ("🎯 Props", "Props"),
         ("🎯 First 5", "First 5"),
         ("🏆 Hall", "Hall"),
@@ -104,28 +106,5 @@ Sports Analytics Platform
 
 
 def render_placeholder(title, subtitle, body):
-
-    st.markdown(
-        f"""
-<div class="lab-hero">
-
-<div class="lab-title">
-{title}
-</div>
-
-<div class="lab-subtitle">
-{subtitle}
-</div>
-
-<div class="lab-badge">
-
-ROADMAP MODULE
-
-</div>
-
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
+    render_compact_header(title.split()[0], title, subtitle)
     st.markdown(body)

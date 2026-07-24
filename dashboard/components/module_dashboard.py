@@ -1,5 +1,7 @@
 import streamlit as st
 
+from components.page_header import render_compact_header
+
 
 STATUS = {
     "complete": ("🟢", "Complete", "module-complete"),
@@ -9,18 +11,11 @@ STATUS = {
 
 
 def render_module_dashboard(icon, title, subtitle, badge, sections):
-    st.markdown(
-        f"""
-<div class="module-hero">
-    <div class="module-icon">{icon}</div>
-    <div>
-        <div class="module-title">{title}</div>
-        <div class="module-subtitle">{subtitle}</div>
-        <div class="module-badge">{badge}</div>
-    </div>
-</div>
-""",
-        unsafe_allow_html=True,
+    render_compact_header(
+        icon,
+        title,
+        subtitle,
+        [("Status", badge)],
     )
 
     cols = st.columns(len(sections))

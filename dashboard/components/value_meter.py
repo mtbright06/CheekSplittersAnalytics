@@ -33,10 +33,23 @@ def render_value_meter(game):
     model = game.get("model", {})
     odds = game.get("odds", {})
 
-    book_prob = clamp(safe_float(odds.get("book_probability")))
-    model_prob = clamp(safe_float(model.get("model_probability")))
-    edge = safe_float(model.get("edge"))
+    raw_book_probability = odds.get("book_probability")
+    raw_model_probability = model.get("model_probability")
+    raw_edge = model.get("edge")
+
+    book_prob = clamp(as_percentage(raw_book_probability))
+    model_prob = clamp(as_percentage(raw_model_probability))
+    edge = safe_float(raw_edge)
     color = value_color(edge)
+    market_available = raw_book_probability is not None
+
+    if not market_available:
+        st.info(
+            "Model-only view: sportsbook price and market edge are unavailable."
+        )
+
+    book_value = f"{book_prob:.1f}%" if market_available else "Unavailable"
+    edge_value = f"{edge:+.1f}%" if market_available and raw_edge is not None else "Unavailable"
 
     html = (
         "<div class='value-meter'>"
@@ -47,7 +60,7 @@ def render_value_meter(game):
         "<div class='value-track'>"
         f"<div class='value-fill book-fill' style='width:{book_prob}%;'></div>"
         "</div>"
-        f"<div class='value-number'>{book_prob:.1f}%</div>"
+        f"<div class='value-number'>{book_value}</div>"
         "</div>"
 
         "<div class='value-row'>"
@@ -59,9 +72,14 @@ def render_value_meter(game):
         "</div>"
 
         "<div class='value-edge'>"
-        f"<span>Value Edge</span><strong style='color:{color};'>{edge:+.1f}%</strong>"
+        f"<span>Value Edge</span><strong style='color:{color};'>{edge_value}</strong>"
         "</div>"
         "</div>"
     )
 
     st.markdown(html, unsafe_allow_html=True)
+
+
+def as_percentage(value):
+    number = safe_float(value)
+    return number * 100 if abs(number) <= 1 else number

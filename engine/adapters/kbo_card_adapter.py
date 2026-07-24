@@ -13,6 +13,51 @@ from engine.core import (
 )
 
 
+def canonical_kbo_row(row: dict) -> dict:
+    """Expose the current nested KBO card shape to the legacy registry adapter."""
+    model = row.get("model")
+    odds = row.get("odds")
+    teams = row.get("teams")
+    matchup = row.get("matchup")
+
+    if not isinstance(model, dict):
+        model = {}
+    if not isinstance(odds, dict):
+        odds = {}
+    if not isinstance(teams, dict):
+        teams = {}
+    if not isinstance(matchup, dict):
+        matchup = {}
+
+    away = teams.get("away", {"name": matchup.get("away")})
+    home = teams.get("home", {"name": matchup.get("home")})
+    away_name = away.get("name") if isinstance(away, dict) else away
+    home_name = home.get("name") if isinstance(home, dict) else home
+    matchup_value = row.get("matchup")
+
+    if isinstance(matchup_value, dict):
+        matchup_value = f"{away_name or 'Away'} @ {home_name or 'Home'}"
+
+    return {
+        **row,
+        "matchup": matchup_value,
+        "away": away,
+        "home": home,
+        "selection": model.get("play"),
+        "model_probability": model.get("model_probability"),
+        "hammer_score": model.get("confidence"),
+        "confidence": model.get("confidence"),
+        "recommendation_label": model.get("recommendation"),
+        "reasons": model.get("reasons", row.get("reasons")),
+        "market_type": model.get("market") or odds.get("market"),
+        "sportsbook": odds.get("sportsbook"),
+        "book": odds.get("provider"),
+        "book_odds": odds.get("moneyline"),
+        "market_probability": odds.get("book_probability"),
+        "market_updated_at": odds.get("last_updated"),
+    }
+
+
 def score_supports(
     value: Any,
     threshold: float = 60.0,
@@ -517,6 +562,7 @@ def adapt_kbo_row(
     *,
     generated_at: str | None = None,
 ) -> Recommendation | None:
+    row = canonical_kbo_row(row)
     selection = extract_selection(row)
 
     if not selection:

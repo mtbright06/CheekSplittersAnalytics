@@ -30,7 +30,7 @@ def confidence(game):
     return game.get("confidence") or 0
 
 
-def render_dashboard_metrics(card):
+def dashboard_metric_values(card) -> list[tuple[str, str | int]]:
     games = card.get("games", [])
 
     game_count = len(games)
@@ -52,24 +52,20 @@ def render_dashboard_metrics(card):
         else 0
     )
 
-    col1, col2, col3, col4 = st.columns(4)
+    return [
+        ("Games", game_count),
+        ("Playable", playable),
+        ("Best Edge", f"{best_edge:.1f}%"),
+        ("Avg Confidence", f"{avg_confidence:.1f}"),
+    ]
 
-    col1.metric(
-        "Games",
-        game_count,
-    )
 
-    col2.metric(
-        "Playable",
-        playable,
-    )
+def render_dashboard_metrics(card):
+    columns = st.columns(4)
 
-    col3.metric(
-        "Best Edge",
-        f"{best_edge:.1f}%",
-    )
-
-    col4.metric(
-        "Avg Confidence",
-        f"{avg_confidence:.1f}",
-    )
+    for column, (label, value) in zip(
+        columns,
+        dashboard_metric_values(card),
+    ):
+        with column:
+            st.metric(label, value)

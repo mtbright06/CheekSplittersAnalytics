@@ -23,3 +23,5 @@ Windows PowerShell only.
 Python 3.13.
 
 No commits without review.
+
+Operational patches repair existing functionality but may not alter model behavior, recommendation logic, confidence calculations, or scoring. New capabilities are delivered only through roadmap sprints.

@@ -623,6 +623,13 @@ These ideas may be valuable. They are not blocking the active Epic 1 objective.
 
 # 11. Known Gotchas
 
+- Patch 2.1 completed an operational UI cleanup only: the Dashboard is a
+  market-deduplicated command center, Best Bets is the official betting card,
+  and sport pages present intelligence inside their existing expanders. MLB's
+  Decision tab reads and renders the matching canonical Decision Builder row;
+  it does not calculate diagnostics. Operational pages use compact headers to
+  keep current betting data above the fold. No model, confidence, ranking
+  calculation, recommendation, or Decision Builder behavior changed.
 - MLB probable pitchers may be openers or mixed-role pitchers.
 - MLB game-log rate fields should not be averaged.
 - `k_rate` and `bb_rate` currently mean K/9 and BB/9, not percentages.

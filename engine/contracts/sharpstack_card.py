@@ -113,11 +113,12 @@ def normalize_team(team):
 
 def normalize_model(model):
     return {
+        **to_dict(model),
         "market": get_value(model, "market") or "Moneyline",
         "play": get_value(model, "play") or "No Play",
         "model_probability": get_value(model, "model_probability"),
-        "edge": get_value(model, "edge") or 0,
-        "confidence": get_value(model, "confidence") or 0,
+        "edge": get_value(model, "edge"),
+        "confidence": get_value(model, "confidence"),
         "confidence_breakdown": get_value(
             model,
             "confidence_breakdown",
@@ -132,6 +133,7 @@ def normalize_model(model):
 
 def normalize_pitcher(pitcher):
     return {
+        **to_dict(pitcher),
         "id": get_value(pitcher, "id"),
         "name": get_value(pitcher, "name") or "Unknown Starter",
         "throws": get_value(pitcher, "throws"),
@@ -170,14 +172,15 @@ def normalize_offense(offense):
 
 def normalize_odds(odds):
     return {
+        **to_dict(odds),
         "provider": get_value(odds, "provider"),
         "sportsbook": get_value(odds, "sportsbook") or get_value(odds, "source") or "Unavailable",
         "market": get_value(odds, "market") or "Moneyline",
         "selection": get_value(odds, "selection"),
-        "moneyline": get_value(odds, "moneyline") or get_value(odds, "american_odds"),
-        "american_odds": get_value(odds, "american_odds") or get_value(odds, "moneyline"),
-        "book_probability": get_value(odds, "book_probability") or get_value(odds, "implied_probability"),
-        "implied_probability": get_value(odds, "implied_probability") or get_value(odds, "book_probability"),
+        "moneyline": first_present(get_value(odds, "moneyline"), get_value(odds, "american_odds")),
+        "american_odds": first_present(get_value(odds, "american_odds"), get_value(odds, "moneyline")),
+        "book_probability": first_present(get_value(odds, "book_probability"), get_value(odds, "implied_probability")),
+        "implied_probability": first_present(get_value(odds, "implied_probability"), get_value(odds, "book_probability")),
         "last_updated": get_value(odds, "last_updated"),
     }
 
@@ -192,7 +195,7 @@ def normalize_signals(signals):
         if isinstance(signal, dict):
             normalized.append({
                 "name": signal.get("name") or f"Signal {index + 1}",
-                "value": signal.get("value") or 0,
+                "value": signal.get("value", 0),
             })
         elif isinstance(signal, (list, tuple)) and len(signal) >= 2:
             normalized.append({
@@ -206,6 +209,14 @@ def normalize_signals(signals):
             })
 
     return normalized
+
+
+def first_present(*values):
+    for value in values:
+        if value is not None:
+            return value
+
+    return None
 
 
 def to_dict(obj):

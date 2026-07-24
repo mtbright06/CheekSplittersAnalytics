@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from components.module_dashboard import render_module_dashboard
+from components.page_header import render_compact_header
 
 
 def render_mlb():
@@ -85,12 +86,12 @@ def render_bomb_lab():
     root = Path(__file__).resolve().parents[2]
     path = root / "output" / "cards" / "bomb_lab_card.json"
 
-    st.markdown(
-        '<div class="section-title">💣 Bomb Lab</div>',
-        unsafe_allow_html=True,
-    )
-
     if not path.exists():
+        render_compact_header(
+            "💣",
+            "Bomb Lab",
+            "Pitcher vulnerabilities and home-run target diagnostics.",
+        )
         st.warning("No Bomb Lab card found. Run `python tools_build_bomb_lab.py` first.")
         return
 
@@ -184,7 +185,6 @@ def render_bomb_lab():
 def render_first5():
     from components.first5.first5_cards import (
         render_first5_game_card,
-        render_first5_summary,
         render_first5_table,
     )
 
@@ -206,26 +206,12 @@ def render_first5():
             market_card = json.load(file)
 
 
-    st.markdown(
-        '<div class="section-title">⚾ First 5 Lab</div>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-<div class="first5-hero">
-  <div class="first5-hero-kicker">SHARPSTACK FIRST 5</div>
-  <div class="first5-hero-title">Starter-Driven Baseball Decisions</div>
-  <div class="first5-hero-copy">
-    First 5 Lab compares the starting pitchers, offenses and park environment
-    without relying on bullpen performance. Use it for F5 moneylines and F5 totals.
-  </div>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
     if not path.exists():
+        render_compact_header(
+            "⚾",
+            "First 5 Lab",
+            "Starter-driven First Five moneyline and totals analysis.",
+        )
         st.warning(
             "No First 5 card found. Run "
             "`python tools_build_first5_card.py` first."
@@ -238,7 +224,17 @@ def render_first5():
     summary = card.get("summary", {})
     games = card.get("games", [])
 
-    render_first5_summary(summary)
+    render_compact_header(
+        "⚾",
+        "First 5 Lab",
+        "Starter-driven First Five moneyline and totals analysis.",
+        [
+            ("Games", summary.get("games_loaded", 0)),
+            ("ML Leans", summary.get("f5_ml_leans", 0)),
+            ("Total Leans", summary.get("f5_total_leans", 0)),
+            ("Top ML", summary.get("top_ml_play", "PASS")),
+        ],
+    )
 
     if not games:
         st.info(card.get("message", "No First 5 games available."))

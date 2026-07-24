@@ -152,6 +152,92 @@ def render_reasons(reasons):
         )
 
 
+def render_confidence_breakdown(breakdown):
+    st.markdown("#### Confidence Breakdown")
+
+    if not isinstance(breakdown, dict) or not breakdown:
+        st.markdown(
+            '<div class="muted">Confidence inputs are unavailable.</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    columns = st.columns(len(breakdown))
+
+    for column, (name, value) in zip(columns, breakdown.items()):
+        label = name.replace("_", " ").title()
+        try:
+            display = f"{float(value):+.1f}"
+        except (TypeError, ValueError):
+            display = stat(value)
+        column.metric(label, display)
+
+
+def render_bullpen_details(game):
+    teams = game.get("teams", {})
+    away = teams.get("away", {})
+    home = teams.get("home", {})
+    away_bullpen = away.get("bullpen", {})
+    home_bullpen = home.get("bullpen", {})
+
+    if not isinstance(away_bullpen, dict) and not isinstance(home_bullpen, dict):
+        return
+
+    st.markdown("#### Bullpen Details")
+    away_column, home_column = st.columns(2)
+
+    for column, team, bullpen in (
+        (away_column, game["matchup"].get("away", "Away"), away_bullpen),
+        (home_column, game["matchup"].get("home", "Home"), home_bullpen),
+    ):
+        bullpen = bullpen if isinstance(bullpen, dict) else {}
+        with column:
+            st.markdown(f"**{team}**")
+            metrics = st.columns(3)
+            metrics[0].metric("ERA", stat(bullpen.get("era")))
+            metrics[1].metric("WHIP", stat(bullpen.get("whip")))
+            metrics[2].metric("Last 7 ERA", stat(bullpen.get("last7_era")))
+            st.caption(
+                " · ".join(
+                    [
+                        f"Availability: {bullpen.get('availability_status') or 'Unavailable'}",
+                        f"Source: {bullpen.get('source_quality') or bullpen.get('data_source') or 'Unavailable'}",
+                    ]
+                )
+            )
+
+
+def render_intelligence_details(game):
+    matchup = game["matchup"]
+    pitching = game["pitching"]
+    model = game["model"]
+
+    st.markdown("#### Pitching")
+    left, right = st.columns(2)
+
+    with left:
+        render_pitcher_card(f"{matchup['away']} Starter", pitching["away"])
+
+    with right:
+        render_pitcher_card(f"{matchup['home']} Starter", pitching["home"])
+
+    if game.get("sport", "").lower() == "mlb":
+        st.markdown("---")
+        render_bullpen_details(game)
+
+    st.markdown("---")
+    signal_col, reason_col = st.columns(2)
+
+    with signal_col:
+        st.markdown("#### Model Signals")
+        render_signals(model.get("signals", []))
+
+    with reason_col:
+        st.markdown("#### Why We Like It")
+        render_reasons(model.get("reasons", []))
+        render_confidence_breakdown(model.get("confidence_breakdown"))
+
+
 def render_game(game):
     matchup = game["matchup"]
     sport = game.get("sport", "kbo").lower()
@@ -170,7 +256,6 @@ def render_game(game):
         with totals_col:
             render_mlb_totals_card(game)
 
-        render_recommendation_explorer(game)
     else:
         render_play_summary(game)
 
@@ -179,29 +264,10 @@ def render_game(game):
             unsafe_allow_html=True,
         )
 
-    st.markdown("---")
-
-    pitching = game["pitching"]
-    left, right = st.columns(2)
-
-    with left:
-        render_pitcher_card(f"{matchup['away']} Starter", pitching["away"])
-
-    with right:
-        render_pitcher_card(f"{matchup['home']} Starter", pitching["home"])
-
-    st.markdown("---")
-
-    model = game["model"]
-    signal_col, reason_col = st.columns(2)
-
-    with signal_col:
-        st.markdown("#### Model Signals")
-        render_signals(model.get("signals", []))
-
-    with reason_col:
-        st.markdown("#### Why We Like It")
-        render_reasons(model.get("reasons", []))
+    render_recommendation_explorer(
+        game,
+        details_renderer=render_intelligence_details,
+    )
 
 
 grade_label = play_grade

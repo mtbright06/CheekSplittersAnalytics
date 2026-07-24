@@ -10,10 +10,10 @@
 **Repository:** `C:\CheekSplittersAnalytics`
 **Primary branch:** `feature/recommendation-history`
 **Environment:** Windows 11 / PowerShell / Python 3.13+
-**Current milestone:** Sprint 52 â€” MLB model integrity and data quality
-**Current work item:** S52-006 â€” Starter Model v2
+**Current milestone:** Sprint 53 â€” MLB bullpen provider and integration
+**Current work item:** S53-001 â€” MLB bullpen provider plumbing
 **Working tree:** Intentionally modified and not yet committed
-**Next approved priority after Starter Model v2:** MLB bullpen provider and integration
+**Next approved priority after Sprint 53:** KBO confidence improvements
 
 SharpStack is stable and actively developed. The platform already has a functioning MLB recommendation pipeline, Recommendation Registry, Play of the Day, structured explanations, dashboard, Discord reporting, recommendation history, and an Azure PostgreSQL persistence foundation.
 
@@ -54,7 +54,7 @@ Do not drift into Starter Model v3, recency blending, metric-specific stabilizat
 
 ---
 
-# 3. Sprint 52 Status
+# 3. Sprint 53 Status
 
 Completed before this session:
 
@@ -69,17 +69,19 @@ Deferred:
 - S52-004 â€” Calibration
   - Must wait for sufficient recommendation history and outcome evidence.
 
-In progress:
+Completed:
 
 - S52-006 â€” Starter Model v2
   - Role-aware starter-only game-log aggregation
   - Richer starter profile
   - Modernized starting-pitcher score using stabilized skill metrics
 
-Next:
+In progress:
 
-- S52-007 â€” Bullpen provider and integration
-  - The label can change during planning, but the priority is fixed.
+- S53-001 â€” Bullpen provider and integration
+  - Active pitcher roster and reliever game-log ingestion
+  - Normalized bullpen payload shared by totals and SharpScore
+  - Source-quality metadata and neutral availability handling
 
 ---
 
@@ -366,7 +368,7 @@ Expected final state:
 
 ---
 
-# 9. Next Approved Objective: MLB Bullpen Provider and Integration
+# 9. Current Objective: MLB Bullpen Provider and Integration
 
 The repository already contains:
 
@@ -391,7 +393,7 @@ The totals model already expects bullpen concepts such as:
 - `closer_available`
 - `setup_available`
 
-The game builder currently emits an empty placeholder:
+The prior game-builder placeholder was:
 
 ```python
 "bullpen": {
@@ -402,7 +404,9 @@ The game builder currently emits an empty placeholder:
 }
 ```
 
-The missing capability is a provider/normalization layer that produces a reliable `BullpenSnapshot` from MLB data.
+The active implementation adds a provider/normalization layer that produces a
+reliable `BullpenSnapshot`-shaped payload from MLB data without duplicating
+quality, fatigue, projection, adjustment, or component scoring.
 
 Approved flow:
 

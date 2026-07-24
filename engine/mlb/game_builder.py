@@ -7,6 +7,9 @@ from typing import Any
 from engine.mlb.offense import (
     fetch_team_batting_stats,
 )
+from engine.mlb.bullpen.provider import (
+    fetch_bullpen_profile,
+)
 from engine.mlb.pitchers import (
     fetch_pitcher_stats,
 )
@@ -237,12 +240,10 @@ def team_profile(
                 team_id
             )
         ),
-        "bullpen": {
-            "era": None,
-            "whip": None,
-            "fip": None,
-            "recent_usage": None,
-        },
+        "bullpen": fetch_bullpen_profile(
+            team_id,
+            name,
+        ),
     }
 
 
@@ -1066,6 +1067,10 @@ def build_mlb_card(
             "pitching": {
                 "away": away_pitcher,
                 "home": home_pitcher,
+            },
+            "bullpen": {
+                "away": away_profile.get("bullpen", {}),
+                "home": home_profile.get("bullpen", {}),
             },
             "model": decision[
                 "model"

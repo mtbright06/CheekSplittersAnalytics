@@ -15,7 +15,7 @@
 
 # Current Milestone
 
-## Sprint 52 â€” MLB Model Integrity and Data Quality
+## Sprint 53 â€” MLB Bullpen Provider and Integration
 
 Completed:
 
@@ -25,7 +25,7 @@ Completed:
 - Explicit MLB API season and regular-season parameters
 - S52-005 â€” Pitcher sample stabilization
 
-In progress:
+Completed:
 
 - S52-006 â€” Starter Model v2
   - starter-only game-log aggregation
@@ -34,6 +34,14 @@ In progress:
   - stabilized skill-based starter score
   - end-to-end artifact validation
 
+In progress:
+
+- S53-001 â€” MLB bullpen provider and integration
+  - active pitcher roster and reliever game-log ingestion
+  - raw season and recent-use aggregation
+  - normalized bullpen payload for totals and SharpScore
+  - conservative availability metadata and neutral fallback behavior
+
 Deferred:
 
 - S52-004 â€” Calibration
@@ -41,21 +49,9 @@ Deferred:
 
 # Approved Near-Term Priority Order
 
-## 1. Finish Starter Model v2
+## 1. MLB Bullpen Provider and Integration
 
-Success criteria:
-
-- Starter and relief appearances are separated whenever game logs are available.
-- Raw counts are aggregated and rates are recomputed.
-- Tiny samples remain near neutral.
-- Established strong and weak starters separate plausibly.
-- Unknown starters remain neutral.
-- Generated artifacts build successfully.
-- Documentation, commit, and push are complete.
-
-## 2. MLB Bullpen Provider and Integration
-
-This is the next priority after the starter commit.
+This is the active priority after Starter Model v2.
 
 Deliverables:
 
@@ -77,7 +73,7 @@ Success criteria:
 - Existing bullpen modules remain canonical.
 - Missing data degrades safely to neutral behavior.
 
-## 3. KBO Confidence Improvements
+## 2. KBO Confidence Improvements
 
 Expected themes:
 
@@ -87,7 +83,7 @@ Expected themes:
 - role and sample awareness
 - clear separation among playable, lean, recommendation, and pass
 
-## 4. Historical Validation and Calibration
+## 3. Historical Validation and Calibration
 
 Only after the data and plumbing work above:
 

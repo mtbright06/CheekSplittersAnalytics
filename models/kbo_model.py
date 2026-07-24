@@ -74,25 +74,77 @@ class KBOModel:
                 1
             )
 
-            result.edge = EdgeCalculator.calculate(
+            (
+                result.confidence,
+                result.confidence_breakdown,
+            ) = ConfidenceEngine.calculate(
                 result.model_probability,
-                game.odds.book_probability
+                game.away.pitcher,
+                game.home.pitcher,
+                game.away.offense,
+                game.home.offense,
+                market_available=False,
             )
 
-            result.confidence = ConfidenceEngine.calculate(
-                result.edge,
-                len(result.reasons)
-            )
-
-            result.recommendation = RecommendationEngine.get_recommendation(
-                result.edge
-            )
+            # Mock odds are only a pre-enrichment placeholder. They must not
+            # produce a market edge or an actionable KBO recommendation.
+            result.edge = 0.0
+            result.recommendation = "❌ NO PLAY"
 
             game.result = result
 
             scored_games.append(game)
 
         return scored_games
+
+    def finalize(self, games):
+        for game in games:
+            result = game.result
+            odds = game.odds
+            market_available = self._market_available(odds)
+
+            if market_available:
+                result.edge = EdgeCalculator.calculate(
+                    result.model_probability,
+                    self._value(odds, "book_probability"),
+                )
+                result.recommendation = (
+                    RecommendationEngine.get_recommendation(
+                        result.edge
+                    )
+                )
+            else:
+                result.edge = 0.0
+                result.recommendation = "❌ NO PLAY"
+
+            (
+                result.confidence,
+                result.confidence_breakdown,
+            ) = ConfidenceEngine.calculate(
+                result.model_probability,
+                game.away.pitcher,
+                game.home.pitcher,
+                game.away.offense,
+                game.home.offense,
+                market_available=market_available,
+            )
+
+        return games
+
+    @staticmethod
+    def _market_available(odds):
+        return bool(
+            KBOModel._value(odds, "real_market_loaded")
+            and KBOModel._value(odds, "book_probability")
+            is not None
+        )
+
+    @staticmethod
+    def _value(source, key):
+        if isinstance(source, dict):
+            return source.get(key)
+
+        return getattr(source, key, None)
 
     def _should_skip_game(self, game):
 

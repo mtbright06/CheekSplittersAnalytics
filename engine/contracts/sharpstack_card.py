@@ -86,6 +86,11 @@ def normalize_legacy_kbo_game(game, sport):
             "model_probability": get_value(result, "model_probability"),
             "edge": get_value(result, "edge"),
             "confidence": get_value(result, "confidence"),
+            "confidence_breakdown": get_value(
+                result,
+                "confidence_breakdown",
+                {},
+            ),
             "recommendation": get_value(result, "recommendation"),
             "reasons": get_value(result, "reasons", []),
             "signals": get_value(result, "signals", []),
@@ -113,6 +118,11 @@ def normalize_model(model):
         "model_probability": get_value(model, "model_probability"),
         "edge": get_value(model, "edge") or 0,
         "confidence": get_value(model, "confidence") or 0,
+        "confidence_breakdown": get_value(
+            model,
+            "confidence_breakdown",
+            {},
+        ),
         "recommendation": get_value(model, "recommendation"),
         "reasons": get_value(model, "reasons", []),
         "signals": normalize_signals(get_value(model, "signals", [])),

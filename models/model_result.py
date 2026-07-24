@@ -8,6 +8,7 @@ class ModelResult:
         self.model_probability = None
         self.edge = None
         self.confidence = None
+        self.confidence_breakdown = {}
 
         self.recommendation = None
 

@@ -56,20 +56,30 @@ Delivered:
 
 ## Sprint 55: Better Pitching Metrics Investigation
 
-Formerly S52-007. Research only; no production integration during this sprint.
+Formerly S52-007. Completed research; no production integration approved.
 
-Evaluate:
+Findings:
 
-- FIP
-- xFIP
-- xERA
-- SIERA
+- FIP is not an additive production feature; it overlaps current HR/9, K/9,
+  and BB/9 inputs.
+- Advanced metrics must contribute independent predictive information and pass
+  out-of-sample validation before production use.
+- xERA is the preferred future evaluation candidate only if licensed, validated,
+  and operationally supportable.
+- No production model changes resulted from Sprint 55. See
+  `SPRINT_55_PITCHING_METRICS_EVALUATION.md`.
 
 ## Sprint 56: KBO Confidence Correctness
 
-Formerly S52-008.
+Formerly S52-008. Completed.
 
-Correct confidence behavior for missing starters and missing market information.
+Delivered:
+
+- Replaced mock-edge/reason-count confidence with explainable model separation,
+  data quality, and starter-certainty inputs.
+- Unknown starters reduce confidence; missing market data receives no market
+  completeness credit and cannot create an edge or actionable recommendation.
+- Real market edge and recommendation are finalized only after odds enrichment.
 
 # Epic 2: Model Intelligence
 

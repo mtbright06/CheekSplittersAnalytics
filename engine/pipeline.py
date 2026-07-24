@@ -42,6 +42,9 @@ class Pipeline:
 
             logger.write(f"Odds enrichment skipped: {ex}")
 
+        if hasattr(self.model, "finalize"):
+            games = self.model.finalize(games)
+
         self.report.print_schedule(games, logger)
 
         output_path = JsonExporter.export(

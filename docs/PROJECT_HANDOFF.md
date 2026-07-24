@@ -11,9 +11,9 @@
 **Primary branch:** `feature/recommendation-history`
 **Environment:** Windows 11 / PowerShell / Python 3.13+
 **Current milestone:** Epic 1 â€” Model Correctness
-**Current work item:** Sprint 55 â€” Better Pitching Metrics Investigation
+**Current work item:** Epic 1 review; no Sprint 57 has been selected
 **Working tree:** Documentation updates pending review; do not commit or push
-**Sprint 54 status:** Complete; no Sprint 55 implementation has begun
+**Sprint 56 status:** Complete; live KBO validation blocked by environment DNS
 
 SharpStack is stable and actively developed. The platform already has a functioning MLB recommendation pipeline, Recommendation Registry, Play of the Day, structured explanations, dashboard, Discord reporting, recommendation history, and an Azure PostgreSQL persistence foundation.
 
@@ -43,10 +43,8 @@ That inspection revealed a more immediate structural flaw:
 
 This was a provider/data-correctness issue, and SharpStack's architecture requires plumbing and data integrity to be fixed before model tuning.
 
-The active execution sequence is:
-
-1. Conduct Sprint 55 - Better Pitching Metrics Investigation.
-2. Complete Sprint 56 - KBO Confidence Correctness.
+The Sprint 54, Sprint 55, and Sprint 56 execution queue is complete. Do not
+select or implement new work without roadmap governance.
 
 Do not drift into Epic 2 enhancements, calibration, dashboard work, or future
 sports before Epic 1 completes. Those ideas remain deferred.
@@ -178,6 +176,63 @@ live MLB card build could not run because this environment could not resolve
 across metrics; metric-specific stabilization remains deferred. Sprint 55 will
 research FIP, xFIP, xERA, and SIERA only; it does not authorize production
 integration.
+
+## 4.10 Sprint 55 Research Record
+
+**Outcome:** no production pitching metric was approved. FIP is the only
+future candidate derivable from the canonical starter raw counts, but it needs
+a season-specific league constant and historical incremental-value testing.
+xFIP, xERA, and SIERA require unavailable batted-ball or Statcast inputs and
+an approved production data contract.
+
+**Accepted decision:** FIP is not an additive production feature. Advanced
+metrics must contribute independent predictive information and pass
+out-of-sample validation before production use. xERA is the preferred future
+evaluation candidate only if it is licensed, validated, and operationally
+supportable. No production model changes resulted from Sprint 55.
+
+**Architecture rationale:** the current model already separately scores HR/9,
+K/9, and BB/9. Adding an ERA estimator as another weighted feature would
+double-count those skills and can double-regress small samples. Any later work
+must use raw starter-only events, metric-specific reliability treatment,
+source-quality metadata, and an out-of-sample replacement-versus-baseline test.
+
+**Source finding:** public Baseball Savant and FanGraphs data are suitable for
+research but do not establish a production redistribution or SLA contract.
+Do not scrape either source for production. The full evaluation is in
+`docs/SPRINT_55_PITCHING_METRICS_EVALUATION.md`.
+
+**Next resume point:** Epic 1 review. Keep advanced pitching metrics deferred
+pending licensed sourcing and historical validation; do not select a new sprint
+without roadmap governance.
+
+## 4.11 Sprint 56 Completion Record
+
+**Objective:** make KBO confidence reflect model separation, data completeness,
+starter certainty, and market availability without using mock odds as a market
+signal.
+
+**Completed:** KBO confidence now starts from an explainable baseline, adds
+bounded model-separation strength and available-input completeness, and applies
+unknown-starter penalties. It no longer increases from the number of generated
+reasons. A missing real market receives no completeness credit, produces a
+zero edge, and forces `NO PLAY`; real market edge and recommendation are
+calculated only after odds enrichment.
+
+**Architecture rationale:** the previous KBO flow used synthetic 50% mock odds
+before enrichment, allowing a fabricated edge and actionable recommendation.
+Finalizing after enrichment preserves the provider-to-model-to-market pipeline,
+does not change Decision Builder, and keeps confidence explainable through a
+serialized breakdown.
+
+**Validation:** `py_compile`, three focused KBO confidence tests, confidence
+breakdown serialization, and `git diff --check` passed. The live KBO build was
+blocked before ingestion because this environment could not resolve
+`mykbostats.com`.
+
+**Known limitation:** KBO still depends on MyKBOStats for schedule and starter
+data; source availability and starter identity remain visible confidence risks.
+No commit was created.
 
 ---
 

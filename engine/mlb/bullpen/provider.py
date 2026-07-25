@@ -171,12 +171,20 @@ def pitcher_evidence(
     as_of: date,
 ) -> dict[str, Any]:
     """Serialize existing pitcher facts without assigning a bullpen role."""
+    if not appearances:
+        return empty_pitcher_evidence(pitcher)
+
     observed_relief_appearances = [
         appearance
         for appearance in appearances
         if to_int(appearance.get("stat", {}).get("gamesStarted"))
         in (None, 0)
     ]
+    workload = observed_relief_workload(
+        observed_relief_appearances,
+        as_of=as_of,
+        game_log_empty=not appearances,
+    )
     season_starts = sum(
         to_int(appearance.get("stat", {}).get("gamesStarted")) or 0
         for appearance in appearances
@@ -224,6 +232,28 @@ def pitcher_evidence(
             ) / 3,
             1,
         ),
+        "observed_last_appearance_date": workload[
+            "last_appearance_date"
+        ],
+        "observed_appearances_last3": workload[
+            "appearances_last3"
+        ],
+        "observed_innings_last3": workload["innings_last3"],
+        "appearances_last5": workload["appearances_last5"],
+        "innings_last5": workload["innings_last5"],
+        "multi_inning_appearances_last5": workload[
+            "multi_inning_appearances_last5"
+        ],
+        "days_since_last_appearance": workload[
+            "days_since_last_appearance"
+        ],
+        "appeared_on_consecutive_days": workload[
+            "appeared_on_consecutive_days"
+        ],
+        "consecutive_days_used": workload[
+            "consecutive_days_used"
+        ],
+        "limited_history": workload["limited_history"],
         "inclusion_status": (
             "INCLUDED" if included else "EXCLUDED"
         ),
@@ -257,10 +287,52 @@ def unavailable_pitcher_evidence(
         "last_appearance_date": None,
         "appearances_last3": None,
         "innings_last3": None,
+        "observed_last_appearance_date": None,
+        "observed_appearances_last3": None,
+        "observed_innings_last3": None,
+        "appearances_last5": None,
+        "innings_last5": None,
+        "multi_inning_appearances_last5": None,
+        "days_since_last_appearance": None,
+        "appeared_on_consecutive_days": None,
+        "consecutive_days_used": None,
+        "limited_history": None,
         "inclusion_status": "EXCLUDED",
         "exclusion_reason": "game_log_unavailable",
         "source_quality": "UNAVAILABLE",
         "game_log_status": "FAILED",
+    }
+
+
+def empty_pitcher_evidence(
+    pitcher: dict[str, Any],
+) -> dict[str, Any]:
+    """Keep successful-but-empty game logs distinct from zero workload."""
+    return {
+        "pitcher_id": pitcher.get("player_id"),
+        "pitcher_name": pitcher.get("player_name"),
+        "roster_position": pitcher.get("position"),
+        "season_starts": None,
+        "relief_appearances": None,
+        "observed_relief_appearances": None,
+        "included_relief_appearances": None,
+        "last_appearance_date": None,
+        "appearances_last3": None,
+        "innings_last3": None,
+        "observed_last_appearance_date": None,
+        "observed_appearances_last3": None,
+        "observed_innings_last3": None,
+        "appearances_last5": None,
+        "innings_last5": None,
+        "multi_inning_appearances_last5": None,
+        "days_since_last_appearance": None,
+        "appeared_on_consecutive_days": None,
+        "consecutive_days_used": None,
+        "limited_history": True,
+        "inclusion_status": "EXCLUDED",
+        "exclusion_reason": "no_game_log_appearances",
+        "source_quality": "COMPLETE",
+        "game_log_status": "EMPTY",
     }
 
 
@@ -279,6 +351,100 @@ def exclusion_reason(
         return "non_reliever_with_season_starts"
 
     return "no_non_starting_appearances"
+
+
+def observed_relief_workload(
+    appearances: list[dict[str, Any]],
+    *,
+    as_of: date,
+    game_log_empty: bool,
+) -> dict[str, Any]:
+    """Return factual recent workload for observed non-start outings only."""
+    if game_log_empty:
+        return {
+            "last_appearance_date": None,
+            "appearances_last3": None,
+            "innings_last3": None,
+            "appearances_last5": None,
+            "innings_last5": None,
+            "multi_inning_appearances_last5": None,
+            "days_since_last_appearance": None,
+            "appeared_on_consecutive_days": None,
+            "consecutive_days_used": None,
+            "limited_history": True,
+        }
+
+    dated_appearances = [
+        appearance
+        for appearance in appearances
+        if (
+            (appearance_day := appearance_date(appearance))
+            is not None
+            and appearance_day <= as_of
+        )
+    ]
+    last3_start = as_of - timedelta(days=2)
+    last5_start = as_of - timedelta(days=4)
+    last3 = [
+        appearance
+        for appearance in dated_appearances
+        if appearance_date(appearance) >= last3_start
+    ]
+    last5 = [
+        appearance
+        for appearance in dated_appearances
+        if appearance_date(appearance) >= last5_start
+    ]
+    dates_used = {
+        appearance_date(appearance)
+        for appearance in dated_appearances
+    }
+    last_appearance = max(dates_used) if dates_used else None
+    consecutive_days_used = 0
+
+    if last_appearance is not None:
+        streak_day = last_appearance
+        while streak_day in dates_used:
+            consecutive_days_used += 1
+            streak_day -= timedelta(days=1)
+
+    return {
+        "last_appearance_date": (
+            last_appearance.isoformat()
+            if last_appearance is not None
+            else None
+        ),
+        "appearances_last3": len(last3),
+        "innings_last3": innings_from_appearances(last3),
+        "appearances_last5": len(last5),
+        "innings_last5": innings_from_appearances(last5),
+        "multi_inning_appearances_last5": sum(
+            extract_outs(appearance.get("stat", {})) >= 6
+            for appearance in last5
+        ),
+        "days_since_last_appearance": (
+            (as_of - last_appearance).days
+            if last_appearance is not None
+            else None
+        ),
+        "appeared_on_consecutive_days": consecutive_days_used >= 2,
+        "consecutive_days_used": consecutive_days_used,
+        "limited_history": (
+            len(appearances) < 3 or not dated_appearances
+        ),
+    }
+
+
+def innings_from_appearances(
+    appearances: list[dict[str, Any]],
+) -> float:
+    return round(
+        sum(
+            extract_outs(appearance.get("stat", {}))
+            for appearance in appearances
+        ) / 3,
+        1,
+    )
 
 
 def build_bullpen_snapshot(

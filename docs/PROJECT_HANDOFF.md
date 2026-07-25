@@ -67,6 +67,14 @@ For mixed-role provenance, `observed_relief_appearances` records all non-start
 outings in the raw game log, while `included_relief_appearances` records the
 subset retained by the unchanged bullpen aggregation rule.
 
+Sprint 58 Patch 2 extends that diagnostic ledger with observed relief workload
+facts only. Last-3 is `as_of - 2` through `as_of`; last-5 is `as_of - 4`
+through `as_of`, both inclusive and excluding future or undated outings.
+Innings are derived from recorded outs; multi-inning means at least six outs.
+`limited_history` is true for an empty successful log, fewer than three
+observed relief outings, or no dated observed relief outings. It is `None` for
+failed logs, whose workload fields remain unknown.
+
 The MLB full slate presents projected-winner ranking separately from betting
 value. Its compact cards display the canonical conviction and market-value
 badges; diagnostics, including Hammer and Market vs Model, remain inside

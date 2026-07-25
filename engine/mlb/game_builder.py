@@ -11,6 +11,7 @@ from engine.mlb.bullpen.provider import (
     fetch_bullpen_profile,
 )
 from engine.mlb.pitchers import (
+    PitcherGameLogCache,
     fetch_pitcher_stats,
 )
 from engine.mlb.team_mapping import (
@@ -140,6 +141,8 @@ def sportsbook_priority(
 
 def pitcher_from_team(
     team_blob: dict,
+    *,
+    game_log_cache: PitcherGameLogCache | None = None,
 ) -> dict:
     pitcher = (
         team_blob.get(
@@ -151,7 +154,8 @@ def pitcher_from_team(
     pitcher_id = pitcher.get("id")
 
     stats = fetch_pitcher_stats(
-        pitcher_id
+        pitcher_id,
+        game_log_cache=game_log_cache,
     )
 
     return {
@@ -206,6 +210,8 @@ def pitcher_from_team(
 
 def team_profile(
     team_blob: dict,
+    *,
+    game_log_cache: PitcherGameLogCache | None = None,
 ) -> dict:
     team = team_blob.get(
         "team",
@@ -231,6 +237,7 @@ def team_profile(
         "bullpen": fetch_bullpen_profile(
             team_id,
             name,
+            game_log_cache=game_log_cache,
         ),
     }
 
@@ -996,6 +1003,7 @@ def build_mlb_card(
     )
 
     games: list[dict] = []
+    game_log_cache = PitcherGameLogCache()
 
     for raw in raw_games:
         teams = raw.get(
@@ -1014,11 +1022,13 @@ def build_mlb_card(
         )
 
         away_profile = team_profile(
-            away_blob
+            away_blob,
+            game_log_cache=game_log_cache,
         )
 
         home_profile = team_profile(
-            home_blob
+            home_blob,
+            game_log_cache=game_log_cache,
         )
 
         away = away_profile.get(
@@ -1033,11 +1043,13 @@ def build_mlb_card(
             continue
 
         away_pitcher = pitcher_from_team(
-            away_blob
+            away_blob,
+            game_log_cache=game_log_cache,
         )
 
         home_pitcher = pitcher_from_team(
-            home_blob
+            home_blob,
+            game_log_cache=game_log_cache,
         )
 
         away_quote = quote_for_team(

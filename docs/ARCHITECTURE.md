@@ -54,6 +54,8 @@ Presentation
 | Immutable moneyline reference price | SSRP persistence service |
 | Role-aware profiles | Sport normalization modules |
 | Sport projections | Sport-specific models |
+| MLB moneyline conviction tier | MLB SharpScore model using model probability and confidence |
+| MLB moneyline market-value classification | MLB SharpScore model using immutable SSRP edge |
 | Starter profile | `engine/mlb/pitchers.py` |
 | Bullpen snapshot | MLB bullpen provider feeding `engine/mlb/bullpen/` |
 | Signal integration | Decision Builder |
@@ -207,9 +209,27 @@ Play of the Day
 Dashboard / Discord / Reports / API
 ```
 
-# 10. Hammer and Ranking
+# 10. MLB Moneyline Contract, Hammer, and Ranking
+
+For MLB moneylines, two serialized signals answer different questions:
+
+- Model probability plus model confidence determine the authoritative model
+  conviction tier: `CHEEK RIPPER`, `STRONG PLAY`, `PLAYABLE`, `LEAN`, or
+  `PASS`.
+- Immutable SSRP edge determines the independent market-value label: `ELITE
+  VALUE`, `STRONG VALUE`, `POSITIVE VALUE`, `FAIR PRICE`, `MARKET PREMIUM`,
+  `HEAVY PREMIUM`, or `VALUE UNAVAILABLE`.
+
+Decision Builder serializes both values and their structured explanations for
+the Registry and presentation. It does not replace the MLB model conviction
+tier with a Hammer label. Presentation renders these canonical fields and must
+not derive either classification.
 
 Hammer is an explainable composite score.
+
+For MLB moneylines, Hammer is an advisory confirmation layer. It remains
+available for diagnostics and ranking context but cannot promote, downgrade,
+or veto the authoritative model conviction tier.
 
 Ranking orders already-qualified recommendations.
 
@@ -275,9 +295,8 @@ Before changing architecture, document:
 # 15. Current Focus
 
 1. Complete Epic 1 model correctness.
-2. Sprint 54: stabilize pitcher samples by innings pitched without changing
-   weights, scoring, or confidence behavior.
-3. Sprint 55: investigate better pitching metrics without production integration.
-4. Sprint 56: correct KBO confidence behavior for missing starters and markets.
-5. Defer model intelligence, calibration, persistence expansion, and platform
+2. Preserve the completed Sprint 52-56, SSRP, and MLB recommendation contracts
+   through validation and targeted technical-debt work.
+3. Do not select a new sprint without roadmap governance.
+4. Defer model intelligence, calibration, persistence expansion, and platform
    work until their governing prerequisites are satisfied.

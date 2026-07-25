@@ -27,6 +27,19 @@ Completed:
   - canonical bullpen payload for totals and SharpScore compatibility aliases
 - Sprint 54 - Pitcher Sample Stabilization
   - shared innings-based blending for starter ERA, WHIP, HR/9, K/9, and BB/9
+- Sprint 55 - Better Pitching Metrics Investigation
+  - research completed; no production advanced metric approved
+- Sprint 56 - KBO Confidence Correctness
+  - confidence and real-market finalization corrected without market leakage
+- SSRP v1 - Immutable MLB/KBO moneyline reference price
+  - first eligible pregame quote persists as the edge reference; current odds
+    remain display data
+- MLB market freshness and quote provenance
+  - selected quote freshness metadata and completed artifact timestamps are
+    traceable and timezone-safe
+- MLB conviction and market-value separation
+  - model probability plus confidence determine the MLB moneyline conviction
+    tier; SSRP edge independently determines market-value classification
 
 # Epic 1: Model Correctness
 
@@ -40,6 +53,22 @@ Completed:
 - Explicit MLB API Parameters
 - Sprint 53 - MLB Bullpen Provider
 - Sprint 54 - Pitcher Sample Stabilization
+- Sprint 55 - Better Pitching Metrics Investigation
+- Sprint 56 - KBO Confidence Correctness
+- SSRP v1, market freshness/provenance, and MLB conviction/market-value
+  separation
+
+All defined Sprints 52-56 are complete. Epic 1 remains active for validation
+and approved technical-debt work; selecting a new sprint requires governance.
+
+## Sprint 57: Provider Reliability
+
+**Status:** In review — Phase 1 implemented.
+
+Phase 1 adds a request-scoped pitcher game-log cache for one MLB card build.
+It removes duplicate starter/bullpen game-log requests without persistent
+caching, contract changes, or model behavior changes. Later phases remain
+limited to approved provider efficiency and source-quality work.
 
 ## Sprint 54: Pitcher Sample Stabilization
 
@@ -92,16 +121,41 @@ These enhancements intentionally occur after Epic 1 completes:
 - Rolling Form
 - Park & Weather Integration
 
-# Epic 3: Calibration & Persistence
+# Epic 3A: Recommendation Measurement & Historical Intelligence
+
+**Status:** Planned for Sprint 63, or the earliest approved point after
+sufficient persisted recommendation history is available
+
+Measurement reports what has already happened. It does not alter model
+weights, probabilities, Hammer, thresholds, or recommendations.
+
+Priority deliverables:
+
+- Recommendation Performance Dashboard (Sprint 63 target; highest-priority
+  Epic 3A deliverable once persisted recommendation history is sufficient)
+  - recommendation count and historical record
+  - win/loss and win rate by recommendation tier
+  - win/loss and win rate by market-value tier
+  - recommendation distribution, average odds, and ROI where outcomes exist
+  - CLV display when closing-line data exists
+- Historical Intelligence (next Epic 3A deliverable)
+  - matchup-level recent history by recommendation tier and conviction/value
+    combination
+  - aggregate record, ROI, and closing-line context where available
+- Azure persistence verification and Recommendation History reporting
+
+These are validation capabilities, not model features. They make the existing
+conviction-versus-market-value contract observable before any recalibration.
+
+# Epic 3B: Calibration & Persistence
 
 **Status:** Deferred
 
-No implementation begins until sufficient graded recommendation history exists.
+No calibration implementation begins until sufficient graded recommendation
+history exists.
 
 Includes:
 
-- S52-004 - calibration and persistence work remains deferred
-- Azure persistence verification
 - Recommendation grading
 - Weight optimization
 - Probability calibration
@@ -114,7 +168,6 @@ Includes:
 **Status:** Future
 
 - Explainability Dashboard
-- Analytics Dashboard
 - NFL
 - NHL
 
@@ -167,6 +220,7 @@ Completed:
 - totals recommendations
 - structured explanations
 - canonical consensus direction
+- MLB conviction and SSRP market-value explanations
 
 Current:
 
@@ -176,14 +230,13 @@ Current:
 
 Later:
 
-- confidence vs attractiveness split
 - ranking calibration
 - threshold calibration
 - historical signal attribution
 
 ## Historical Analytics
 
-Goals:
+Epic 3A measurement goals:
 
 - grading
 - W/L/P tracking
@@ -214,8 +267,6 @@ Stable, not immediate priority.
 
 Later:
 
-- historical analytics
-- CLV views
 - model-health views
 - bullpen transparency
 - search and filtering
@@ -240,7 +291,9 @@ Epic 4 future work, after MLB reaches production quality:
 
 # Explicit Anti-Drift Rule
 
-Do not promote Epic 2, Epic 3, or Epic 4 work while Epic 1 remains active.
+Do not promote Epic 2, Epic 3A, Epic 3B, or Epic 4 work while Epic 1 remains
+active. Epic 3A measures existing recommendations; Epic 3B calibrates only
+after sufficient graded history exists.
 Do not redesign scoring or confidence during Sprint 54, and do not integrate
 research metrics from Sprint 55 into production.
 

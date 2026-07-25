@@ -11,9 +11,10 @@
 **Primary branch:** `feature/recommendation-history`
 **Environment:** Windows 11 / PowerShell / Python 3.13+
 **Current milestone:** Epic 1 â€” Model Correctness
-**Current work item:** SSRP v1 implementation pending review
-**Working tree:** SSRP v1 changes pending review; do not commit or push
-**Sprint 56 status:** Complete; live KBO validation blocked by environment DNS
+**Current work item:** Documentation synchronization after completed SSRP and
+MLB recommendation-contract work
+**Working tree:** Documentation updates pending review; do not commit or push
+**Sprint 56 status:** Complete
 
 SharpStack is stable and actively developed. The platform already has a functioning MLB recommendation pipeline, Recommendation Registry, Play of the Day, structured explanations, dashboard, Discord reporting, recommendation history, and an Azure PostgreSQL persistence foundation.
 
@@ -25,6 +26,36 @@ before the 60-minute MLB or 45-minute KBO cutoff. Current odds remain display
 data only. SSRP is stored in a dedicated PostgreSQL table with an atomic,
 create-only identity key; missing or late references produce a visible SSRP
 status and no invented edge. Hammer and thresholds remain unchanged.
+
+**Post-Sprint 56 implementation status:** SSRP v1 is implemented for MLB and
+KBO moneylines. Market freshness and quote provenance now travel with the
+selected quote into the completed artifact. For MLB moneylines, the
+authoritative recommendation is model conviction from model probability plus
+confidence; SSRP edge separately produces a market-value label. Decision
+Builder, Registry, and presentation preserve both fields and their structured
+explanations. Hammer remains an advisory confirmation layer and does not
+replace the MLB recommendation.
+
+**Sprint 57 — Provider Reliability, Phase 1:** implemented and awaiting
+review. `build_mlb_card()` now creates one request-scoped pitcher game-log
+cache shared by bullpen collection and starter profiling. The cache is not
+module-global, persistent, or cross-run; it keys the MLB pitching game-log
+request by endpoint, pitcher ID, season, and game type, and preserves cached
+empty and failed outcomes so the existing season fallback remains unchanged.
+
+The MLB full slate presents projected-winner ranking separately from betting
+value. Its compact cards display the canonical conviction and market-value
+badges; diagnostics, including Hammer and Market vs Model, remain inside
+SharpStack Intelligence. Best Bets retains Registry-owned ranking.
+
+**Roadmap sequence:** retain Epic 1 technical-debt and provider-quality work,
+then Epic 2 Model Intelligence in order: Source Quality Confidence,
+Lineup-Aware Offense, Rolling Form, and Park & Weather Integration. Epic 3A
+then adds Recommendation Performance reporting at Sprint 63, or the earliest
+approved point after sufficient persisted recommendation history is available,
+followed by Historical Intelligence;
+Epic 3B calibration, CLV, ROI optimization, and threshold tuning remain
+evidence-gated. Epic 4 retains platform expansion and additional sports.
 
 ---
 
@@ -53,8 +84,10 @@ This was a provider/data-correctness issue, and SharpStack's architecture requir
 The Sprint 54, Sprint 55, and Sprint 56 execution queue is complete. Do not
 select or implement new work without roadmap governance.
 
-Do not drift into Epic 2 enhancements, calibration, dashboard work, or future
-sports before Epic 1 completes. Those ideas remain deferred.
+Do not drift into Epic 2 enhancements, Epic 3A measurement, calibration, or
+future sports before Epic 1 completes. Epic 3A is planned after Epic 2 to
+measure the existing recommendation record; Epic 3B calibration remains gated
+on sufficient graded history.
 
 ---
 
@@ -637,6 +670,13 @@ These ideas may be valuable. They are not blocking the active Epic 1 objective.
   it does not calculate diagnostics. Operational pages use compact headers to
   keep current betting data above the fold. No model, confidence, ranking
   calculation, recommendation, or Decision Builder behavior changed.
+- MLB moneyline recommendation authority is model conviction, not Hammer:
+  `model_probability` plus `confidence` create the recommendation tier, while
+  SSRP `edge` creates an independent market-value label. Keep both values
+  through decision, registry, explorer, and presentation contracts.
+- Market freshness is metadata from the same selected quote used for the card.
+  Current odds are display context; immutable SSRP remains the moneyline edge
+  reference.
 - MLB probable pitchers may be openers or mixed-role pitchers.
 - MLB game-log rate fields should not be averaged.
 - `k_rate` and `bb_rate` currently mean K/9 and BB/9, not percentages.
@@ -666,11 +706,13 @@ for totals and SharpScore, and leaves existing bullpen models unchanged.
 
 Sprint 54 is complete: starter ERA, WHIP, HR/9, K/9, and BB/9 now use the
 shared 50-IP stabilization view in SharpScore, totals, and First Five inputs.
-Sprint 55 is research only, and Sprint 56 addresses KBO confidence correctness.
+Sprint 55 research and Sprint 56 KBO confidence correctness are complete.
+SSRP v1 is implemented, and MLB recommendation output now separates model
+conviction from SSRP market value. Hammer is advisory only for MLB moneylines.
 
-Do not drift into starter recency blending, metric-specific stabilization,
-dashboard polish, calibration, or broad refactors. Use small targeted edits,
-preserve backward compatibility, and verify provider data before tuning models.
+Do not select a new sprint without roadmap governance. Use small targeted
+edits, preserve backward compatibility, and verify provider data before tuning
+models.
 ```
 
 ---
@@ -690,5 +732,5 @@ SharpStack is evolving into an explainable, evidence-driven sports analytics pla
 
 The immediate discipline is simple:
 
-**Complete Epic 1 model correctness before Epic 2 intelligence, Epic 3
-calibration and persistence, or Epic 4 platform work.**
+**Complete Epic 1 model correctness before Epic 2 intelligence, Epic 3A
+measurement, Epic 3B calibration, or Epic 4 platform work.**

@@ -6,6 +6,10 @@ from typing import Any
 import requests
 
 from engine.mlb.bullpen.bullpen_data import BullpenSnapshot
+from engine.mlb.pitchers import (
+    PitcherGameLogCache,
+    fetch_pitcher_game_log,
+)
 
 
 BASE_URL = "https://statsapi.mlb.com/api/v1"
@@ -17,6 +21,7 @@ def fetch_bullpen_profile(
     team_name: str | None,
     *,
     as_of: date | None = None,
+    game_log_cache: PitcherGameLogCache | None = None,
 ) -> dict[str, Any]:
     """Return a normalized active-roster bullpen profile from MLB data."""
     if not team_id:
@@ -33,7 +38,10 @@ def fetch_bullpen_profile(
     failed_pitchers = 0
 
     for pitcher in roster:
-        appearances = fetch_pitcher_game_log(pitcher["player_id"])
+        appearances = fetch_pitcher_game_log(
+            pitcher["player_id"],
+            game_log_cache=game_log_cache,
+        )
 
         if appearances is None:
             failed_pitchers += 1
@@ -113,35 +121,6 @@ def fetch_active_pitcher_roster(
         )
 
     return pitchers
-
-
-def fetch_pitcher_game_log(
-    player_id: int,
-) -> list[dict[str, Any]] | None:
-    url = f"{BASE_URL}/people/{player_id}/stats"
-
-    try:
-        response = requests.get(
-            url,
-            params={
-                "stats": "gameLog",
-                "group": "pitching",
-                "season": date.today().year,
-                "gameType": "R",
-            },
-            timeout=20,
-        )
-        response.raise_for_status()
-        data = response.json()
-    except Exception:
-        return None
-
-    stats_groups = data.get("stats", [])
-
-    if not stats_groups:
-        return []
-
-    return stats_groups[0].get("splits", [])
 
 
 def classify_reliever_appearances(

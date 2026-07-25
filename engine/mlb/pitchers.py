@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Callable
 
 import requests
 
@@ -6,7 +7,41 @@ import requests
 BASE_URL = "https://statsapi.mlb.com/api/v1"
 
 
-def fetch_pitcher_stats(person_id):
+class PitcherGameLogCache:
+    """Build-local cache for identical MLB pitcher game-log requests."""
+
+    def __init__(self) -> None:
+        self._entries: dict[
+            tuple[str, int, int, str],
+            list[dict] | None,
+        ] = {}
+
+    def get_or_fetch(
+        self,
+        person_id: int,
+        *,
+        season: int,
+        game_type: str,
+        fetcher: Callable[[], list[dict] | None],
+    ) -> list[dict] | None:
+        key = (
+            "people_stats_game_log_pitching",
+            int(person_id),
+            int(season),
+            str(game_type),
+        )
+
+        if key not in self._entries:
+            self._entries[key] = fetcher()
+
+        return self._entries[key]
+
+
+def fetch_pitcher_stats(
+    person_id,
+    *,
+    game_log_cache: PitcherGameLogCache | None = None,
+):
     """
     Return a probable pitcher's starter-only MLB profile.
 
@@ -19,7 +54,10 @@ def fetch_pitcher_stats(person_id):
     if not person_id:
         return {}
 
-    starter_profile = fetch_starter_only_profile(person_id)
+    starter_profile = fetch_starter_only_profile(
+        person_id,
+        game_log_cache=game_log_cache,
+    )
 
     if starter_profile:
         return starter_profile
@@ -27,33 +65,22 @@ def fetch_pitcher_stats(person_id):
     return fetch_season_pitching_profile(person_id)
 
 
-def fetch_starter_only_profile(person_id):
-    url = f"{BASE_URL}/people/{person_id}/stats"
+def fetch_starter_only_profile(
+    person_id,
+    *,
+    game_log_cache: PitcherGameLogCache | None = None,
+    season: int | None = None,
+    game_type: str = "R",
+):
+    splits = fetch_pitcher_game_log(
+        person_id,
+        game_log_cache=game_log_cache,
+        season=season,
+        game_type=game_type,
+    )
 
-    params = {
-        "stats": "gameLog",
-        "group": "pitching",
-        "season": date.today().year,
-        "gameType": "R",
-    }
-
-    try:
-        response = requests.get(
-            url,
-            params=params,
-            timeout=30,
-        )
-        response.raise_for_status()
-        data = response.json()
-    except Exception:
+    if splits is None:
         return {}
-
-    stats_groups = data.get("stats", [])
-
-    if not stats_groups:
-        return {}
-
-    splits = stats_groups[0].get("splits", [])
 
     starter_splits = [
         split
@@ -68,6 +95,57 @@ def fetch_starter_only_profile(person_id):
         return {}
 
     return aggregate_starter_splits(starter_splits)
+
+
+def fetch_pitcher_game_log(
+    person_id: int | None,
+    *,
+    game_log_cache: PitcherGameLogCache | None = None,
+    season: int | None = None,
+    game_type: str = "R",
+) -> list[dict] | None:
+    """Fetch one raw MLB pitching game log with optional build-local reuse."""
+    if not person_id:
+        return None
+
+    url = f"{BASE_URL}/people/{person_id}/stats"
+    request_season = season or date.today().year
+
+    params = {
+        "stats": "gameLog",
+        "group": "pitching",
+        "season": request_season,
+        "gameType": game_type,
+    }
+
+    def fetch() -> list[dict] | None:
+        try:
+            response = requests.get(
+                url,
+                params=params,
+                timeout=30,
+            )
+            response.raise_for_status()
+            data = response.json()
+        except Exception:
+            return None
+
+        stats_groups = data.get("stats", [])
+
+        if not stats_groups:
+            return []
+
+        return stats_groups[0].get("splits", [])
+
+    if game_log_cache is None:
+        return fetch()
+
+    return game_log_cache.get_or_fetch(
+        person_id,
+        season=request_season,
+        game_type=game_type,
+        fetcher=fetch,
+    )
 
 
 def aggregate_starter_splits(starter_splits):

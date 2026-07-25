@@ -91,6 +91,36 @@ def recommendation_badge_html(
     )
 
 
+def market_value_badge_html(label, tone):
+    """Render the presentation-only SSRP value classification badge."""
+    normalized_tone = str(tone or "unavailable").strip().lower()
+    icon = {
+        "elite_value": "💎",
+        "strong_value": "💰",
+        "positive_value": "📈",
+        "fair_price": "➖",
+        "market_premium": "⚠️",
+        "heavy_premium": "🚫",
+        "unavailable": "•",
+    }.get(normalized_tone, "•")
+    css_tone = normalized_tone if normalized_tone in {
+        "elite_value",
+        "strong_value",
+        "positive_value",
+        "fair_price",
+        "market_premium",
+        "heavy_premium",
+        "unavailable",
+    } else "unavailable"
+    rendered_label = label or "VALUE UNAVAILABLE"
+
+    return (
+        "<span class='badge market-value-badge "
+        f"market-value-{css_tone}'>"
+        f"{icon} {html.escape(str(rendered_label))}</span>"
+    )
+
+
 def status_badge(label, status="neutral"):
     css = {
         "good": "badge badge-green",

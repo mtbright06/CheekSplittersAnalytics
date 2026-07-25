@@ -1,6 +1,9 @@
 import streamlit as st
 
-from components.badges import recommendation_badge_html
+from components.badges import (
+    market_value_badge_html,
+    recommendation_badge_html,
+)
 from components.progress import render_progress_bar
 from components.value_meter import render_value_meter
 
@@ -18,7 +21,6 @@ def render_play_summary(
     market = model.get("market") or "Market"
     recommendation = model.get("recommendation") or "PASS"
     sport = str(game.get("sport") or "").lower()
-    edge = model.get("edge")
     confidence = model.get("confidence")
     book_probability = odds.get("book_probability")
     moneyline = odds.get("moneyline")
@@ -36,6 +38,7 @@ def render_play_summary(
             else None
         ),
     )
+    edge = model.get("edge")
     edge_text = f"{float(edge):.2f}%" if edge is not None else "Unavailable"
     book_text = (
         f"{_percent(book_probability):.1f}%"
@@ -48,17 +51,14 @@ def render_play_summary(
         else "Unavailable"
     )
     odds_text = str(moneyline) if moneyline is not None else "Unavailable"
-    hammer_text = (
-        f"{float(hammer_score):.1f}"
-        if hammer_score is not None
-        else "Unavailable"
-    )
     reference_price = odds.get("reference_price")
     reference_text = (
         str(reference_price)
         if reference_price is not None
         else "Unavailable"
     )
+    value_label = model.get("market_value_label") or "VALUE UNAVAILABLE"
+    value_tone = model.get("market_value_tone") or "unavailable"
 
     if sport == "mlb":
         heading = "Model Prediction · Projected Winner"
@@ -87,22 +87,22 @@ def render_play_summary(
                 else f"<div><span>Book</span><strong>{book_text}</strong></div>"
             ),
             (
-                f"<div><span>SSRP Edge</span><strong>{edge_text}</strong></div>"
+                f"<div><span>Current Odds</span><strong>{odds_text}</strong></div>"
                 if sport == "mlb"
                 else f"<div><span>Model Strength</span><strong>{confidence_text}</strong></div>"
             ),
-            (
-                f"<div><span>Current Odds</span><strong>{odds_text}</strong></div>"
-                if sport == "mlb"
-                else ""
-            ),
             "</div></div><div class='play-hero-footer'>",
             (
-                "<span class='small-label'>Betting Decision</span>"
+                "<div class='conviction-value-panel'>"
+                "<div class='conviction-value-block'>"
+                "<span class='small-label'>Model Conviction</span>"
                 + recommendation_badge_html(recommendation)
-                + f"<span class='small-label'>{state['badge']}</span>"
-                + f"<span class='muted'>{_betting_decision_reason(recommendation, edge)} · "
-                f"Current odds: {odds_text} · Reference price: {reference_text}</span>"
+                + "</div><div class='conviction-value-divider'></div>"
+                "<div class='conviction-value-block'>"
+                "<span class='small-label'>Market Value</span>"
+                + market_value_badge_html(value_label, value_tone)
+                + f"<span class='market-context'>{state['badge']} · Current odds: {odds_text} · Reference price: {reference_text}</span>"
+                + "</div></div>"
                 if sport == "mlb"
                 else recommendation_badge_html(
                     recommendation,
@@ -122,10 +122,6 @@ def render_play_summary(
     # in the summary until a real market is available.
     if sport != "mlb":
         render_value_meter(game)
-    if sport == "mlb":
-        st.caption(
-            f"Hammer advisory confirmation: {hammer_text}"
-        )
     if confidence is not None and sport != "mlb":
         render_progress_bar(
             "Model Strength" if sport == "kbo" else "Confidence",
@@ -142,14 +138,6 @@ def _model_probability_text(value):
     if value is None:
         return "Unavailable"
     return f"{_percent(value):.1f}%"
-
-
-def _betting_decision_reason(recommendation, edge):
-    if str(recommendation).upper() == "PASS":
-        return "Price does not offer sufficient value"
-    if edge is None:
-        return "Reference price unavailable"
-    return "Price meets model value criteria"
 
 
 def play_summary_state(

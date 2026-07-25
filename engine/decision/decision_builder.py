@@ -1145,6 +1145,15 @@ def build_decision_card() -> dict:
                 # Hammer is retained as a diagnostic validation layer.
                 "recommendation": model_recommendation,
                 "model_recommendation": model_recommendation,
+                "market_value_label": mlb_game.get(
+                    "model", {}
+                ).get("market_value_label"),
+                "market_value_tone": mlb_game.get(
+                    "model", {}
+                ).get("market_value_tone"),
+                "recommendation_explanation": mlb_game.get(
+                    "model", {}
+                ).get("recommendation_explanation", {}),
                 "hammer_tier": hammer["recommendation"],
                 "hammer_assessment": (
                     "Validated by Hammer"

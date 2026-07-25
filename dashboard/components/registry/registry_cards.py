@@ -8,6 +8,7 @@ from components.confirmation import (
     hammer_confirmation_label,
 )
 from components.badges import (
+    market_value_badge_html,
     recommendation_badge_html,
 )
 
@@ -212,6 +213,7 @@ def render_registry_card(
         or item.get("sport")
         or "mlb"
     ).strip().lower()
+    is_mlb_moneyline = sport == "mlb" and item.get("market") == "moneyline"
 
     if sport == "kbo" and not item.get("real_market_loaded"):
         st.markdown(
@@ -272,6 +274,14 @@ def render_registry_card(
                         {esc(item.get("league"))} · {esc(item.get("market"))}
                     </span>
                     <span class="registry-market-badge">{market_status}</span>
+                    {(
+                        market_value_badge_html(
+                            item.get("market_value_label"),
+                            item.get("market_value_tone"),
+                        )
+                        if is_mlb_moneyline
+                        else ""
+                    )}
                 </div>
                 {(
                     '<div class="decision-matchup">'

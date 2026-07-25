@@ -17,6 +17,11 @@ def test_mlb_model_recommendation_remains_authoritative_over_hammer():
                 "hammer_score": 64.6,
                 "recommendation": "🔥 CHEEK RIPPER",
                 "model_recommendation": "🔥 CHEEK RIPPER",
+                "market_value_label": "MARKET PREMIUM",
+                "market_value_tone": "market_premium",
+                "recommendation_explanation": {
+                    "schema_version": "mlb_moneyline_v1",
+                },
                 "hammer_tier": "WATCH",
                 "hammer_assessment": "Below validation threshold / Moderate confirmation",
             }
@@ -27,6 +32,9 @@ def test_mlb_model_recommendation_remains_authoritative_over_hammer():
 
     assert recommendation.recommendation == "🔥 CHEEK RIPPER"
     assert recommendation.model_recommendation == "🔥 CHEEK RIPPER"
+    assert recommendation.market_value_label == "MARKET PREMIUM"
+    assert recommendation.market_value_tone == "market_premium"
+    assert recommendation.recommendation_explanation["schema_version"] == "mlb_moneyline_v1"
     assert recommendation.hammer_tier == "WATCH"
     assert recommendation.actionable is True
     assert recommendation.units is None

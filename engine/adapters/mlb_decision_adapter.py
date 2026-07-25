@@ -181,6 +181,16 @@ def adapt_decision(
         model_recommendation=row.get(
             "model_recommendation"
         ),
+        market_value_label=row.get(
+            "market_value_label"
+        ),
+        market_value_tone=row.get(
+            "market_value_tone"
+        ),
+        recommendation_explanation=row.get(
+            "recommendation_explanation",
+            {},
+        ),
         hammer_tier=row.get("hammer_tier"),
         hammer_assessment=row.get(
             "hammer_assessment"

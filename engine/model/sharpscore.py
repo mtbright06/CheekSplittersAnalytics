@@ -5,7 +5,11 @@ from engine.model.component_scores import (
     home_field_score,
 )
 from engine.model.confidence import calculate_confidence
-from engine.model.recommendations import recommendation
+from engine.model.recommendations import (
+    market_value_classification,
+    mlb_moneyline_conviction_recommendation,
+    mlb_moneyline_explanation,
+)
 from engine.odds.market_edge import calculate_market_edge, market_edge_to_dict
 
 
@@ -128,6 +132,16 @@ def build_sharpscore_decision(
         home_offense,
     )
 
+    model_recommendation = (
+        mlb_moneyline_conviction_recommendation(
+            model_probability,
+            confidence,
+        )
+    )
+    market_value_label, market_value_tone = (
+        market_value_classification(edge)
+    )
+
     model = {
         "play": play,
         "market": "Moneyline",
@@ -135,7 +149,17 @@ def build_sharpscore_decision(
         "edge": edge,
         "confidence": confidence,
         "confidence_breakdown": confidence_breakdown,
-        "recommendation": recommendation(edge, confidence),
+        "recommendation": model_recommendation,
+        "market_value_label": market_value_label,
+        "market_value_tone": market_value_tone,
+        "recommendation_explanation": (
+            mlb_moneyline_explanation(
+                team=play,
+                recommendation=model_recommendation,
+                market_value_label=market_value_label,
+                market_value_tone=market_value_tone,
+            )
+        ),
         "signals": [
             {"name": "Offense", "value": selected_components["offense"] / 100},
             {"name": "Starting Pitching", "value": selected_components["starting_pitching"] / 100},
@@ -160,6 +184,13 @@ def build_sharpscore_decision(
             "opponent_total": opponent_score,
         },
     }
+
+    market_edge.update(
+        {
+            "market_value_label": market_value_label,
+            "market_value_tone": market_value_tone,
+        }
+    )
 
     return {
         "model": model,

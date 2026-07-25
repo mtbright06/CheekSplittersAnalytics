@@ -87,6 +87,11 @@ class Recommendation:
     hammer_score: float = 0.0
     recommendation: str | None = None
     model_recommendation: str | None = None
+    market_value_label: str | None = None
+    market_value_tone: str | None = None
+    recommendation_explanation: dict[str, Any] = field(
+        default_factory=dict
+    )
     hammer_tier: str | None = None
     hammer_assessment: str | None = None
     confidence: str | None = None
@@ -332,6 +337,11 @@ class Recommendation:
             "model_recommendation": (
                 self.model_recommendation
             ),
+            "market_value_label": self.market_value_label,
+            "market_value_tone": self.market_value_tone,
+            "recommendation_explanation": (
+                self.recommendation_explanation
+            ),
             "hammer_tier": self.hammer_tier,
             "hammer_assessment": (
                 self.hammer_assessment
@@ -395,6 +405,16 @@ class Recommendation:
             ),
             model_recommendation=data.get(
                 "model_recommendation"
+            ),
+            market_value_label=data.get(
+                "market_value_label"
+            ),
+            market_value_tone=data.get(
+                "market_value_tone"
+            ),
+            recommendation_explanation=data.get(
+                "recommendation_explanation",
+                {},
             ),
             hammer_tier=data.get("hammer_tier"),
             hammer_assessment=data.get(

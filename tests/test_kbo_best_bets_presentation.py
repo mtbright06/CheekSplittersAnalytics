@@ -92,3 +92,29 @@ def test_mlb_moneyline_and_totals_use_the_shared_hero_badge_row(monkeypatch):
     assert "★★★★" in rendered[0]
     assert "recommendation-lean" in rendered[1]
     assert "★★★" in rendered[1]
+
+
+def test_mlb_moneyline_registry_card_shows_the_serialized_market_value_badge(monkeypatch):
+    rendered = []
+    monkeypatch.setattr(registry_cards.st, "markdown", lambda html, **kwargs: rendered.append(html))
+    monkeypatch.setattr(registry_cards.st, "expander", lambda *args, **kwargs: nullcontext())
+    monkeypatch.setattr(registry_cards.st, "info", lambda *args, **kwargs: None)
+
+    registry_cards.render_registry_card(
+        {
+            "league": "MLB",
+            "market": "moneyline",
+            "selection": "Washington Nationals",
+            "matchup": "Arizona Diamondbacks @ Washington Nationals",
+            "recommendation": "✅ STRONG PLAY",
+            "market_value_label": "ELITE VALUE",
+            "market_value_tone": "elite_value",
+            "real_market_loaded": True,
+            "market_quote": {},
+            "reasons": [],
+        },
+        1,
+    )
+
+    assert "💎 ELITE VALUE" in rendered[0]
+    assert "market-value-elite_value" in rendered[0]

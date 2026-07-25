@@ -17,7 +17,15 @@ def test_normalizer_preserves_canonical_pitcher_and_market_fields():
                     },
                     "home": {"name": "Home Starter"},
                 },
-                "model": {"edge": None, "confidence": 61.0},
+                "model": {
+                    "edge": None,
+                    "confidence": 61.0,
+                    "market_value_label": "VALUE UNAVAILABLE",
+                    "market_value_tone": "unavailable",
+                    "recommendation_explanation": {
+                        "schema_version": "mlb_moneyline_v1",
+                    },
+                },
                 "odds": {
                     "real_market_loaded": False,
                     "stale": True,
@@ -44,6 +52,9 @@ def test_normalizer_preserves_canonical_pitcher_and_market_fields():
     assert game["odds"]["reference_price"] == -105
     assert game["odds"]["reference_status"] == "LOCKED"
     assert game["model"]["edge"] is None
+    assert game["model"]["market_value_label"] == "VALUE UNAVAILABLE"
+    assert game["model"]["market_value_tone"] == "unavailable"
+    assert game["model"]["recommendation_explanation"]["schema_version"] == "mlb_moneyline_v1"
 
 
 def test_normalizer_preserves_kbo_starter_identity_and_source_status():

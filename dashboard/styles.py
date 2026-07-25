@@ -672,7 +672,33 @@ div.stButton > button:hover {
     gap: 12px;
     align-items: center;
     flex-wrap: wrap;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
+}
+
+.conviction-value-panel {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 2px 0;
+}
+
+.conviction-value-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.conviction-value-divider {
+    width: 1px;
+    height: 38px;
+    background: rgba(255, 255, 255, 0.10);
+}
+
+.market-context {
+    color: #9dadc5;
+    font-size: 12px;
+    font-weight: 750;
 }
 
 .recommendation-badge {
@@ -708,6 +734,69 @@ div.stButton > button:hover {
     background: rgba(255, 255, 255, 0.12);
     border-color: rgba(255, 255, 255, 0.20);
     color: #d5dbe6;
+}
+
+.market-value-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 6px 11px;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.market-value-elite_value {
+    background: #237a45;
+    border-color: #62d58a;
+    color: #ffffff;
+}
+
+.market-value-strong_value {
+    background: #2f73d2;
+    border-color: #78aefd;
+    color: #ffffff;
+}
+
+.market-value-positive_value {
+    background: rgba(104, 78, 28, 0.62);
+    border-color: rgba(255, 217, 118, 0.46);
+    color: #ffd976;
+}
+
+.market-value-fair_price,
+.market-value-unavailable {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.20);
+    color: #d5dbe6;
+}
+
+.market-value-market_premium {
+    background: rgba(104, 78, 28, 0.62);
+    border-color: rgba(255, 217, 118, 0.46);
+    color: #ffd976;
+}
+
+.market-value-heavy_premium {
+    background: rgba(171, 55, 55, 0.54);
+    border-color: rgba(255, 123, 123, 0.48);
+    color: #ffd0d0;
+}
+
+@media (max-width: 760px) {
+    .conviction-value-panel {
+        flex-wrap: wrap;
+        gap: 8px 12px;
+    }
+
+    .conviction-value-divider {
+        height: 32px;
+    }
+
+    .market-context {
+        line-height: 1.45;
+    }
 }
 
 .recommendation-star-count {

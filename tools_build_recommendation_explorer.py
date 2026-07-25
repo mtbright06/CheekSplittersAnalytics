@@ -310,6 +310,15 @@ def build_moneyline_record(
                 "signals": model.get("signals") or [],
                 "component_scores": model.get("component_scores") or {},
                 "reasons": model.get("reasons") or [],
+                "recommendation_explanation": (
+                    model.get("recommendation_explanation") or {}
+                ),
+                "market_value_label": model.get(
+                    "market_value_label"
+                ),
+                "market_value_tone": model.get(
+                    "market_value_tone"
+                ),
                 "odds_snapshot": odds,
                 "market_edge_snapshot": market_edge,
             },

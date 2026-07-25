@@ -288,7 +288,7 @@ def test_mlb_slate_prediction_order_ignores_edge_recommendation_and_hammer():
     ]
 
 
-def test_mlb_hero_separates_prediction_from_betting_decision(monkeypatch):
+def test_mlb_hero_keeps_compact_conviction_and_value_badges_above_the_fold(monkeypatch):
     rendered = []
 
     monkeypatch.setattr(
@@ -310,7 +310,9 @@ def test_mlb_hero_separates_prediction_from_betting_decision(monkeypatch):
                 "model_probability": 58.0,
                 "confidence": 76.7,
                 "edge": -2.78,
-                "recommendation": "PASS",
+                "recommendation": "🟡 PLAYABLE",
+                "market_value_label": "MARKET PREMIUM",
+                "market_value_tone": "market_premium",
             },
             "odds": {
                 "real_market_loaded": True,
@@ -324,8 +326,15 @@ def test_mlb_hero_separates_prediction_from_betting_decision(monkeypatch):
     assert "Model Prediction · Projected Winner" in rendered[0]
     assert "Model Win %</span><strong>58.0%" in rendered[0]
     assert "Model Confidence</span><strong>76.7/100" in rendered[0]
-    assert "Betting Decision" in rendered[0]
-    assert "Price does not offer sufficient value" in rendered[0]
+    assert "Model Conviction" in rendered[0]
+    assert "🟡 PLAYABLE" in rendered[0]
+    assert "Market Value" in rendered[0]
+    assert "⚠️ MARKET PREMIUM" in rendered[0]
+    assert rendered[0].index("🟡 PLAYABLE") < rendered[0].index("⚠️ MARKET PREMIUM")
+    assert "The model supports Los Angeles Dodgers as a bet." not in rendered[0]
+    assert "We like the team, but you're paying a premium." not in rendered[0]
+    assert "SSRP Edge" not in rendered[0]
+    assert "Price meets model value criteria" not in rendered[0]
     assert "Current odds: -155" in rendered[0]
     assert "Reference price: -155" in rendered[0]
     assert "Hammer Score" not in rendered[0]

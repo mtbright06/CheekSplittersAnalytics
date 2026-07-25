@@ -50,6 +50,23 @@ provider results by team ID, while returning independent copies per game and
 leaving probable-starter construction game-specific. The cache is not shared
 across builds and does not alter serialized contracts or model inputs.
 
+**Sprint 57 — Consciously deferred:** a shared MLB schedule snapshot across
+the MLB Card, First Five, and Bomb Lab. The measured improvement is
+approximately 0.52 seconds, below 1% of build time, while the required
+cross-process orchestration would add disproportionate coupling and test
+surface. Revisit only if build orchestration changes substantially or schedule
+retrieval becomes materially more expensive.
+
+**Sprint 58 — Bullpen Evidence Ledger, Patch 1:** implemented and awaiting
+review. MLB bullpen provider output now includes an additive pitcher-level
+`evidence_ledger` with existing roster, game-log, recent-usage, inclusion, and
+source-status facts. It does not assign bullpen roles or availability and is
+not consumed by scoring, totals, confidence, or recommendations. Failed game
+logs remain explicitly unavailable rather than appearing as zero workload.
+For mixed-role provenance, `observed_relief_appearances` records all non-start
+outings in the raw game log, while `included_relief_appearances` records the
+subset retained by the unchanged bullpen aggregation rule.
+
 The MLB full slate presents projected-winner ranking separately from betting
 value. Its compact cards display the canonical conviction and market-value
 badges; diagnostics, including Hammer and Market vs Model, remain inside

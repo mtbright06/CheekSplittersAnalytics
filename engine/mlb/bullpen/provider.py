@@ -34,6 +34,7 @@ def fetch_bullpen_profile(
 
     reference_date = as_of or date.today()
     relief_appearances: list[dict[str, Any]] = []
+    evidence_ledger: list[dict[str, Any]] = []
     reliever_count = 0
     failed_pitchers = 0
 
@@ -45,11 +46,24 @@ def fetch_bullpen_profile(
 
         if appearances is None:
             failed_pitchers += 1
+            evidence_ledger.append(
+                unavailable_pitcher_evidence(
+                    pitcher,
+                )
+            )
             continue
 
         reliever_appearances = classify_reliever_appearances(
             pitcher,
             appearances,
+        )
+        evidence_ledger.append(
+            pitcher_evidence(
+                pitcher,
+                appearances,
+                reliever_appearances,
+                as_of=reference_date,
+            )
         )
 
         if reliever_appearances:
@@ -63,6 +77,7 @@ def fetch_bullpen_profile(
                 "PARTIAL" if roster else "UNAVAILABLE"
             ),
             source_detail="no_active_reliever_appearances",
+            evidence_ledger=evidence_ledger,
         )
 
     snapshot = build_bullpen_snapshot(
@@ -80,6 +95,7 @@ def fetch_bullpen_profile(
         reliever_count=reliever_count,
         source_quality=source_quality,
         source_detail="active_roster_game_logs",
+        evidence_ledger=evidence_ledger,
     )
 
 
@@ -116,6 +132,7 @@ def fetch_active_pitcher_roster(
         pitchers.append(
             {
                 "player_id": player_id,
+                "player_name": person.get("fullName"),
                 "position": position.get("abbreviation"),
             }
         )
@@ -144,6 +161,124 @@ def classify_reliever_appearances(
     )
 
     return relief_appearances if season_starts == 0 else []
+
+
+def pitcher_evidence(
+    pitcher: dict[str, Any],
+    appearances: list[dict[str, Any]],
+    reliever_appearances: list[dict[str, Any]],
+    *,
+    as_of: date,
+) -> dict[str, Any]:
+    """Serialize existing pitcher facts without assigning a bullpen role."""
+    observed_relief_appearances = [
+        appearance
+        for appearance in appearances
+        if to_int(appearance.get("stat", {}).get("gamesStarted"))
+        in (None, 0)
+    ]
+    season_starts = sum(
+        to_int(appearance.get("stat", {}).get("gamesStarted")) or 0
+        for appearance in appearances
+    )
+    last3_start = as_of - timedelta(days=2)
+    recent_appearances = [
+        appearance
+        for appearance in reliever_appearances
+        if appearance_date(appearance)
+        and last3_start <= appearance_date(appearance) <= as_of
+    ]
+    appearance_dates = [
+        appearance_date(appearance)
+        for appearance in reliever_appearances
+        if appearance_date(appearance)
+    ]
+    included = bool(reliever_appearances)
+
+    return {
+        "pitcher_id": pitcher.get("player_id"),
+        "pitcher_name": pitcher.get("player_name"),
+        "roster_position": pitcher.get("position"),
+        "season_starts": season_starts,
+        # `relief_appearances` retains its diagnostic meaning as all observed
+        # non-start outings, regardless of the existing aggregation decision.
+        "relief_appearances": len(observed_relief_appearances),
+        "observed_relief_appearances": len(
+            observed_relief_appearances
+        ),
+        "included_relief_appearances": len(
+            reliever_appearances
+        ),
+        "last_appearance_date": (
+            max(appearance_dates).isoformat()
+            if appearance_dates
+            else None
+        ),
+        "appearances_last3": len(recent_appearances),
+        "innings_last3": round(
+            sum(
+                extract_outs(
+                    appearance.get("stat", {})
+                )
+                for appearance in recent_appearances
+            ) / 3,
+            1,
+        ),
+        "inclusion_status": (
+            "INCLUDED" if included else "EXCLUDED"
+        ),
+        "exclusion_reason": (
+            None
+            if included
+            else exclusion_reason(
+                pitcher,
+                appearances,
+                season_starts,
+            )
+        ),
+        "source_quality": "COMPLETE",
+        "game_log_status": (
+            "AVAILABLE" if appearances else "EMPTY"
+        ),
+    }
+
+
+def unavailable_pitcher_evidence(
+    pitcher: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "pitcher_id": pitcher.get("player_id"),
+        "pitcher_name": pitcher.get("player_name"),
+        "roster_position": pitcher.get("position"),
+        "season_starts": None,
+        "relief_appearances": None,
+        "observed_relief_appearances": None,
+        "included_relief_appearances": None,
+        "last_appearance_date": None,
+        "appearances_last3": None,
+        "innings_last3": None,
+        "inclusion_status": "EXCLUDED",
+        "exclusion_reason": "game_log_unavailable",
+        "source_quality": "UNAVAILABLE",
+        "game_log_status": "FAILED",
+    }
+
+
+def exclusion_reason(
+    pitcher: dict[str, Any],
+    appearances: list[dict[str, Any]],
+    season_starts: int,
+) -> str:
+    if not appearances:
+        return "no_game_log_appearances"
+
+    if (
+        pitcher.get("position") not in RELIEVER_POSITIONS
+        and season_starts > 0
+    ):
+        return "non_reliever_with_season_starts"
+
+    return "no_non_starting_appearances"
 
 
 def build_bullpen_snapshot(
@@ -196,6 +331,7 @@ def serialize_bullpen_snapshot(
     reliever_count: int,
     source_quality: str,
     source_detail: str,
+    evidence_ledger: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Adapt one normalized profile to the existing totals and SharpScore keys."""
     return {
@@ -212,6 +348,7 @@ def serialize_bullpen_snapshot(
         "data_source": "active_roster_reliever_game_logs",
         "source_quality": source_quality,
         "source_detail": source_detail,
+        "evidence_ledger": evidence_ledger or [],
         # Legacy SharpScore keys. The values remain the same normalized data.
         "era": snapshot.season_era,
         "whip": snapshot.season_whip,
@@ -225,6 +362,7 @@ def unavailable_bullpen_profile(
     *,
     source_quality: str = "UNAVAILABLE",
     source_detail: str = "active_roster_unavailable",
+    evidence_ledger: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     snapshot = BullpenSnapshot(
         team=(team_name or "UNKNOWN"),
@@ -245,6 +383,7 @@ def unavailable_bullpen_profile(
         reliever_count=0,
         source_quality=source_quality,
         source_detail=source_detail,
+        evidence_ledger=evidence_ledger,
     )
 
 

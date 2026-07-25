@@ -75,6 +75,12 @@ reuses deterministic batting and bullpen retrieval by team ID within one card
 build, while retaining separate game-specific starter construction and no
 persistent cache.
 
+Consciously deferred: a shared MLB schedule snapshot across the MLB Card,
+First Five, and Bomb Lab. Measured savings are approximately 0.52 seconds per
+build, below 1% of total build time. Do not implement this unless build
+orchestration changes substantially or schedule retrieval becomes materially
+more expensive.
+
 ## Sprint 54: Pitcher Sample Stabilization
 
 Formerly S52-005. Completed.

@@ -185,6 +185,11 @@ def pitcher_evidence(
         as_of=as_of,
         game_log_empty=not appearances,
     )
+    role_evidence = build_role_evidence(
+        appearances,
+        observed_relief_appearances,
+        as_of=as_of,
+    )
     season_starts = sum(
         to_int(appearance.get("stat", {}).get("gamesStarted")) or 0
         for appearance in appearances
@@ -254,6 +259,7 @@ def pitcher_evidence(
             "consecutive_days_used"
         ],
         "limited_history": workload["limited_history"],
+        "role_evidence": role_evidence,
         "inclusion_status": (
             "INCLUDED" if included else "EXCLUDED"
         ),
@@ -297,6 +303,7 @@ def unavailable_pitcher_evidence(
         "appeared_on_consecutive_days": None,
         "consecutive_days_used": None,
         "limited_history": None,
+        "role_evidence": unavailable_role_evidence(),
         "inclusion_status": "EXCLUDED",
         "exclusion_reason": "game_log_unavailable",
         "source_quality": "UNAVAILABLE",
@@ -329,6 +336,7 @@ def empty_pitcher_evidence(
         "appeared_on_consecutive_days": None,
         "consecutive_days_used": None,
         "limited_history": True,
+        "role_evidence": unavailable_role_evidence(),
         "inclusion_status": "EXCLUDED",
         "exclusion_reason": "no_game_log_appearances",
         "source_quality": "COMPLETE",
@@ -445,6 +453,270 @@ def innings_from_appearances(
         ) / 3,
         1,
     )
+
+
+def build_role_evidence(
+    appearances: list[dict[str, Any]],
+    observed_relief_appearances: list[dict[str, Any]],
+    *,
+    as_of: date,
+) -> dict[str, Any]:
+    """Summarize observed role patterns without assigning a definitive role."""
+    season_saves = optional_stat_sum(appearances, "saves")
+    season_holds = optional_stat_sum(appearances, "holds")
+    games_finished = optional_stat_sum(appearances, "gamesFinished")
+    last5_start = as_of - timedelta(days=4)
+    recent_relief = [
+        appearance
+        for appearance in observed_relief_appearances
+        if (
+            (appearance_day := appearance_date(appearance))
+            is not None
+            and last5_start <= appearance_day <= as_of
+        )
+    ]
+    has_dated_relief = any(
+        appearance_date(appearance) is not None
+        and appearance_date(appearance) <= as_of
+        for appearance in observed_relief_appearances
+    )
+    recent_saves = recent_optional_stat_sum(
+        recent_relief,
+        "saves",
+        has_dated_relief=has_dated_relief,
+    )
+    recent_holds = recent_optional_stat_sum(
+        recent_relief,
+        "holds",
+        has_dated_relief=has_dated_relief,
+    )
+    recent_games_finished = recent_optional_stat_sum(
+        recent_relief,
+        "gamesFinished",
+        has_dated_relief=has_dated_relief,
+    )
+    multi_inning_appearances = sum(
+        extract_outs(appearance.get("stat", {})) >= 6
+        for appearance in observed_relief_appearances
+    )
+    relief_appearance_count = len(observed_relief_appearances)
+    multi_inning_rate = (
+        round(
+            multi_inning_appearances / relief_appearance_count,
+            3,
+        )
+        if relief_appearance_count
+        else None
+    )
+    short_start_appearances = sum(
+        is_short_start(appearance)
+        for appearance in appearances
+    )
+
+    facts = {
+        "season_saves": season_saves,
+        "season_holds": season_holds,
+        "games_finished": games_finished,
+        "recent_games_finished_last5": recent_games_finished,
+        "recent_saves_last5": recent_saves,
+        "recent_holds_last5": recent_holds,
+        "multi_inning_relief_appearances": multi_inning_appearances,
+        "multi_inning_relief_rate": multi_inning_rate,
+        "short_start_appearances": short_start_appearances,
+    }
+
+    return {
+        "facts": facts,
+        "candidate_roles": role_candidates(
+            facts,
+            relief_appearance_count=relief_appearance_count,
+        ),
+    }
+
+
+def unavailable_role_evidence() -> dict[str, Any]:
+    return {
+        "facts": {
+            "season_saves": None,
+            "season_holds": None,
+            "games_finished": None,
+            "recent_games_finished_last5": None,
+            "recent_saves_last5": None,
+            "recent_holds_last5": None,
+            "multi_inning_relief_appearances": None,
+            "multi_inning_relief_rate": None,
+            "short_start_appearances": None,
+        },
+        "candidate_roles": [],
+    }
+
+
+def optional_stat_sum(
+    appearances: list[dict[str, Any]],
+    stat_name: str,
+) -> int | None:
+    if not appearances:
+        return None
+
+    values = [
+        to_int(appearance.get("stat", {}).get(stat_name))
+        for appearance in appearances
+    ]
+
+    if any(value is None for value in values):
+        return None
+
+    return sum(values)
+
+
+def recent_optional_stat_sum(
+    appearances: list[dict[str, Any]],
+    stat_name: str,
+    *,
+    has_dated_relief: bool,
+) -> int | None:
+    if not has_dated_relief:
+        return None
+
+    if not appearances:
+        return 0
+
+    return optional_stat_sum(appearances, stat_name)
+
+
+def is_short_start(appearance: dict[str, Any]) -> bool:
+    stat = appearance.get("stat", {})
+
+    if (to_int(stat.get("gamesStarted")) or 0) <= 0:
+        return False
+
+    outs = to_int(stat.get("outs"))
+
+    if outs is None and stat.get("inningsPitched") not in (None, ""):
+        outs = extract_outs(stat)
+
+    return outs is not None and outs <= 9
+
+
+def role_candidates(
+    facts: dict[str, Any],
+    *,
+    relief_appearance_count: int,
+) -> list[dict[str, Any]]:
+    candidates: list[dict[str, Any]] = []
+    saves = facts["season_saves"]
+    holds = facts["season_holds"]
+    games_finished = facts["games_finished"]
+    multi_inning = facts["multi_inning_relief_appearances"]
+    multi_inning_rate = facts["multi_inning_relief_rate"]
+    short_starts = facts["short_start_appearances"]
+
+    if saves is not None and saves >= 1:
+        if saves >= 10 and (games_finished or 0) >= 10:
+            confidence = "HIGH"
+        elif saves >= 5 and (games_finished or 0) >= 5:
+            confidence = "MEDIUM"
+        else:
+            confidence = "LOW"
+
+        evidence = [f"{saves} season saves"]
+        if games_finished is not None:
+            evidence.append(f"{games_finished} games finished")
+        if facts["recent_saves_last5"]:
+            evidence.append(
+                f"{facts['recent_saves_last5']} saves in last 5 calendar days"
+            )
+        candidates.append(
+            role_candidate("CLOSER", confidence, evidence)
+        )
+
+    if holds is not None and holds >= 1:
+        confidence = (
+            "HIGH" if holds >= 10 else "MEDIUM" if holds >= 5 else "LOW"
+        )
+        evidence = [f"{holds} season holds"]
+        if facts["recent_holds_last5"]:
+            evidence.append(
+                f"{facts['recent_holds_last5']} holds in last 5 calendar days"
+            )
+        candidates.append(
+            role_candidate("SETUP", confidence, evidence)
+        )
+
+    if (
+        games_finished is not None
+        and games_finished >= 3
+        and saves == 0
+    ):
+        confidence = (
+            "HIGH"
+            if games_finished >= 15
+            else "MEDIUM" if games_finished >= 8 else "LOW"
+        )
+        candidates.append(
+            role_candidate(
+                "GAME_FINISHER",
+                confidence,
+                [f"{games_finished} games finished", "0 season saves"],
+            )
+        )
+
+    if multi_inning and relief_appearance_count:
+        if multi_inning >= 5 and (multi_inning_rate or 0) >= 0.5:
+            confidence = "HIGH"
+        elif multi_inning >= 3:
+            confidence = "MEDIUM"
+        else:
+            confidence = "LOW"
+        candidates.append(
+            role_candidate(
+                "BULK_RELIEVER",
+                confidence,
+                [
+                    f"{multi_inning} relief outings of at least 6 outs",
+                    (
+                        f"{multi_inning_rate:.0%} multi-inning relief usage"
+                        if multi_inning_rate is not None
+                        else ""
+                    ),
+                ],
+            )
+        )
+
+    if short_starts and relief_appearance_count:
+        if short_starts >= 5 and relief_appearance_count >= 5:
+            confidence = "HIGH"
+        elif short_starts >= 3 and relief_appearance_count >= 3:
+            confidence = "MEDIUM"
+        else:
+            confidence = "LOW"
+        candidates.append(
+            role_candidate(
+                "SHORT_START_RELIEF_USAGE",
+                confidence,
+                [
+                    (
+                        f"{short_starts} short-start outings "
+                        "of 3.0 innings or fewer"
+                    ),
+                    f"{relief_appearance_count} observed relief outings",
+                ],
+            )
+        )
+
+    return candidates
+
+
+def role_candidate(
+    role: str,
+    confidence: str,
+    evidence: list[str],
+) -> dict[str, Any]:
+    return {
+        "role": role,
+        "confidence": confidence,
+        "evidence": [item for item in evidence if item],
+    }
 
 
 def build_bullpen_snapshot(

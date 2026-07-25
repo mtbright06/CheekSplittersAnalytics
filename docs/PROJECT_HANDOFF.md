@@ -75,6 +75,16 @@ Innings are derived from recorded outs; multi-inning means at least six outs.
 observed relief outings, or no dated observed relief outings. It is `None` for
 failed logs, whose workload fields remain unknown.
 
+Sprint 58 Patch 3 adds diagnostic-only `role_evidence` to each ledger entry.
+It preserves nullable game-log facts for saves, holds, games finished, recent
+five-day equivalents, multi-inning relief usage, and short starts, then emits
+candidate patterns only. Closer evidence is HIGH at at least 10 saves and 10
+games finished, MEDIUM at 5/5, otherwise LOW with a save; setup evidence is
+HIGH/MEDIUM/LOW at 10/5/1 holds. Bulk and opener candidates require observed
+outs-based multi-inning or short-start-plus-relief patterns. These confidence
+labels measure observed evidence strength, not a definitive role or
+availability, and remain unused by all models.
+
 The MLB full slate presents projected-winner ranking separately from betting
 value. Its compact cards display the canonical conviction and market-value
 badges; diagnostics, including Hammer and Market vs Model, remain inside

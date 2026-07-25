@@ -117,12 +117,16 @@ def render_play_summary(
 
     st.markdown(html, unsafe_allow_html=True)
 
-    render_value_meter(game)
+    # MLB market comparison is a diagnostic, so it belongs in the
+    # SharpStack Intelligence accordion. KBO keeps its model-only assessment
+    # in the summary until a real market is available.
+    if sport != "mlb":
+        render_value_meter(game)
     if sport == "mlb":
         st.caption(
             f"Hammer advisory confirmation: {hammer_text}"
         )
-    if confidence is not None:
+    if confidence is not None and sport != "mlb":
         render_progress_bar(
             "Model Strength" if sport == "kbo" else "Confidence",
             confidence,

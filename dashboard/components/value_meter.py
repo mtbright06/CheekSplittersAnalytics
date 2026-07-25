@@ -87,7 +87,7 @@ def value_meter_html(game):
         "<div class='value-row'>"
         "<div class='value-label'>Model Win %</div>"
         "<div class='value-track'>"
-        f"<div class='value-fill' style='width:{model_prob}%; background:{color};'></div>"
+        f"<div class='value-fill' style='width:{model_prob}%; background:#7cb5ff;'></div>"
         "</div>"
         f"<div class='value-number'>{model_prob:.1f}%</div>"
         "</div>"

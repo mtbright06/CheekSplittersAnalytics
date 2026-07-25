@@ -21,6 +21,7 @@ from pages.dashboard_page import (
     rank_mlb_games_by_prediction,
 )
 from components.explorer.recommendation_explorer import decision_for_game
+import components.explorer.recommendation_explorer as recommendation_explorer
 from components.confirmation import hammer_confirmation_label
 
 
@@ -55,6 +56,70 @@ def test_invalid_market_timestamp_is_not_rendered_as_stale_market():
 
     assert state["badge"] == "MARKET TIMESTAMP INVALID"
     assert state["market_status"] == "Market timestamp unavailable or invalid"
+
+
+def test_mlb_market_vs_model_is_an_intelligence_tab_after_decision(monkeypatch):
+    labels = []
+    rendered = []
+
+    class Tab:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(
+        recommendation_explorer.st,
+        "tabs",
+        lambda values: (labels.extend(values) or [Tab() for _ in values]),
+    )
+    monkeypatch.setattr(
+        recommendation_explorer,
+        "_render_overview",
+        lambda game: None,
+    )
+    monkeypatch.setattr(
+        recommendation_explorer,
+        "_render_moneyline",
+        lambda game: None,
+    )
+    monkeypatch.setattr(
+        recommendation_explorer,
+        "render_mlb_totals_card",
+        lambda game: None,
+    )
+    monkeypatch.setattr(
+        recommendation_explorer,
+        "_render_details",
+        lambda game, renderer: None,
+    )
+    monkeypatch.setattr(
+        recommendation_explorer,
+        "_render_decision",
+        lambda game: None,
+    )
+    monkeypatch.setattr(
+        recommendation_explorer,
+        "_render_placeholder",
+        lambda title, description: None,
+    )
+    monkeypatch.setattr(
+        recommendation_explorer,
+        "render_value_meter",
+        lambda game: rendered.append(game),
+    )
+    monkeypatch.setattr(
+        recommendation_explorer,
+        "render_progress_bar",
+        lambda label, value: rendered.append((label, value)),
+    )
+
+    game = {"sport": "mlb", "model": {"confidence": 79.5}}
+    recommendation_explorer._render_mlb_intelligence_tabs(game, None)
+
+    assert labels[labels.index("Decision") + 1] == "Market vs Model"
+    assert rendered == [game, ("Confidence", 79.5)]
 
 
 def test_kbo_main_card_matches_the_mlb_recommendation_hierarchy(monkeypatch):

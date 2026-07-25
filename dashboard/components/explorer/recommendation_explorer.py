@@ -7,6 +7,8 @@ import streamlit as st
 
 from components.decision.decision_cards import render_decision_details
 from components.mlb.mlb_card import render_mlb_totals_card
+from components.progress import render_progress_bar
+from components.value_meter import render_value_meter
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -300,6 +302,7 @@ def _render_mlb_intelligence_tabs(game, details_renderer):
         totals_tab,
         details_tab,
         decision_tab,
+        market_vs_model_tab,
         hammer_tab,
         bomb_tab,
         market_tab,
@@ -311,6 +314,7 @@ def _render_mlb_intelligence_tabs(game, details_renderer):
             "Totals",
             "Pitching/Bullpen/Signals",
             "Decision",
+            "Market vs Model",
             "Hammer",
             "Bomb Lab",
             "Market",
@@ -332,6 +336,12 @@ def _render_mlb_intelligence_tabs(game, details_renderer):
 
     with decision_tab:
         _render_decision(game)
+
+    with market_vs_model_tab:
+        render_value_meter(game)
+        confidence = game.get("model", {}).get("confidence")
+        if confidence is not None:
+            render_progress_bar("Confidence", confidence)
 
     with hammer_tab:
         _render_placeholder(

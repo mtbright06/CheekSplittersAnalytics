@@ -255,7 +255,9 @@ def render_single_sport_header(
         icon,
         league_upper,
         (
-            "Ranked by model recommendation, then confidence."
+            "Ranked by projected win probability. Winner ranking reflects the "
+            "model's game prediction. Betting recommendations also account for "
+            "price and value."
             if league_upper == "MLB"
             else "Ranked by model confidence."
         ),
@@ -480,6 +482,16 @@ def game_confidence(game: dict) -> float:
         return float("-inf")
 
 
+def game_model_win_probability(game: dict) -> float:
+    """Return the model prediction value used solely for MLB slate display."""
+    try:
+        return float(
+            game.get("model", {}).get("model_probability")
+        )
+    except (TypeError, ValueError):
+        return float("-inf")
+
+
 def rank_games_by_confidence(
     games: list[dict],
 ) -> list[dict]:
@@ -491,34 +503,14 @@ def rank_games_by_confidence(
     )
 
 
-MLB_RECOMMENDATION_RANK = {
-    "🔥 CHEEK RIPPER": 0,
-    "CHEEK RIPPER": 0,
-    "✅ STRONG PLAY": 1,
-    "STRONG PLAY": 1,
-    "🟡 PLAYABLE": 2,
-    "PLAYABLE": 2,
-    "LEAN": 3,
-    "PASS": 4,
-}
-
-
-def rank_mlb_games_by_recommendation(
+def rank_mlb_games_by_prediction(
     games: list[dict],
 ) -> list[dict]:
-    """Order MLB presentation by model tier, then model confidence."""
+    """Order MLB slate by prediction, independent of market-value outputs."""
     return sorted(
         games,
         key=lambda game: (
-            MLB_RECOMMENDATION_RANK.get(
-                str(
-                    game.get("model", {}).get(
-                        "recommendation",
-                        "PASS",
-                    )
-                ).upper(),
-                4,
-            ),
+            -game_model_win_probability(game),
             -game_confidence(game),
         ),
     )
@@ -560,7 +552,7 @@ def render_single_sport_dashboard(
         return
 
     ranked_games = (
-        rank_mlb_games_by_recommendation(games)
+        rank_mlb_games_by_prediction(games)
         if league == "MLB"
         else rank_games_by_confidence(games)
     )

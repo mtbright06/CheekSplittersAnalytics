@@ -14,6 +14,10 @@ from engine.odds.market_edge import (
 from engine.odds.provider_factory import (
     get_odds_provider,
 )
+from engine.odds.reference_price import (
+    ReferencePriceResolver,
+    resolve_reference_quote,
+)
 
 
 DEFAULT_MAXIMUM_QUOTE_AGE_MINUTES = 20
@@ -201,6 +205,7 @@ class OddsEnricher:
             DEFAULT_MAXIMUM_QUOTE_AGE_MINUTES
         ),
         allow_stale_quotes: bool = False,
+        reference_price_resolver: ReferencePriceResolver | None = None,
     ):
         self.provider = get_odds_provider(
             provider_name
@@ -218,6 +223,7 @@ class OddsEnricher:
         self.allow_stale_quotes = (
             allow_stale_quotes
         )
+        self.reference_price_resolver = reference_price_resolver
 
         self.quote_lookup: dict[
             tuple[str, str, str],
@@ -425,6 +431,16 @@ class OddsEnricher:
                         "stale": True,
                         "real_market_loaded": False,
                         "quotes_compared": 0,
+                        "current_price": None,
+                        "current_book": None,
+                        "current_captured_at": None,
+                        "reference_price": None,
+                        "reference_implied_probability": None,
+                        "reference_book": None,
+                        "reference_captured_at": None,
+                        "reference_minutes_before_start": None,
+                        "reference_status": "REFERENCE_UNAVAILABLE_NO_QUOTE",
+                        "reference_policy_version": None,
                     },
                 )
 
@@ -456,6 +472,13 @@ class OddsEnricher:
                 ),
             )
 
+            reference = resolve_reference_quote(
+                best_quote,
+                league=self.league,
+                resolver=self.reference_price_resolver,
+            )
+            odds_dict.update(reference.reference_fields)
+
             _set(
                 game,
                 "odds",
@@ -470,9 +493,21 @@ class OddsEnricher:
                 )
                 continue
 
+            if reference.reference_quote is None:
+                _set(
+                    game,
+                    "market_edge",
+                    {
+                        **reference.reference_fields,
+                        "edge": None,
+                        "real_market_loaded": False,
+                    },
+                )
+                continue
+
             edge = calculate_market_edge(
                 raw_model_probability,
-                AttrDict(best_quote),
+                AttrDict(reference.reference_quote),
             )
 
             edge_dict = market_edge_to_dict(
@@ -503,12 +538,8 @@ class OddsEnricher:
                             False,
                         )
                     ),
-                    "real_market_loaded": (
-                        best_quote.get(
-                            "real_market_loaded",
-                            False,
-                        )
-                    ),
+                    "real_market_loaded": True,
+                    **reference.reference_fields,
                 }
             )
 

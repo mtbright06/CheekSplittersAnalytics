@@ -14,7 +14,7 @@ class ConsoleReport:
 
         games = sorted(
             games,
-            key=lambda g: g.result.edge,
+            key=self._sort_value,
             reverse=True
         )
 
@@ -29,7 +29,12 @@ class ConsoleReport:
         logger.write(f"{best.result.play} ({best.result.market})")
         logger.write(f"Edge: {best.result.edge}%")
         logger.write(f"Confidence: {best.result.confidence}/100")
-        logger.write(self._play_rating(best.result.edge))
+        logger.write(
+            self._play_rating(
+                best.result.edge,
+                best.result.recommendation,
+            )
+        )
         logger.write("")
 
         logger.write("=" * 60)
@@ -67,7 +72,12 @@ class ConsoleReport:
             logger.write(f"{game.result.recommendation}")
 
             logger.write("")
-            logger.write(self._play_rating(game.result.edge))
+            logger.write(
+                self._play_rating(
+                    game.result.edge,
+                    game.result.recommendation,
+                )
+            )
 
             if game.result.reasons:
 
@@ -138,7 +148,14 @@ class ConsoleReport:
 
         return str(value)
 
-    def _play_rating(self, edge):
+    def _play_rating(self, edge, recommendation=None):
+
+        if edge is None:
+            return {
+                "🔥 STRONG PLAY": "★★★★☆ STRONG PLAY",
+                "✅ PLAYABLE": "★★★☆☆ PLAYABLE",
+                "👀 LEAN": "★★☆☆☆ LEAN",
+            }.get(recommendation, "★☆☆☆☆ PASS")
 
         if edge >= 10:
             return "★★★★★ ELITE PLAY"
@@ -153,3 +170,12 @@ class ConsoleReport:
             return "★★☆☆☆ LEAN"
 
         return "★☆☆☆☆ PASS"
+
+    @staticmethod
+    def _sort_value(game):
+        edge = game.result.edge
+
+        if edge is not None:
+            return edge
+
+        return game.result.model_probability or 0

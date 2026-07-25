@@ -3,6 +3,10 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
+from components.confirmation import (
+    hammer_confirmation_label,
+)
+
 def safe(value: Any, default: str = "N/A") -> str:
     if value in [None, "", "None"]:
         return default
@@ -119,8 +123,8 @@ def render_decision_card(
 
     score = decision.get("hammer_score", 0)
     market_status = decision.get(
-        "market",
-        "MODEL ONLY",
+        "market_status",
+        decision.get("market", "MODEL ONLY"),
     )
 
     recommendation_class = (
@@ -143,8 +147,12 @@ def render_decision_details(decision: dict):
     """Render the canonical Decision Builder explanation without an expander."""
     recommendation_columns = st.columns(4)
     recommendation_columns[0].metric(
-        "Recommendation",
-        safe(decision.get("recommendation"), "PASS"),
+        "Model Recommendation",
+        safe(
+            decision.get("model_recommendation")
+            or decision.get("recommendation"),
+            "PASS",
+        ),
     )
     recommendation_columns[1].metric(
         "Selection",
@@ -155,8 +163,16 @@ def render_decision_details(decision: dict):
         number(decision.get("hammer_score"), 1),
     )
     recommendation_columns[3].metric(
-        "Confidence",
-        safe(decision.get("confidence")),
+        "Hammer Assessment",
+        safe(
+            decision.get("hammer_assessment")
+            or decision.get("confidence"),
+        ),
+    )
+
+    st.caption(
+        "Confirmation: "
+        f"{hammer_confirmation_label(decision.get('hammer_tier'))}"
     )
 
     st.markdown("#### Why We Like It")
@@ -222,7 +238,11 @@ def render_decision_details(decision: dict):
     market_columns = st.columns(4)
     market_columns[0].metric(
         "Market Status",
-        safe(decision.get("market"), "MODEL ONLY"),
+        safe(
+            decision.get("market_status")
+            or decision.get("market"),
+            "MODEL ONLY",
+        ),
     )
     market_columns[1].metric(
         "Book Odds",

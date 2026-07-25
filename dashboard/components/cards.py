@@ -28,13 +28,29 @@ def is_pending_pitcher(pitcher):
     return not name or name == "Unknown Starter"
 
 
+def is_unconfirmed_pitching_data(pitcher):
+    return (
+        is_pending_pitcher(pitcher)
+        and any(
+            pitcher.get(key) is not None
+            for key in ("era", "whip", "ip", "so", "bb", "hr_allowed")
+        )
+    )
+
+
 def display_pitcher_name(pitcher):
+    if is_unconfirmed_pitching_data(pitcher):
+        return "Unconfirmed Pitching Data"
+
     if is_pending_pitcher(pitcher):
         return "Starter Pending"
     return pitcher.get("name")
 
 
 def pitcher_line(pitcher):
+    if is_unconfirmed_pitching_data(pitcher):
+        return "Starter identity unavailable; pitching data is not confirmed starter data"
+
     if is_pending_pitcher(pitcher):
         return "Awaiting official starter confirmation"
 
@@ -53,6 +69,9 @@ def pitcher_line(pitcher):
 
 
 def pitcher_grade_html(pitcher):
+    if is_unconfirmed_pitching_data(pitcher):
+        return '<span class="pitcher-grade pending-grade">DATA UNCONFIRMED</span>'
+
     if is_pending_pitcher(pitcher):
         return '<span class="pitcher-grade pending-grade">⏳ PENDING</span>'
 
@@ -68,6 +87,9 @@ def pitcher_grade_html(pitcher):
 
 
 def pitcher_tags_html(pitcher):
+    if is_unconfirmed_pitching_data(pitcher):
+        return '<span class="mini-tag">Starter identity unavailable</span>'
+
     if is_pending_pitcher(pitcher):
         return '<span class="mini-tag">Awaiting lineup data</span>'
 
@@ -215,13 +237,17 @@ def render_intelligence_details(game):
     st.markdown("#### Pitching")
     left, right = st.columns(2)
 
+    sport = game.get("sport", "").lower()
+    away_title = _pitching_title(matchup["away"], pitching["away"], sport)
+    home_title = _pitching_title(matchup["home"], pitching["home"], sport)
+
     with left:
-        render_pitcher_card(f"{matchup['away']} Starter", pitching["away"])
+        render_pitcher_card(away_title, pitching["away"])
 
     with right:
-        render_pitcher_card(f"{matchup['home']} Starter", pitching["home"])
+        render_pitcher_card(home_title, pitching["home"])
 
-    if game.get("sport", "").lower() == "mlb":
+    if sport == "mlb":
         st.markdown("---")
         render_bullpen_details(game)
 
@@ -238,7 +264,18 @@ def render_intelligence_details(game):
         render_confidence_breakdown(model.get("confidence_breakdown"))
 
 
-def render_game(game):
+def _pitching_title(team_name, pitcher, sport):
+    if sport == "kbo" and is_unconfirmed_pitching_data(pitcher):
+        return f"{team_name} Pitching Data"
+
+    return f"{team_name} Starter"
+
+
+def render_game(
+    game,
+    *,
+    hammer_score=None,
+):
     matchup = game["matchup"]
     sport = game.get("sport", "kbo").lower()
 
@@ -251,7 +288,10 @@ def render_game(game):
         )
 
         with summary_col:
-            render_play_summary(game)
+            render_play_summary(
+                game,
+                hammer_score=hammer_score,
+            )
 
         with totals_col:
             render_mlb_totals_card(game)
@@ -259,10 +299,10 @@ def render_game(game):
     else:
         render_play_summary(game)
 
-        st.markdown(
-            f"<div class='splitter-comment'>{splitter_commentary(game)}</div>",
-            unsafe_allow_html=True,
-        )
+    st.markdown(
+        f"<div class='splitter-comment'>{splitter_commentary(game)}</div>",
+        unsafe_allow_html=True,
+    )
 
     render_recommendation_explorer(
         game,

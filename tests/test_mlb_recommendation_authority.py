@@ -1,0 +1,56 @@
+from engine.adapters.mlb_decision_adapter import adapt_mlb_decision_card
+from engine.core.play_of_day import eligibility_result
+
+
+def test_mlb_model_recommendation_remains_authoritative_over_hammer():
+    card = {
+        "generated_at": "2026-07-24T12:00:00",
+        "decisions": [
+            {
+                "game_pk": 1,
+                "matchup": "Away Club @ Home Club",
+                "selected_team": "Away Club",
+                "market": "REAL MARKET",
+                "book_odds": 120,
+                "model_probability": 0.556,
+                "market_edge_pct": 10.76,
+                "hammer_score": 64.6,
+                "recommendation": "🔥 CHEEK RIPPER",
+                "model_recommendation": "🔥 CHEEK RIPPER",
+                "hammer_tier": "WATCH",
+                "hammer_assessment": "Below validation threshold / Moderate confirmation",
+            }
+        ],
+    }
+
+    recommendation = adapt_mlb_decision_card(card)[0]
+
+    assert recommendation.recommendation == "🔥 CHEEK RIPPER"
+    assert recommendation.model_recommendation == "🔥 CHEEK RIPPER"
+    assert recommendation.hammer_tier == "WATCH"
+    assert recommendation.actionable is True
+    assert recommendation.units is None
+    assert eligibility_result(recommendation)[0] is True
+
+
+def test_mlb_pass_remains_non_actionable_with_hammer_context():
+    card = {
+        "decisions": [
+            {
+                "game_pk": 2,
+                "matchup": "Away Club @ Home Club",
+                "selected_team": "Home Club",
+                "market": "REAL MARKET",
+                "book_odds": -110,
+                "hammer_score": 72.0,
+                "recommendation": "PASS",
+                "model_recommendation": "PASS",
+                "hammer_tier": "LEAN",
+            }
+        ]
+    }
+
+    recommendation = adapt_mlb_decision_card(card)[0]
+
+    assert recommendation.recommendation == "PASS"
+    assert recommendation.actionable is False

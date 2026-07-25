@@ -117,7 +117,17 @@ def eligibility_result(
     if not recommendation.actionable:
         reasons.append("Not actionable.")
 
-    if recommendation.hammer_score < minimum_hammer_score:
+    model_authoritative = (
+        recommendation.league == "MLB"
+        and recommendation.market == "moneyline"
+        and recommendation.model_recommendation
+        == recommendation.recommendation
+    )
+
+    if (
+        not model_authoritative
+        and recommendation.hammer_score < minimum_hammer_score
+    ):
         reasons.append(
             f"Hammer {recommendation.hammer_score:.1f} "
             f"< {minimum_hammer_score:.1f}"

@@ -46,6 +46,27 @@ def normalize_probability(
         return None
 
 
+def is_actionable_label(
+    value: Any,
+) -> bool:
+    label = str(value or "").upper()
+
+    if not label or "NO PLAY" in label or label == "PASS":
+        return False
+
+    return any(
+        tier in label
+        for tier in (
+            "HAMMER",
+            "BET",
+            "LEAN",
+            "PLAYABLE",
+            "STRONG PLAY",
+            "CHEEK RIPPER",
+        )
+    )
+
+
 @dataclass
 class Recommendation:
     sport: str
@@ -65,6 +86,9 @@ class Recommendation:
 
     hammer_score: float = 0.0
     recommendation: str | None = None
+    model_recommendation: str | None = None
+    hammer_tier: str | None = None
+    hammer_assessment: str | None = None
     confidence: str | None = None
     stars: str | None = None
     units: float | None = None
@@ -203,6 +227,13 @@ class Recommendation:
                 )
             )
 
+        if (
+            not self.model_recommendation
+            and self.league == "MLB"
+            and self.market == "moneyline"
+        ):
+            self.model_recommendation = self.recommendation
+
         if not self.confidence:
             self.confidence = (
                 confidence_label(
@@ -215,7 +246,16 @@ class Recommendation:
                 self.hammer_score
             )
 
-        if self.units is None:
+        if (
+            self.units is None
+            and not (
+                self.league == "MLB"
+                and self.market == "moneyline"
+                and is_actionable_label(
+                    self.model_recommendation
+                )
+            )
+        ):
             self.units = unit_recommendation(
                 self.hammer_score,
                 real_market_loaded=(
@@ -243,11 +283,9 @@ class Recommendation:
 
     @property
     def actionable(self) -> bool:
-        return self.recommendation in {
-            "HAMMER",
-            "BET",
-            "LEAN",
-        }
+        return is_actionable_label(
+            self.recommendation
+        )
 
     @property
     def ranking_score(self) -> float:
@@ -290,6 +328,13 @@ class Recommendation:
             ),
             "recommendation": (
                 self.recommendation
+            ),
+            "model_recommendation": (
+                self.model_recommendation
+            ),
+            "hammer_tier": self.hammer_tier,
+            "hammer_assessment": (
+                self.hammer_assessment
             ),
             "confidence": self.confidence,
             "stars": self.stars,
@@ -347,6 +392,13 @@ class Recommendation:
             ),
             recommendation=data.get(
                 "recommendation"
+            ),
+            model_recommendation=data.get(
+                "model_recommendation"
+            ),
+            hammer_tier=data.get("hammer_tier"),
+            hammer_assessment=data.get(
+                "hammer_assessment"
             ),
             confidence=data.get(
                 "confidence"

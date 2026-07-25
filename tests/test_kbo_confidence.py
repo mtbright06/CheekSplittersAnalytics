@@ -36,7 +36,7 @@ def test_unknown_starter_reduces_confidence():
     assert breakdown["starter_certainty"] == -10.0
 
 
-def test_missing_market_does_not_create_edge_or_play():
+def test_missing_market_uses_the_kbo_model_score_scale_without_an_edge():
     game = Game("Away", "Home")
     apply_known_starter(game.away, "Away Starter")
     apply_known_starter(game.home, "Home Starter")
@@ -52,9 +52,30 @@ def test_missing_market_does_not_create_edge_or_play():
 
     KBOModel().finalize([game])
 
-    assert game.result.edge == 0.0
-    assert game.result.recommendation == "❌ NO PLAY"
-    assert game.result.confidence_breakdown["data_quality"] == 16.0
+    assert game.result.edge is None
+    assert game.result.recommendation == "🔥 STRONG PLAY"
+    assert game.result.confidence == 100.0
+    assert game.result.confidence_breakdown["basis"] == "KBO ordinal model score"
+
+
+def test_no_market_kbo_model_score_recommendation_tiers():
+    model = KBOModel()
+
+    assert model._model_score_recommendation(58.0) == "🔥 STRONG PLAY"
+    assert model._model_score_recommendation(57.9) == "✅ PLAYABLE"
+    assert model._model_score_recommendation(55.0) == "✅ PLAYABLE"
+    assert model._model_score_recommendation(54.9) == "👀 LEAN"
+    assert model._model_score_recommendation(52.0) == "👀 LEAN"
+    assert model._model_score_recommendation(51.9) == "❌ NO PLAY"
+
+
+def test_kbo_model_strength_confidence_uses_the_ordinal_score_range():
+    model = KBOModel()
+
+    assert model._model_strength_confidence(59.6) == 100.0
+    assert model._model_strength_confidence(55.0) == 73.3
+    assert model._model_strength_confidence(99.0) == 100.0
+    assert model._model_strength_confidence(0.0) == 0.0
 
 
 def test_real_market_recomputes_edge_after_enrichment():
@@ -66,7 +87,8 @@ def test_real_market_recomputes_edge_after_enrichment():
     })()
     game.odds = {
         "real_market_loaded": True,
-        "book_probability": 52.0,
+        "reference_status": "LOCKED",
+        "reference_implied_probability": 52.0,
     }
 
     KBOModel().finalize([game])

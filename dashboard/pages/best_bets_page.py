@@ -65,9 +65,6 @@ def load_registry() -> dict:
         return {}
 
 
-ACTIONABLE_TIERS = {"HAMMER", "BET", "LEAN"}
-
-
 def top_market_plays(
     recommendations: list[dict],
     league: str,
@@ -79,7 +76,11 @@ def top_market_plays(
         for row in recommendations
         if row.get("league") == league
         and row.get("market") == market
-        and row.get("recommendation") in ACTIONABLE_TIERS
+        and row.get(
+            "actionable",
+            row.get("recommendation")
+            in {"HAMMER", "BET", "LEAN"},
+        )
     ][:3]
 
 
@@ -129,7 +130,7 @@ def render_best_bets():
         "Official betting card from the SharpStack registry.",
         [
             ("Actionable", summary.get("actionable", 0)),
-            ("Hammers", summary.get("hammers", 0)),
+            ("Exceptional", summary.get("hammers", 0)),
             ("Real Markets", summary.get("real_market", 0)),
             ("Recommendations", summary.get("recommendations", 0)),
         ],

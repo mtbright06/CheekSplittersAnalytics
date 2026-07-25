@@ -23,6 +23,10 @@ def test_normalizer_preserves_canonical_pitcher_and_market_fields():
                     "stale": True,
                     "event_id": "event-1",
                     "book_probability": None,
+                    "current_price": -110,
+                    "reference_price": -105,
+                    "reference_status": "LOCKED",
+                    "reference_policy_version": "SSRP_v1",
                 },
             }
         ],
@@ -36,4 +40,35 @@ def test_normalizer_preserves_canonical_pitcher_and_market_fields():
     assert game["odds"]["real_market_loaded"] is False
     assert game["odds"]["stale"] is True
     assert game["odds"]["event_id"] == "event-1"
+    assert game["odds"]["current_price"] == -110
+    assert game["odds"]["reference_price"] == -105
+    assert game["odds"]["reference_status"] == "LOCKED"
     assert game["model"]["edge"] is None
+
+
+def test_normalizer_preserves_kbo_starter_identity_and_source_status():
+    game = normalize_card(
+        {
+            "sport": "KBO",
+            "games": [
+                {
+                    "matchup": {"away": "Away", "home": "Home"},
+                    "teams": {"away": {}, "home": {}},
+                    "pitching": {
+                        "away": {
+                            "name": "So Hyeong-jun",
+                            "data_source": "starter_profile",
+                            "starter_confirmed": True,
+                        },
+                        "home": {"name": "Unknown Starter"},
+                    },
+                    "model": {},
+                    "odds": {},
+                }
+            ],
+        }
+    )["games"][0]
+
+    assert game["pitching"]["away"]["name"] == "So Hyeong-jun"
+    assert game["pitching"]["away"]["data_source"] == "starter_profile"
+    assert game["pitching"]["away"]["starter_confirmed"] is True

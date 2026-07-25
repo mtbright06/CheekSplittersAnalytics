@@ -783,6 +783,13 @@ def build_decision_card() -> dict:
         home_team = extract_team_name(mlb_game, "home")
 
         mlb_choice = extract_mlb_choice(mlb_game)
+        model_recommendation = str(
+            mlb_game.get("model", {}).get(
+                "recommendation",
+            )
+            if isinstance(mlb_game.get("model"), dict)
+            else ""
+        ).strip() or "PASS"
         first5_choice = extract_first5_choice(first5_game)
 
         bomb = find_bomb_for_team(
@@ -1057,7 +1064,9 @@ def build_decision_card() -> dict:
                 "away_team": away_team,
                 "home_team": home_team,
                 "selected_team": selected_team,
-                "market": (
+                "selection": selected_team,
+                "market": "moneyline",
+                "market_status": (
                     "REAL MARKET"
                     if real_market_loaded
                     else "MODEL ONLY"
@@ -1074,7 +1083,20 @@ def build_decision_card() -> dict:
                 "real_market_loaded": hammer[
                     "real_market_loaded"
                 ],
-                "recommendation": hammer["recommendation"],
+                # MLB model recommendations remain the betting authority.
+                # Hammer is retained as a diagnostic validation layer.
+                "recommendation": model_recommendation,
+                "model_recommendation": model_recommendation,
+                "hammer_tier": hammer["recommendation"],
+                "hammer_assessment": (
+                    "Validated by Hammer"
+                    if hammer["recommendation"]
+                    in {"HAMMER", "BET", "LEAN"}
+                    else (
+                        "Below validation threshold / "
+                        f"{hammer['confidence'].title()} confirmation"
+                    )
+                ),
                 "confidence": hammer["confidence"],
                 "stars": hammer["stars"],
                 "consensus": consensus.to_dict(),
@@ -1086,6 +1108,15 @@ def build_decision_card() -> dict:
                     else None
                 ),
                 "book_odds": market.get("book_odds"),
+                "american_odds": market.get("book_odds"),
+                "moneyline": market.get("book_odds"),
+                "sportsbook": market.get("sportsbook"),
+                "market_probability": market.get(
+                    "book_raw_implied_probability"
+                ),
+                "market_no_vig_probability": market.get(
+                    "book_no_vig_probability"
+                ),
                 "market_edge_pct": market_edge,
                 "expected_value_pct": expected_value_pct,
                 "first5_score": (
@@ -1173,32 +1204,32 @@ def build_decision_card() -> dict:
     actionable = [
         item
         for item in decisions
-        if item.get("recommendation")
-        in {"HAMMER", "BET", "LEAN"}
+        if str(item.get("model_recommendation", "")).upper()
+        not in {"", "PASS", "NO PLAY", "❌ NO PLAY"}
     ]
 
     hammer_plays = [
         item
         for item in decisions
-        if item.get("recommendation") == "HAMMER"
+        if item.get("hammer_tier") == "HAMMER"
     ]
 
     bet_plays = [
         item
         for item in decisions
-        if item.get("recommendation") == "BET"
+        if item.get("hammer_tier") == "BET"
     ]
 
     lean_plays = [
         item
         for item in decisions
-        if item.get("recommendation") == "LEAN"
+        if item.get("hammer_tier") == "LEAN"
     ]
 
     real_market_games = [
         item
         for item in decisions
-        if item.get("market") == "REAL MARKET"
+        if item.get("real_market_loaded")
     ]
 
     output = {

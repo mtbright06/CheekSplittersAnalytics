@@ -30,6 +30,13 @@ def value_color(edge):
 
 
 def render_value_meter(game):
+    st.markdown(
+        value_meter_html(game),
+        unsafe_allow_html=True,
+    )
+
+
+def value_meter_html(game):
     model = game.get("model", {})
     odds = game.get("odds", {})
 
@@ -42,6 +49,20 @@ def render_value_meter(game):
     edge = safe_float(raw_edge)
     color = value_color(edge)
     market_available = raw_book_probability is not None
+
+    if str(game.get("sport") or "").lower() == "kbo":
+        return (
+            "<div class='value-meter model-analysis'>"
+            "<div class='value-title'>Model Assessment</div>"
+            "<div class='value-row'>"
+            "<div class='value-label'>Model Score</div>"
+            "<div class='value-track'>"
+            f"<div class='value-fill' style='width:{model_prob}%; background:#7cb5ff;'></div>"
+            "</div>"
+            f"<div class='value-number'>{model_prob:.1f}%</div>"
+            "</div>"
+            "</div>"
+        )
 
     if not market_available:
         st.info(
@@ -77,7 +98,7 @@ def render_value_meter(game):
         "</div>"
     )
 
-    st.markdown(html, unsafe_allow_html=True)
+    return html
 
 
 def as_percentage(value):

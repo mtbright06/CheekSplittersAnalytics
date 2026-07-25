@@ -671,7 +671,71 @@ div.stButton > button:hover {
     display: flex;
     gap: 12px;
     align-items: center;
+    flex-wrap: wrap;
     margin-bottom: 8px;
+}
+
+.recommendation-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 7px 14px;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.recommendation-strong {
+    background: #237a45;
+    border-color: #62d58a;
+    color: #ffffff;
+}
+
+.recommendation-playable {
+    background: #2f73d2;
+    border-color: #78aefd;
+    color: #ffffff;
+}
+
+.recommendation-lean {
+    background: rgba(104, 78, 28, 0.62);
+    border-color: rgba(255, 217, 118, 0.46);
+    color: #ffd976;
+}
+
+.recommendation-neutral {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.20);
+    color: #d5dbe6;
+}
+
+.recommendation-star-count {
+    margin-left: 5px;
+    font-size: 0.86em;
+    letter-spacing: 0.05em;
+}
+
+.registry-recommendation-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.registry-market-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 6px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    color: #b7c2d8;
+    font-size: 12px;
+    font-weight: 850;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
 }
 
 .play-hero-metrics {

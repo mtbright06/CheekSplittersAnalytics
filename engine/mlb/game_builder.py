@@ -31,6 +31,10 @@ from engine.odds.implied_probability import (
 from engine.odds.provider_factory import (
     get_odds_provider,
 )
+from engine.odds.reference_price import (
+    ReferencePriceResolver,
+    resolve_reference_quote,
+)
 
 
 MAXIMUM_QUOTE_AGE_MINUTES = 20
@@ -283,6 +287,16 @@ def unavailable_quote_dict() -> dict:
         "stale": True,
         "real_market_loaded": False,
         "quotes_compared": 0,
+        "current_price": None,
+        "current_book": None,
+        "current_captured_at": None,
+        "reference_price": None,
+        "reference_implied_probability": None,
+        "reference_book": None,
+        "reference_captured_at": None,
+        "reference_minutes_before_start": None,
+        "reference_status": "REFERENCE_UNAVAILABLE_NO_QUOTE",
+        "reference_policy_version": None,
         "totals": unavailable_total_dict(),
     }
 
@@ -919,6 +933,8 @@ def total_for_game(
 
 def build_mlb_card(
     raw_games: list[dict],
+    *,
+    reference_price_resolver: ReferencePriceResolver | None = None,
 ) -> dict:
     (
         moneyline_quotes,
@@ -1009,6 +1025,17 @@ def build_mlb_card(
             home,
         )
 
+        away_reference = resolve_reference_quote(
+            away_quote,
+            league="MLB",
+            resolver=reference_price_resolver,
+        )
+        home_reference = resolve_reference_quote(
+            home_quote,
+            league="MLB",
+            resolver=reference_price_resolver,
+        )
+
         decision = (
             build_sharpscore_decision(
                 away,
@@ -1017,18 +1044,24 @@ def build_mlb_card(
                 home_profile,
                 away_pitcher,
                 home_pitcher,
-                away_quote,
-                home_quote,
+                quote_object(away_reference.reference_quote),
+                quote_object(home_reference.reference_quote),
             )
         )
 
-        selected_quote = decision.get(
-            "quote"
+        selected_is_away = (
+            decision.get("model", {}).get("play") == away
+        )
+        selected_current = (
+            away_reference
+            if selected_is_away
+            else home_reference
         )
 
         odds = quote_to_dict(
-            selected_quote
+            quote_object(selected_current.current_quote)
         )
+        odds.update(selected_current.reference_fields)
 
         odds[
             "totals"
@@ -1076,9 +1109,10 @@ def build_mlb_card(
                 "model"
             ],
             "odds": odds,
-            "market_edge": decision[
-                "market_edge"
-            ],
+            "market_edge": {
+                **decision["market_edge"],
+                **selected_current.reference_fields,
+            },
         }
 
         game[

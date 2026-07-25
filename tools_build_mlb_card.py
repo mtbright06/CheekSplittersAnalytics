@@ -3,6 +3,7 @@ from pathlib import Path
 
 from providers.mlb.schedule_provider import MLBScheduleProvider
 from engine.mlb.game_builder import build_mlb_card
+from app.services.reference_price_service import ReferencePriceService
 
 
 ROOT = Path(__file__).resolve().parent
@@ -22,7 +23,10 @@ def main():
     provider = MLBScheduleProvider()
     raw_games = provider.load()
 
-    card = build_mlb_card(raw_games)
+    card = build_mlb_card(
+        raw_games,
+        reference_price_resolver=ReferencePriceService(),
+    )
 
     write_json(OUTPUT, card)
     write_json(LEGACY_OUTPUT, card)

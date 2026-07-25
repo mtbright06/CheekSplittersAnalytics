@@ -26,12 +26,12 @@ REGISTRY_PATH = (
     / "recommendation_registry.json"
 )
 
-ACTIONABLE_TIERS = {
-    "HAMMER",
-    "BET",
-    "LEAN",
-}
-
+DECISION_CARD_PATH = (
+    ROOT
+    / "output"
+    / "cards"
+    / "decision_card.json"
+)
 
 def load_json(path: Path) -> dict:
     if not path.exists():
@@ -96,9 +96,10 @@ def actionable_recommendations(
         for recommendation in recommendations
         if (
             recommendation.get(
-                "recommendation"
+                "actionable",
+                recommendation.get("recommendation")
+                in {"HAMMER", "BET", "LEAN"},
             )
-            in ACTIONABLE_TIERS
             and recommendation_matches_league(
                 recommendation,
                 league_filter,
@@ -253,7 +254,11 @@ def render_single_sport_header(
     render_compact_header(
         icon,
         league_upper,
-        "Ranked by model confidence.",
+        (
+            "Ranked by model recommendation, then confidence."
+            if league_upper == "MLB"
+            else "Ranked by model confidence."
+        ),
         dashboard_metric_values(card),
     )
 
@@ -486,6 +491,50 @@ def rank_games_by_confidence(
     )
 
 
+MLB_RECOMMENDATION_RANK = {
+    "🔥 CHEEK RIPPER": 0,
+    "CHEEK RIPPER": 0,
+    "✅ STRONG PLAY": 1,
+    "STRONG PLAY": 1,
+    "🟡 PLAYABLE": 2,
+    "PLAYABLE": 2,
+    "LEAN": 3,
+    "PASS": 4,
+}
+
+
+def rank_mlb_games_by_recommendation(
+    games: list[dict],
+) -> list[dict]:
+    """Order MLB presentation by model tier, then model confidence."""
+    return sorted(
+        games,
+        key=lambda game: (
+            MLB_RECOMMENDATION_RANK.get(
+                str(
+                    game.get("model", {}).get(
+                        "recommendation",
+                        "PASS",
+                    )
+                ).upper(),
+                4,
+            ),
+            -game_confidence(game),
+        ),
+    )
+
+
+def decision_hammer_scores() -> dict[str, float]:
+    decision_card = load_json(DECISION_CARD_PATH)
+
+    return {
+        str(decision.get("game_pk")): decision.get("hammer_score")
+        for decision in decision_card.get("decisions", [])
+        if isinstance(decision, dict)
+        and decision.get("game_pk") is not None
+    }
+
+
 def render_single_sport_dashboard(
     card: dict,
 ):
@@ -510,7 +559,16 @@ def render_single_sport_dashboard(
         )
         return
 
-    ranked_games = rank_games_by_confidence(games)
+    ranked_games = (
+        rank_mlb_games_by_recommendation(games)
+        if league == "MLB"
+        else rank_games_by_confidence(games)
+    )
+    hammer_scores = (
+        decision_hammer_scores()
+        if league == "MLB"
+        else {}
+    )
 
     def render_ranked_slate():
         st.markdown(
@@ -530,7 +588,10 @@ def render_single_sport_dashboard(
             ranked_games
         ):
             render_game(
-                game
+                game,
+                hammer_score=hammer_scores.get(
+                    str(game.get("game_id"))
+                ),
             )
 
             if index < len(

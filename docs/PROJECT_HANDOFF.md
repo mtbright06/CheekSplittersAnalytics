@@ -11,13 +11,20 @@
 **Primary branch:** `feature/recommendation-history`
 **Environment:** Windows 11 / PowerShell / Python 3.13+
 **Current milestone:** Epic 1 â€” Model Correctness
-**Current work item:** Epic 1 review; no Sprint 57 has been selected
-**Working tree:** Documentation updates pending review; do not commit or push
+**Current work item:** SSRP v1 implementation pending review
+**Working tree:** SSRP v1 changes pending review; do not commit or push
 **Sprint 56 status:** Complete; live KBO validation blocked by environment DNS
 
 SharpStack is stable and actively developed. The platform already has a functioning MLB recommendation pipeline, Recommendation Registry, Play of the Day, structured explanations, dashboard, Discord reporting, recommendation history, and an Azure PostgreSQL persistence foundation.
 
 The current phase is not feature expansion. It is improving the correctness, explainability, and reliability of the underlying baseball models.
+
+**SSRP v1:** MLB and KBO moneyline edge now use an immutable SharpStack
+Reference Price when available: the first eligible real pregame quote captured
+before the 60-minute MLB or 45-minute KBO cutoff. Current odds remain display
+data only. SSRP is stored in a dedicated PostgreSQL table with an atomic,
+create-only identity key; missing or late references produce a visible SSRP
+status and no invented edge. Hammer and thresholds remain unchanged.
 
 ---
 

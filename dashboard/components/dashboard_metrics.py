@@ -32,19 +32,35 @@ def confidence(game):
 
 def dashboard_metric_values(card) -> list[tuple[str, str | int]]:
     games = card.get("games", [])
+    sport = str(card.get("sport") or "").upper()
 
     game_count = len(games)
 
     playable = sum(
         1
         for game in games
-        if edge(game) >= 5
+        if (
+            str(game.get("model", {}).get("recommendation") or "")
+            in {"🔥 STRONG PLAY", "✅ PLAYABLE", "👀 LEAN"}
+            if sport == "KBO"
+            else edge(game) >= 5
+        )
     )
 
-    best_edge = max(
-        (edge(game) for game in games),
-        default=0,
-    )
+    if sport == "KBO" and all(
+        game.get("model", {}).get("edge") is None
+        for game in games
+    ):
+        best_market_metric = (
+            "Best Model Score",
+            f"{max((game.get('model', {}).get('model_probability') or 0 for game in games), default=0):.1f}",
+        )
+    else:
+        best_edge = max(
+            (edge(game) for game in games),
+            default=0,
+        )
+        best_market_metric = ("Best Edge", f"{best_edge:.1f}%")
 
     avg_confidence = (
         sum(confidence(game) for game in games) / game_count
@@ -55,7 +71,7 @@ def dashboard_metric_values(card) -> list[tuple[str, str | int]]:
     return [
         ("Games", game_count),
         ("Playable", playable),
-        ("Best Edge", f"{best_edge:.1f}%"),
+        best_market_metric,
         ("Avg Confidence", f"{avg_confidence:.1f}"),
     ]
 

@@ -15,6 +15,9 @@ from calculators.recent_form import RecentFormCalculator
 
 class KBOModel:
 
+    MODEL_SCORE_MINIMUM = 42.4
+    MODEL_SCORE_MAXIMUM = 59.6
+
     def __init__(self):
 
         self.odds = MockOddsCalculator()
@@ -106,7 +109,10 @@ class KBOModel:
             if market_available:
                 result.edge = EdgeCalculator.calculate(
                     result.model_probability,
-                    self._value(odds, "book_probability"),
+                    self._value(
+                        odds,
+                        "reference_implied_probability",
+                    ),
                 )
                 result.recommendation = (
                     RecommendationEngine.get_recommendation(
@@ -114,28 +120,42 @@ class KBOModel:
                     )
                 )
             else:
-                result.edge = 0.0
-                result.recommendation = "❌ NO PLAY"
+                result.edge = None
+                result.recommendation = self._model_score_recommendation(
+                    result.model_probability
+                )
 
-            (
-                result.confidence,
-                result.confidence_breakdown,
-            ) = ConfidenceEngine.calculate(
-                result.model_probability,
-                game.away.pitcher,
-                game.home.pitcher,
-                game.away.offense,
-                game.home.offense,
-                market_available=market_available,
-            )
+            if market_available:
+                (
+                    result.confidence,
+                    result.confidence_breakdown,
+                ) = ConfidenceEngine.calculate(
+                    result.model_probability,
+                    game.away.pitcher,
+                    game.home.pitcher,
+                    game.away.offense,
+                    game.home.offense,
+                    market_available=True,
+                )
+            else:
+                result.confidence = self._model_strength_confidence(
+                    result.model_probability
+                )
+                result.confidence_breakdown = {
+                    "model_strength": result.confidence,
+                    "basis": "KBO ordinal model score",
+                }
 
         return games
 
     @staticmethod
     def _market_available(odds):
         return bool(
-            KBOModel._value(odds, "real_market_loaded")
-            and KBOModel._value(odds, "book_probability")
+            KBOModel._value(odds, "reference_status") == "LOCKED"
+            and KBOModel._value(
+                odds,
+                "reference_implied_probability",
+            )
             is not None
         )
 
@@ -145,6 +165,32 @@ class KBOModel:
             return source.get(key)
 
         return getattr(source, key, None)
+
+    @staticmethod
+    def _model_score_recommendation(model_score):
+        """Return a KBO-only ordinal label when no real market is available."""
+        if model_score >= 58.0:
+            return "🔥 STRONG PLAY"
+
+        if model_score >= 55.0:
+            return "✅ PLAYABLE"
+
+        if model_score >= 52.0:
+            return "👀 LEAN"
+
+        return "❌ NO PLAY"
+
+    @classmethod
+    def _model_strength_confidence(cls, model_score):
+        """Map the active KBO ordinal score range to relative model strength."""
+        score = float(model_score or 0)
+        span = cls.MODEL_SCORE_MAXIMUM - cls.MODEL_SCORE_MINIMUM
+        strength = (
+            (score - cls.MODEL_SCORE_MINIMUM)
+            / span
+            * 100
+        )
+        return round(max(0.0, min(100.0, strength)), 1)
 
     def _should_skip_game(self, game):
 

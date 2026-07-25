@@ -4,6 +4,12 @@ from typing import Any
 from components.logos import team_logo_html
 import pandas as pd
 import streamlit as st
+from components.confirmation import (
+    hammer_confirmation_label,
+)
+from components.badges import (
+    recommendation_badge_html,
+)
 
 
 def compact_html(value):
@@ -194,6 +200,11 @@ def render_registry_card(
         else "MODEL ONLY"
     )
 
+    hammer_assessment = item.get(
+        "hammer_assessment"
+    )
+    hammer_tier = item.get("hammer_tier")
+
     team_name = item.get("selection")
 
     sport = str(
@@ -201,6 +212,15 @@ def render_registry_card(
         or item.get("sport")
         or "mlb"
     ).strip().lower()
+
+    if sport == "kbo" and not item.get("real_market_loaded"):
+        st.markdown(
+            compact_html(
+                kbo_model_only_card_html(item, rank)
+            ),
+            unsafe_allow_html=True,
+        )
+        return
 
     logo_html = team_logo_html(
         team_name,
@@ -235,17 +255,6 @@ def render_registry_card(
                 {logo_html}
             </div>
             <div class="decision-main">
-                <div class="decision-kicker">
-                    {esc(recommendation)}
-                    <span>
-                        {esc(item.get("league"))}
-                        ·
-                        {esc(item.get("market"))}
-                        ·
-                        {market_status}
-                    </span>
-                </div>
-
                 <div class="decision-team">
                     {esc(item.get("selection"))}
                 </div>
@@ -254,9 +263,24 @@ def render_registry_card(
                     {esc(item.get("matchup"))}
                 </div>
 
-                <div class="decision-stars">
-                    {esc(item.get("stars"), "")}
+                <div class="registry-recommendation-row">
+                    {recommendation_badge_html(
+                        recommendation,
+                        fallback_stars=safe(item.get("stars"), ""),
+                    )}
+                    <span class="registry-market-badge">
+                        {esc(item.get("league"))} · {esc(item.get("market"))}
+                    </span>
+                    <span class="registry-market-badge">{market_status}</span>
                 </div>
+                {(
+                    '<div class="decision-matchup">'
+                    f'{esc(hammer_confirmation_label(hammer_tier))} · '
+                    f'{esc(hammer_assessment)}'
+                    '</div>'
+                    if hammer_assessment or hammer_tier
+                    else ''
+                )}
             </div>
 
             <div class="decision-score">
@@ -348,6 +372,7 @@ def render_registry_card(
         unsafe_allow_html=True,
     )
 
+
     with st.expander(
         f"Why {item.get('selection')}?",
         expanded=False,
@@ -430,6 +455,36 @@ def render_registry_card(
                 width="stretch",
                 hide_index=True,
             )
+
+
+def kbo_model_only_card_html(item: dict, rank: int) -> str:
+    """Render KBO model-only entries with the shared recommendation display."""
+    recommendation = safe(item.get("recommendation"), "❌ NO PLAY")
+    team_name = item.get("selection")
+    logo_html = team_logo_html(team_name, "kbo")
+    market = safe(item.get("market"), "moneyline").title()
+
+    return f"""
+    <div class="decision-card decision-kbo-model-only">
+        <div class="decision-top-row">
+            <div class="decision-rank decision-team-logo">{logo_html}</div>
+            <div class="decision-main">
+                <div class="decision-team">{esc(team_name)}</div>
+                <div class="decision-matchup">{esc(item.get("matchup"))}</div>
+                <div class="registry-recommendation-row">
+                    {recommendation_badge_html(recommendation, model_only=True)}
+                    <span class="registry-market-badge">KBO · {esc(market)}</span>
+                    <span class="registry-market-badge">MODEL ONLY</span>
+                </div>
+            </div>
+            <div class="decision-score">
+                <span>Model Strength</span>
+                <strong>{number(item.get("hammer_score"))}</strong>
+                <small>Rank {number(item.get("ranking_score"))}</small>
+            </div>
+        </div>
+    </div>
+    """
 
 
 def render_registry_table(

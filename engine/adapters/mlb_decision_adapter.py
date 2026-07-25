@@ -26,7 +26,10 @@ def build_market_quote(
     row: dict,
 ) -> MarketQuote:
     real_market_loaded = (
-        row.get("market")
+        bool(row.get("real_market_loaded"))
+        or row.get("market_status")
+        == "REAL MARKET"
+        or row.get("market")
         == "REAL MARKET"
     )
 
@@ -100,7 +103,10 @@ def build_tags(
         tags.append("multi_model")
 
     if (
-        row.get("market")
+        row.get("real_market_loaded")
+        or row.get("market_status")
+        == "REAL MARKET"
+        or row.get("market")
         == "REAL MARKET"
     ):
         tags.append("real_market")
@@ -168,8 +174,16 @@ def adapt_decision(
             )
             or 0
         ),
-        recommendation=row.get(
-            "recommendation"
+        recommendation=(
+            row.get("model_recommendation")
+            or row.get("recommendation")
+        ),
+        model_recommendation=row.get(
+            "model_recommendation"
+        ),
+        hammer_tier=row.get("hammer_tier"),
+        hammer_assessment=row.get(
+            "hammer_assessment"
         ),
         confidence=row.get(
             "confidence"

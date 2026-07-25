@@ -51,6 +51,7 @@ Presentation
 | Concept | Canonical Owner |
 |---|---|
 | Raw provider retrieval | Provider / ingestion modules |
+| Immutable moneyline reference price | SSRP persistence service |
 | Role-aware profiles | Sport normalization modules |
 | Sport projections | Sport-specific models |
 | Starter profile | `engine/mlb/pitchers.py` |
@@ -232,6 +233,17 @@ Every recommendation should answer:
 - Odds history is append-only.
 - Every recommendation should trace to game, model version, run, timestamp, market snapshot, and supporting evidence.
 - Prediction engines must not depend directly on persistence.
+
+## SharpStack Reference Price (SSRP)
+
+Moneyline edge uses the immutable SSRP: the first production-eligible pregame
+quote captured by SharpStack before the league-specific cutoff. It is not a
+sportsbook opening, latest, closing, or live price. SSRP persistence is owned
+by the application service and passed into MLB/KBO ingestion through a narrow
+resolver contract; prediction modules do not access the database directly.
+
+Current sportsbook quotes remain separate display and execution-context data.
+They must not replace SSRP in edge or recommendation calculations.
 
 # 13. Architecture Change Gate
 

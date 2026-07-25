@@ -112,12 +112,12 @@ def build_sharpscore_decision(
     )
 
     market_edge = {}
-    edge = 0
+    edge = None
 
     if quote:
         calculated = calculate_market_edge(model_probability, quote)
         market_edge = market_edge_to_dict(calculated)
-        edge = market_edge.get("edge") or 0
+        edge = market_edge.get("edge")
 
     confidence, confidence_breakdown = calculate_confidence(
         abs(selected_score - opponent_score),

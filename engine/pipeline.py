@@ -7,11 +7,18 @@ from exporters.json_exporter import JsonExporter
 
 class Pipeline:
 
-    def __init__(self, provider, model, report):
+    def __init__(
+        self,
+        provider,
+        model,
+        report,
+        reference_price_resolver=None,
+    ):
 
         self.provider = provider
         self.model = model
         self.report = report
+        self.reference_price_resolver = reference_price_resolver
 
     def run(self, sport=None, version=None):
 
@@ -34,7 +41,10 @@ class Pipeline:
 
         try:
 
-            enricher = OddsEnricher(sport)
+            enricher = OddsEnricher(
+                sport,
+                reference_price_resolver=self.reference_price_resolver,
+            )
 
             games = enricher.enrich(games)
 

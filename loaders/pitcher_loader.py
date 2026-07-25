@@ -30,11 +30,15 @@ class PitcherLoader:
         if summary["name"] == "Unknown Starter":
             PitcherLoader._clear_pitcher(pitcher)
             pitcher.name = "Unknown Starter"
+            pitcher.data_source = "starter_unavailable"
+            pitcher.starter_confirmed = False
             return
 
-        pitcher.name = summary["name"]
+        pitcher.name = summary.get("name") or None
         pitcher.record = summary.get("record")
         pitcher.era = PitcherLoader._to_float(summary.get("era"))
+        pitcher.data_source = "starter_summary"
+        pitcher.starter_confirmed = bool(pitcher.name)
 
         profile_url = summary.get("profile_url")
 
@@ -42,6 +46,9 @@ class PitcherLoader:
             return
 
         profile = KBODataProvider.get_pitcher_details(profile_url)
+
+        if profile.get("name"):
+            pitcher.name = profile["name"]
 
         pitcher.throws = profile.get("throws")
         pitcher.bats = profile.get("bats")
@@ -53,6 +60,8 @@ class PitcherLoader:
         pitcher.k_rate = profile.get("k_rate")
         pitcher.bb_rate = profile.get("bb_rate")
         pitcher.hr9 = profile.get("hr9")
+        pitcher.data_source = "starter_profile"
+        pitcher.starter_confirmed = bool(pitcher.name)
 
         if profile.get("record"):
             pitcher.record = profile.get("record")
@@ -90,6 +99,8 @@ class PitcherLoader:
         pitcher.k_rate = None
         pitcher.bb_rate = None
         pitcher.hr9 = None
+        pitcher.data_source = None
+        pitcher.starter_confirmed = False
 
     @staticmethod
     def _to_float(value):

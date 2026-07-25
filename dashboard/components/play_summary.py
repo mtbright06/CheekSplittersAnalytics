@@ -30,6 +30,11 @@ def render_play_summary(
         market_loaded=market_loaded,
         stale=bool(odds.get("stale")),
         recommendation=recommendation if sport == "kbo" else None,
+        freshness_status=(
+            odds.get("freshness_status")
+            if sport == "mlb"
+            else None
+        ),
     )
     edge_text = f"{float(edge):.2f}%" if edge is not None else "Unavailable"
     book_text = (
@@ -48,9 +53,15 @@ def render_play_summary(
         if hammer_score is not None
         else "Unavailable"
     )
+    reference_price = odds.get("reference_price")
+    reference_text = (
+        str(reference_price)
+        if reference_price is not None
+        else "Unavailable"
+    )
 
     if sport == "mlb":
-        heading = "MLB Model Recommendation"
+        heading = "Model Prediction · Projected Winner"
         title = play
         subtitle = market
     else:
@@ -65,24 +76,40 @@ def render_play_summary(
             f"<div class='play-title'>{title}</div>",
             f"<div class='muted'>{subtitle}</div>",
             "</div><div class='play-hero-metrics'>",
-            f"<div><span>Edge</span><strong>{edge_text}</strong></div>",
-            f"<div><span>{'Book Win %' if sport == 'mlb' else 'Book'}</span><strong>{book_text}</strong></div>",
-            f"<div><span>{'Model Confidence' if sport == 'mlb' else 'Model Strength'}</span><strong>{confidence_text}</strong></div>",
             (
-                f"<div><span>Hammer Score</span><strong>{hammer_text}</strong></div>"
+                f"<div><span>Model Win %</span><strong>{_model_probability_text(model.get('model_probability'))}</strong></div>"
+                if sport == "mlb"
+                else f"<div><span>Edge</span><strong>{edge_text}</strong></div>"
+            ),
+            (
+                f"<div><span>Model Confidence</span><strong>{confidence_text}</strong></div>"
+                if sport == "mlb"
+                else f"<div><span>Book</span><strong>{book_text}</strong></div>"
+            ),
+            (
+                f"<div><span>SSRP Edge</span><strong>{edge_text}</strong></div>"
+                if sport == "mlb"
+                else f"<div><span>Model Strength</span><strong>{confidence_text}</strong></div>"
+            ),
+            (
+                f"<div><span>Current Odds</span><strong>{odds_text}</strong></div>"
                 if sport == "mlb"
                 else ""
             ),
             "</div></div><div class='play-hero-footer'>",
-            recommendation_badge_html(
-                recommendation,
-                model_only=sport == "kbo" and not market_loaded,
-            ),
-            f"<span class='small-label'>{state['badge']}</span>",
             (
-                f"<span class='muted'>{market} · {state['market_status']} · Odds: {odds_text}</span>"
+                "<span class='small-label'>Betting Decision</span>"
+                + recommendation_badge_html(recommendation)
+                + f"<span class='small-label'>{state['badge']}</span>"
+                + f"<span class='muted'>{_betting_decision_reason(recommendation, edge)} · "
+                f"Current odds: {odds_text} · Reference price: {reference_text}</span>"
                 if sport == "mlb"
-                else f"<span class='muted'>{matchup['away']} @ {matchup['home']} · {state['market_status']}</span>"
+                else recommendation_badge_html(
+                    recommendation,
+                    model_only=not market_loaded,
+                )
+                + f"<span class='small-label'>{state['badge']}</span>"
+                + f"<span class='muted'>{matchup['away']} @ {matchup['home']} · {state['market_status']}</span>"
             ),
             "</div>",
         ]
@@ -91,6 +118,10 @@ def render_play_summary(
     st.markdown(html, unsafe_allow_html=True)
 
     render_value_meter(game)
+    if sport == "mlb":
+        st.caption(
+            f"Hammer advisory confirmation: {hammer_text}"
+        )
     if confidence is not None:
         render_progress_bar(
             "Model Strength" if sport == "kbo" else "Confidence",
@@ -103,12 +134,39 @@ def _percent(value):
     return number * 100 if abs(number) <= 1 else number
 
 
+def _model_probability_text(value):
+    if value is None:
+        return "Unavailable"
+    return f"{_percent(value):.1f}%"
+
+
+def _betting_decision_reason(recommendation, edge):
+    if str(recommendation).upper() == "PASS":
+        return "Price does not offer sufficient value"
+    if edge is None:
+        return "Reference price unavailable"
+    return "Price meets model value criteria"
+
+
 def play_summary_state(
     *,
     market_loaded: bool,
     stale: bool,
     recommendation: str | None = None,
+    freshness_status: str | None = None,
 ) -> dict[str, str]:
+    if freshness_status in {
+        "MISSING_TIMESTAMP",
+        "MALFORMED_TIMESTAMP",
+        "NAIVE_TIMESTAMP",
+        "FUTURE_TIMESTAMP",
+    }:
+        return {
+            "heading": "Model Preference",
+            "badge": "MARKET TIMESTAMP INVALID",
+            "market_status": "Market timestamp unavailable or invalid",
+        }
+
     if not market_loaded:
         return {
             "heading": "Model Preference",

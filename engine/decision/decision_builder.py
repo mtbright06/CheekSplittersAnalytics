@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -553,9 +553,60 @@ def extract_mlb_market(
     if not teams_match(selection, team_name):
         return {}
 
-    book_probability = (
-        odds.get("book_probability")
-        or odds.get("implied_probability")
+    # A locked SSRP is the canonical quote for the MLB decision artifact.
+    # Keep its book, price, probability, and timestamp together rather than
+    # mixing it with the separately displayed current quote.
+    reference_locked = (
+        market_edge.get("reference_status")
+        == "LOCKED"
+    )
+
+    if reference_locked:
+        book_odds = (
+            market_edge.get("american_odds")
+            or market_edge.get("moneyline")
+        )
+        book_probability = (
+            market_edge.get(
+                "reference_implied_probability"
+            )
+            or normalize_probability(
+                market_edge.get("book_probability")
+            )
+        )
+        sportsbook = market_edge.get("sportsbook")
+        market_updated_at = market_edge.get(
+            "reference_captured_at"
+        )
+        quote_source = "sharpstack_reference_price"
+    else:
+        book_odds = (
+            odds.get("american_odds")
+            or odds.get("moneyline")
+        )
+        book_probability = (
+            odds.get("book_probability")
+            or odds.get("implied_probability")
+        )
+        sportsbook = odds.get("sportsbook")
+        market_updated_at = (
+            odds.get("quote_updated_at_utc")
+            or odds.get("last_updated")
+            or odds.get("updated_at")
+        )
+        quote_source = "current_quote"
+
+    quote_identity = ":".join(
+        str(value)
+        for value in (
+            quote_source,
+            market_edge.get("provider_event_id")
+            or odds.get("event_id"),
+            selection,
+            sportsbook,
+            book_odds,
+        )
+        if value not in {None, ""}
     )
 
     return {
@@ -565,12 +616,7 @@ def extract_mlb_market(
             if isinstance(game.get("model"), dict)
             else ""
         ),
-        "book_odds": (
-            market_edge.get("american_odds")
-            or market_edge.get("moneyline")
-            or odds.get("american_odds")
-            or odds.get("moneyline")
-        ),
+        "book_odds": book_odds,
         "book_raw_implied_probability": book_probability,
         "book_no_vig_probability": book_probability,
         "edge_pct": (
@@ -581,9 +627,21 @@ def extract_mlb_market(
             market_edge.get("expected_roi")
             or odds.get("expected_value_pct")
         ),
-        "sportsbook": (
-            market_edge.get("sportsbook")
-            or odds.get("sportsbook")
+        "sportsbook": sportsbook,
+        "market_updated_at": market_updated_at,
+        "quote_identity": quote_identity or None,
+        "quote_source": quote_source,
+        # SSRP quote fields above are canonical for edge. Current-quote
+        # freshness stays explicit display context and is never substituted
+        # into the SSRP quote.
+        "current_freshness_status": odds.get(
+            "freshness_status"
+        ),
+        "current_freshness_reason": odds.get(
+            "freshness_reason"
+        ),
+        "current_quote_age_minutes": odds.get(
+            "quote_age_minutes"
         ),
     }
 
@@ -1117,6 +1175,20 @@ def build_decision_card() -> dict:
                 "market_no_vig_probability": market.get(
                     "book_no_vig_probability"
                 ),
+                "market_updated_at": market.get(
+                    "market_updated_at"
+                ),
+                "quote_identity": market.get("quote_identity"),
+                "quote_source": market.get("quote_source"),
+                "current_freshness_status": market.get(
+                    "current_freshness_status"
+                ),
+                "current_freshness_reason": market.get(
+                    "current_freshness_reason"
+                ),
+                "current_quote_age_minutes": market.get(
+                    "current_quote_age_minutes"
+                ),
                 "market_edge_pct": market_edge,
                 "expected_value_pct": expected_value_pct,
                 "first5_score": (
@@ -1236,7 +1308,7 @@ def build_decision_card() -> dict:
         "sport": "MLB",
         "type": "decision_engine",
         "version": "1.1.0",
-        "generated_at": datetime.now().isoformat(
+        "generated_at": datetime.now(UTC).isoformat(
             timespec="seconds"
         ),
         "summary": {

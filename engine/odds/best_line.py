@@ -7,8 +7,8 @@ from engine.odds.quote_utils import (
     american_to_implied_probability,
     expected_value_pct,
     is_mock_sportsbook,
-    is_stale_quote,
     normalize_sportsbook_name,
+    quote_freshness,
     safe_float,
 )
 
@@ -45,6 +45,11 @@ def quote_to_dict(
         "commence_time",
         "implied_probability",
         "real_market_loaded",
+        "stale",
+        "quote_updated_at_utc",
+        "quote_age_minutes",
+        "freshness_status",
+        "freshness_reason",
         "updated_at",
         "last_updated",
         "is_live",
@@ -186,6 +191,11 @@ def enrich_quote(
             - implied_probability
         ) * 100
 
+    freshness = quote_freshness(
+        updated_at,
+        maximum_age_minutes=maximum_age_minutes,
+    )
+
     enriched = {
         **data,
         "sportsbook": sportsbook,
@@ -206,12 +216,15 @@ def enrich_quote(
         "real_market_loaded": (
             is_real_quote(data)
         ),
-        "stale": is_stale_quote(
-            updated_at,
-            maximum_age_minutes=(
-                maximum_age_minutes
-            ),
+        "stale": freshness.stale,
+        "quote_updated_at_utc": (
+            freshness.updated_at_utc.isoformat()
+            if freshness.updated_at_utc
+            else None
         ),
+        "quote_age_minutes": freshness.age_minutes,
+        "freshness_status": freshness.status,
+        "freshness_reason": freshness.reason,
     }
 
     return enriched
@@ -249,7 +262,13 @@ def select_best_quote(
         eligible = [
             quote
             for quote in eligible
-            if not quote.get("stale")
+            if quote.get("freshness_status") == "FRESH"
+        ]
+    else:
+        eligible = [
+            quote
+            for quote in eligible
+            if quote.get("freshness_status") in {"FRESH", "STALE"}
         ]
 
     if not eligible:

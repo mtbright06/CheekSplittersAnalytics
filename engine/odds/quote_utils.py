@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
@@ -183,6 +184,19 @@ def expected_value_pct(
     return ev * 100
 
 
+@dataclass(frozen=True)
+class QuoteFreshness:
+    updated_at_utc: datetime | None
+    age_minutes: float | None
+    stale: bool
+    status: str
+    reason: str
+
+    @property
+    def is_fresh(self) -> bool:
+        return self.status == "FRESH"
+
+
 def parse_timestamp(
     value: Any,
 ) -> datetime | None:
@@ -207,12 +221,85 @@ def parse_timestamp(
             return None
 
     if parsed.tzinfo is None:
-        parsed = parsed.replace(
-            tzinfo=timezone.utc
-        )
+        return None
 
     return parsed.astimezone(
         timezone.utc
+    )
+
+
+def quote_freshness(
+    updated_at: Any,
+    *,
+    maximum_age_minutes: float = 20,
+    now: datetime | None = None,
+) -> QuoteFreshness:
+    """Classify a provider quote using one UTC-normalized timestamp contract."""
+    raw = str(updated_at or "").strip()
+
+    if not raw:
+        return QuoteFreshness(
+            None,
+            None,
+            True,
+            "MISSING_TIMESTAMP",
+            "Provider quote has no update timestamp.",
+        )
+
+    timestamp = parse_timestamp(updated_at)
+
+    if timestamp is None:
+        try:
+            parsed = datetime.fromisoformat(
+                raw.replace("Z", "+00:00")
+            )
+        except ValueError:
+            status = "MALFORMED_TIMESTAMP"
+            reason = "Provider quote timestamp is not ISO-8601."
+        else:
+            status = "NAIVE_TIMESTAMP"
+            reason = "Provider quote timestamp is missing timezone information."
+
+        return QuoteFreshness(
+            None,
+            None,
+            True,
+            status,
+            reason,
+        )
+
+    current = now or datetime.now(timezone.utc)
+
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+
+    current = current.astimezone(timezone.utc)
+    age_minutes = (current - timestamp).total_seconds() / 60
+
+    if age_minutes < 0:
+        return QuoteFreshness(
+            timestamp,
+            round(age_minutes, 3),
+            True,
+            "FUTURE_TIMESTAMP",
+            "Provider quote timestamp is later than the build timestamp.",
+        )
+
+    if age_minutes > maximum_age_minutes:
+        return QuoteFreshness(
+            timestamp,
+            round(age_minutes, 3),
+            True,
+            "STALE",
+            f"Quote age exceeds {maximum_age_minutes:g} minutes.",
+        )
+
+    return QuoteFreshness(
+        timestamp,
+        round(age_minutes, 3),
+        False,
+        "FRESH",
+        "Quote is within the configured freshness window.",
     )
 
 
@@ -221,31 +308,10 @@ def quote_age_minutes(
     *,
     now: datetime | None = None,
 ) -> float | None:
-    timestamp = parse_timestamp(
-        updated_at
-    )
-
-    if timestamp is None:
-        return None
-
-    current = now or datetime.now(
-        timezone.utc
-    )
-
-    if current.tzinfo is None:
-        current = current.replace(
-            tzinfo=timezone.utc
-        )
-
-    age_seconds = (
-        current.astimezone(timezone.utc)
-        - timestamp
-    ).total_seconds()
-
-    return max(
-        0.0,
-        age_seconds / 60,
-    )
+    return quote_freshness(
+        updated_at,
+        now=now,
+    ).age_minutes
 
 
 def is_stale_quote(
@@ -254,12 +320,9 @@ def is_stale_quote(
     maximum_age_minutes: float = 20,
     now: datetime | None = None,
 ) -> bool:
-    age = quote_age_minutes(
+    freshness = quote_freshness(
         updated_at,
+        maximum_age_minutes=maximum_age_minutes,
         now=now,
     )
-
-    if age is None:
-        return True
-
-    return age > maximum_age_minutes
+    return freshness.stale

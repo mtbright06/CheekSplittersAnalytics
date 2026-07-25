@@ -35,6 +35,10 @@ def resolve_reference_quote(
         "current_book": current.get("sportsbook"),
         "current_captured_at": current.get("last_updated")
         or current.get("updated_at"),
+        "quote_updated_at_utc": current.get("quote_updated_at_utc"),
+        "quote_age_minutes": current.get("quote_age_minutes"),
+        "freshness_status": current.get("freshness_status"),
+        "freshness_reason": current.get("freshness_reason"),
     }
 
     if resolver is None:

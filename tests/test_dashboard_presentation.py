@@ -18,7 +18,7 @@ from pages.dashboard_page import (
     group_recommendations_by_market,
     market_board_title,
     rank_games_by_confidence,
-    rank_mlb_games_by_recommendation,
+    rank_mlb_games_by_prediction,
 )
 from components.explorer.recommendation_explorer import decision_for_game
 from components.confirmation import hammer_confirmation_label
@@ -44,6 +44,17 @@ def test_actionable_kbo_model_only_status_does_not_say_no_bet_recommended():
 
     assert state["badge"] == "MODEL ONLY"
     assert state["market_status"] == "Market unavailable · Odds unavailable"
+
+
+def test_invalid_market_timestamp_is_not_rendered_as_stale_market():
+    state = play_summary_state(
+        market_loaded=True,
+        stale=True,
+        freshness_status="FUTURE_TIMESTAMP",
+    )
+
+    assert state["badge"] == "MARKET TIMESTAMP INVALID"
+    assert state["market_status"] == "Market timestamp unavailable or invalid"
 
 
 def test_kbo_main_card_matches_the_mlb_recommendation_hierarchy(monkeypatch):
@@ -180,26 +191,79 @@ def test_mlb_and_kbo_share_confidence_display_order():
     ]
 
 
-def test_mlb_slate_orders_model_tier_before_confidence():
+def test_mlb_slate_orders_by_model_win_probability_then_confidence():
     games = [
-        {"matchup": {"away": "Pass"}, "model": {"recommendation": "PASS", "confidence": 95.0}},
-        {"matchup": {"away": "Lean"}, "model": {"recommendation": "LEAN", "confidence": 60.0}},
-        {"matchup": {"away": "Playable Low"}, "model": {"recommendation": "🟡 PLAYABLE", "confidence": 61.0}},
-        {"matchup": {"away": "Cheek"}, "model": {"recommendation": "🔥 CHEEK RIPPER", "confidence": 55.0}},
-        {"matchup": {"away": "Playable High"}, "model": {"recommendation": "PLAYABLE", "confidence": 80.0}},
-        {"matchup": {"away": "Strong"}, "model": {"recommendation": "✅ STRONG PLAY", "confidence": 50.0}},
+        {"matchup": {"away": "High Probability Pass"}, "model": {"recommendation": "PASS", "model_probability": 60.0, "confidence": 65.0, "edge": -7.0}},
+        {"matchup": {"away": "Lower Probability Lean"}, "model": {"recommendation": "LEAN", "model_probability": 54.0, "confidence": 99.0, "edge": 3.0}},
+        {"matchup": {"away": "Probability Tie Lower Confidence"}, "model": {"recommendation": "🔥 CHEEK RIPPER", "model_probability": 57.0, "confidence": 55.0, "edge": 15.0}},
+        {"matchup": {"away": "Probability Tie Higher Confidence"}, "model": {"recommendation": "PASS", "model_probability": 57.0, "confidence": 80.0, "edge": -9.0}},
     ]
 
-    ranked = rank_mlb_games_by_recommendation(games)
+    ranked = rank_mlb_games_by_prediction(games)
 
     assert [game["matchup"]["away"] for game in ranked] == [
-        "Cheek",
-        "Strong",
-        "Playable High",
-        "Playable Low",
-        "Lean",
-        "Pass",
+        "High Probability Pass",
+        "Probability Tie Higher Confidence",
+        "Probability Tie Lower Confidence",
+        "Lower Probability Lean",
     ]
+
+
+def test_mlb_slate_prediction_order_ignores_edge_recommendation_and_hammer():
+    games = [
+        {"matchup": {"away": "Prediction First"}, "model": {"model_probability": 58.0, "confidence": 60.0, "recommendation": "PASS", "edge": -10.0, "hammer_score": 40.0}},
+        {"matchup": {"away": "Value First"}, "model": {"model_probability": 53.0, "confidence": 90.0, "recommendation": "🔥 CHEEK RIPPER", "edge": 20.0, "hammer_score": 99.0}},
+    ]
+
+    ranked = rank_mlb_games_by_prediction(games)
+
+    assert [game["matchup"]["away"] for game in ranked] == [
+        "Prediction First",
+        "Value First",
+    ]
+
+
+def test_mlb_hero_separates_prediction_from_betting_decision(monkeypatch):
+    rendered = []
+
+    monkeypatch.setattr(
+        play_summary.st,
+        "markdown",
+        lambda html, **kwargs: rendered.append(html),
+    )
+    monkeypatch.setattr(play_summary.st, "caption", lambda *args, **kwargs: None)
+    monkeypatch.setattr(play_summary, "render_value_meter", lambda game: None)
+    monkeypatch.setattr(play_summary, "render_progress_bar", lambda *args: None)
+
+    play_summary.render_play_summary(
+        {
+            "sport": "mlb",
+            "matchup": {"away": "Away", "home": "Los Angeles Dodgers"},
+            "model": {
+                "play": "Los Angeles Dodgers",
+                "market": "Moneyline",
+                "model_probability": 58.0,
+                "confidence": 76.7,
+                "edge": -2.78,
+                "recommendation": "PASS",
+            },
+            "odds": {
+                "real_market_loaded": True,
+                "moneyline": -155,
+                "reference_price": -155,
+            },
+        },
+        hammer_score=60.7,
+    )
+
+    assert "Model Prediction · Projected Winner" in rendered[0]
+    assert "Model Win %</span><strong>58.0%" in rendered[0]
+    assert "Model Confidence</span><strong>76.7/100" in rendered[0]
+    assert "Betting Decision" in rendered[0]
+    assert "Price does not offer sufficient value" in rendered[0]
+    assert "Current odds: -155" in rendered[0]
+    assert "Reference price: -155" in rendered[0]
+    assert "Hammer Score" not in rendered[0]
 
 
 def test_decision_tab_uses_the_matching_canonical_decision_row():

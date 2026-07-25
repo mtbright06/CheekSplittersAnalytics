@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
 
@@ -24,6 +24,9 @@ from engine.model.sharpscore import (
 )
 from engine.odds.best_line import (
     select_best_quote,
+)
+from engine.odds.quote_utils import (
+    parse_timestamp as parse_quote_timestamp,
 )
 from engine.odds.implied_probability import (
     american_to_implied_probability,
@@ -113,27 +116,8 @@ def to_int(
 def parse_timestamp(
     value: Any,
 ) -> float:
-    if not value:
-        return 0.0
-
-    try:
-        normalized = (
-            str(value)
-            .strip()
-            .replace(
-                "Z",
-                "+00:00",
-            )
-        )
-
-        return datetime.fromisoformat(
-            normalized
-        ).timestamp()
-    except (
-        TypeError,
-        ValueError,
-    ):
-        return 0.0
+    parsed = parse_quote_timestamp(value)
+    return parsed.timestamp() if parsed else 0.0
 
 
 def sportsbook_priority(
@@ -285,6 +269,10 @@ def unavailable_quote_dict() -> dict:
         "commence_time": None,
         "last_updated": None,
         "stale": True,
+        "quote_updated_at_utc": None,
+        "quote_age_minutes": None,
+        "freshness_status": "NO_SELECTED_QUOTE",
+        "freshness_reason": "No fresh production-eligible quote was selected.",
         "real_market_loaded": False,
         "quotes_compared": 0,
         "current_price": None,
@@ -380,6 +368,22 @@ def quote_to_dict(
                 "stale",
                 True,
             )
+        ),
+        "quote_updated_at_utc": get_value(
+            quote,
+            "quote_updated_at_utc",
+        ),
+        "quote_age_minutes": get_value(
+            quote,
+            "quote_age_minutes",
+        ),
+        "freshness_status": get_value(
+            quote,
+            "freshness_status",
+        ),
+        "freshness_reason": get_value(
+            quote,
+            "freshness_reason",
         ),
         "real_market_loaded": bool(
             get_value(
@@ -758,6 +762,31 @@ def quote_for_team(
     )
 
 
+def log_moneyline_quote_diagnostic(
+    away: str,
+    home: str,
+    selection: str,
+    quote: Any,
+    *,
+    artifact_generated_at: str,
+) -> None:
+    data = quote_to_dict(quote)
+    print(
+        "MLB quote diagnostic | "
+        f"{away} @ {home} | {selection} | "
+        f"book={data.get('sportsbook')} | odds={data.get('american_odds')} | "
+        f"implied_probability={data.get('implied_probability')} | "
+        f"updated_at_utc={data.get('quote_updated_at_utc')} | "
+        f"artifact_generated_at_utc={artifact_generated_at} | "
+        f"age_minutes={data.get('quote_age_minutes')} | "
+        f"freshness={data.get('freshness_status')} | "
+        f"reason={data.get('freshness_reason')} | "
+        "quote_identity="
+        f"{data.get('event_id')}:{data.get('selection')}:"
+        f"{data.get('sportsbook')}:{data.get('american_odds')}"
+    )
+
+
 def total_price_balance(
     candidate: dict,
 ) -> float:
@@ -1125,13 +1154,24 @@ def build_mlb_card(
             game
         )
 
+    generated_at = datetime.now(UTC).isoformat(
+        timespec="seconds"
+    )
+
+    for game in games:
+        matchup = game.get("matchup", {})
+        model = game.get("model", {})
+        log_moneyline_quote_diagnostic(
+            matchup.get("away", "Away"),
+            matchup.get("home", "Home"),
+            model.get("play", "Unknown"),
+            game.get("odds"),
+            artifact_generated_at=generated_at,
+        )
+
     return {
         "sport": "MLB",
         "version": "0.9 Alpha",
-        "generated_at": (
-            datetime.now().isoformat(
-                timespec="seconds"
-            )
-        ),
+        "generated_at": generated_at,
         "games": games,
     }

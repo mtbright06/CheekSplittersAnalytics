@@ -63,12 +63,17 @@ and approved technical-debt work; selecting a new sprint requires governance.
 
 ## Sprint 57: Provider Reliability
 
-**Status:** In review — Phase 1 implemented.
+**Status:** In review — Phases 1 and 2 implemented.
 
 Phase 1 adds a request-scoped pitcher game-log cache for one MLB card build.
 It removes duplicate starter/bullpen game-log requests without persistent
 caching, contract changes, or model behavior changes. Later phases remain
 limited to approved provider efficiency and source-quality work.
+
+Phase 2 adds a request-scoped MLB team-context cache for doubleheaders. It
+reuses deterministic batting and bullpen retrieval by team ID within one card
+build, while retaining separate game-specific starter construction and no
+persistent cache.
 
 ## Sprint 54: Pitcher Sample Stabilization
 

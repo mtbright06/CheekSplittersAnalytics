@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from engine.mlb.game_builder import build_mlb_card
+from engine.mlb.game_builder import TeamProfileCache, team_profile
 from engine.mlb.pitchers import (
     PitcherGameLogCache,
     fetch_pitcher_game_log,
@@ -198,3 +199,123 @@ def test_mlb_card_build_injects_one_game_log_cache_into_bullpen_and_starter_path
     assert len(card["games"]) == 1
     assert len(cache_ids) == 4
     assert len(set(cache_ids)) == 1
+
+
+def test_team_profile_cache_reuses_doubleheader_team_context():
+    raw_games = [
+        {
+            "gamePk": game_id,
+            "gameDate": f"2026-07-25T{hour}:00:00Z",
+            "status": {"detailedState": "Scheduled"},
+            "teams": {
+                "away": {
+                    "team": {"id": 1, "name": "Away Club"},
+                    "probablePitcher": {"id": 11, "fullName": "Away Starter"},
+                },
+                "home": {
+                    "team": {"id": 2, "name": "Home Club"},
+                    "probablePitcher": {"id": 22, "fullName": "Home Starter"},
+                },
+            },
+        }
+        for game_id, hour in ((1, "20"), (2, "23"))
+    ]
+    offense = {"runs_per_game": 4.5, "ops": 0.700}
+    bullpen = {"era": 3.8, "whip": 1.2}
+    pitcher = {"era": 3.5, "whip": 1.2, "ip": 50.0}
+
+    with (
+        patch("engine.mlb.game_builder.fetch_market_quotes", return_value=([], [])),
+        patch(
+            "engine.mlb.game_builder.fetch_team_batting_stats",
+            return_value=offense,
+        ) as batting,
+        patch(
+            "engine.mlb.game_builder.fetch_bullpen_profile",
+            return_value=bullpen,
+        ) as bullpen_fetch,
+        patch("engine.mlb.game_builder.fetch_pitcher_stats", return_value=pitcher),
+        patch("engine.mlb.game_builder.build_totals_projection", return_value={}),
+    ):
+        card = build_mlb_card(raw_games)
+
+    assert len(card["games"]) == 2
+    assert batting.call_count == 2
+    assert bullpen_fetch.call_count == 2
+    assert {call.args[0] for call in batting.call_args_list} == {1, 2}
+    assert {call.args[0] for call in bullpen_fetch.call_args_list} == {1, 2}
+
+
+def test_team_profile_cache_keeps_teams_and_game_profiles_isolated():
+    cache = TeamProfileCache()
+    team_one = {"team": {"id": 1, "name": "Away Club"}}
+    team_two = {"team": {"id": 2, "name": "Home Club"}}
+    offense = {"runs_per_game": 4.5}
+    bullpen = {"era": 3.8}
+
+    with (
+        patch(
+            "engine.mlb.game_builder.fetch_team_batting_stats",
+            return_value=offense,
+        ) as batting,
+        patch(
+            "engine.mlb.game_builder.fetch_bullpen_profile",
+            return_value=bullpen,
+        ) as bullpen_fetch,
+    ):
+        first = team_profile(team_one, team_profile_cache=cache)
+        repeated = team_profile(team_one, team_profile_cache=cache)
+        other = team_profile(team_two, team_profile_cache=cache)
+
+    assert batting.call_count == 2
+    assert bullpen_fetch.call_count == 2
+    assert first == repeated
+    assert first["offense"] is not repeated["offense"]
+    assert first["bullpen"] is not repeated["bullpen"]
+    assert other["id"] == 2
+
+
+def test_team_profile_cache_preserves_doubleheader_card_output():
+    raw_games = [
+        {
+            "gamePk": game_id,
+            "gameDate": f"2026-07-25T{hour}:00:00Z",
+            "status": {"detailedState": "Scheduled"},
+            "teams": {
+                "away": {
+                    "team": {"id": 1, "name": "Away Club"},
+                    "probablePitcher": {"id": 11, "fullName": "Away Starter"},
+                },
+                "home": {
+                    "team": {"id": 2, "name": "Home Club"},
+                    "probablePitcher": {"id": 22, "fullName": "Home Starter"},
+                },
+            },
+        }
+        for game_id, hour in ((1, "20"), (2, "23"))
+    ]
+    offense = {"runs_per_game": 4.5, "ops": 0.700}
+    bullpen = {"era": 3.8, "whip": 1.2}
+    pitcher = {"era": 3.5, "whip": 1.2, "ip": 50.0}
+
+    class NoTeamProfileCache:
+        def get_or_fetch(self, _team_id, *, fetcher):
+            return fetcher()
+
+    with (
+        patch("engine.mlb.game_builder.fetch_market_quotes", return_value=([], [])),
+        patch("engine.mlb.game_builder.fetch_team_batting_stats", return_value=offense),
+        patch("engine.mlb.game_builder.fetch_bullpen_profile", return_value=bullpen),
+        patch("engine.mlb.game_builder.fetch_pitcher_stats", return_value=pitcher),
+        patch("engine.mlb.game_builder.build_totals_projection", return_value={}),
+    ):
+        cached = build_mlb_card(raw_games)
+        with patch(
+            "engine.mlb.game_builder.TeamProfileCache",
+            return_value=NoTeamProfileCache(),
+        ):
+            uncached = build_mlb_card(raw_games)
+
+    cached.pop("generated_at")
+    uncached.pop("generated_at")
+    assert cached == uncached

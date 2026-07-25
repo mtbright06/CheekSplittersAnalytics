@@ -43,6 +43,13 @@ module-global, persistent, or cross-run; it keys the MLB pitching game-log
 request by endpoint, pitcher ID, season, and game type, and preserves cached
 empty and failed outcomes so the existing season fallback remains unchanged.
 
+**Sprint 57 — Provider Reliability, Phase 2:** implemented and awaiting
+review. The same MLB card build now creates a request-scoped team-context cache
+for doubleheaders. It reuses each team's deterministic batting and bullpen
+provider results by team ID, while returning independent copies per game and
+leaving probable-starter construction game-specific. The cache is not shared
+across builds and does not alter serialized contracts or model inputs.
+
 The MLB full slate presents projected-winner ranking separately from betting
 value. Its compact cards display the canonical conviction and market-value
 badges; diagnostics, including Hammer and Market vs Model, remain inside

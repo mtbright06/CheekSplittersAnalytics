@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Callable
 
 from engine.mlb.offense import (
     fetch_team_batting_stats,
@@ -53,6 +54,34 @@ PREFERRED_TOTAL_SPORTSBOOKS = [
     "BetRivers",
     "ESPN BET",
 ]
+
+
+class TeamProfileCache:
+    """Build-local reuse for deterministic MLB team provider data."""
+
+    def __init__(self) -> None:
+        self._entries: dict[
+            tuple[str, int],
+            dict[str, Any],
+        ] = {}
+
+    def get_or_fetch(
+        self,
+        team_id: int,
+        *,
+        fetcher: Callable[[], dict[str, Any]],
+    ) -> dict[str, Any]:
+        key = (
+            "team_batting_and_bullpen_context",
+            int(team_id),
+        )
+
+        if key not in self._entries:
+            self._entries[key] = fetcher()
+
+        # Each game receives independent profile data even when the provider
+        # response was shared within this build.
+        return deepcopy(self._entries[key])
 
 
 def clean(value: Any) -> str:
@@ -212,6 +241,7 @@ def team_profile(
     team_blob: dict,
     *,
     game_log_cache: PitcherGameLogCache | None = None,
+    team_profile_cache: TeamProfileCache | None = None,
 ) -> dict:
     team = team_blob.get(
         "team",
@@ -221,6 +251,27 @@ def team_profile(
     name = team.get("name")
     team_id = team.get("id")
 
+    def fetch_context() -> dict[str, Any]:
+        return {
+            "offense": fetch_team_batting_stats(
+                team_id
+            ),
+            "bullpen": fetch_bullpen_profile(
+                team_id,
+                name,
+                game_log_cache=game_log_cache,
+            ),
+        }
+
+    context = (
+        team_profile_cache.get_or_fetch(
+            team_id,
+            fetcher=fetch_context,
+        )
+        if team_profile_cache is not None and team_id
+        else fetch_context()
+    )
+
     return {
         "id": team_id,
         "name": name,
@@ -229,16 +280,8 @@ def team_profile(
         ),
         "record": None,
         "form": None,
-        "offense": (
-            fetch_team_batting_stats(
-                team_id
-            )
-        ),
-        "bullpen": fetch_bullpen_profile(
-            team_id,
-            name,
-            game_log_cache=game_log_cache,
-        ),
+        "offense": context["offense"],
+        "bullpen": context["bullpen"],
     }
 
 
@@ -1004,6 +1047,7 @@ def build_mlb_card(
 
     games: list[dict] = []
     game_log_cache = PitcherGameLogCache()
+    team_profile_cache = TeamProfileCache()
 
     for raw in raw_games:
         teams = raw.get(
@@ -1024,11 +1068,13 @@ def build_mlb_card(
         away_profile = team_profile(
             away_blob,
             game_log_cache=game_log_cache,
+            team_profile_cache=team_profile_cache,
         )
 
         home_profile = team_profile(
             home_blob,
             game_log_cache=game_log_cache,
+            team_profile_cache=team_profile_cache,
         )
 
         away = away_profile.get(

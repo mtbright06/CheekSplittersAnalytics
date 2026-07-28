@@ -195,6 +195,13 @@ def pitcher_evidence(
         source_quality="COMPLETE",
         game_log_status="AVAILABLE",
     )
+    availability_evidence = build_availability_evidence(
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+        limited_history=workload["limited_history"],
+        workload_assessment=workload_assessment,
+        role_evidence=role_evidence,
+    )
     season_starts = sum(
         to_int(appearance.get("stat", {}).get("gamesStarted")) or 0
         for appearance in appearances
@@ -266,6 +273,7 @@ def pitcher_evidence(
         "limited_history": workload["limited_history"],
         "role_evidence": role_evidence,
         "workload_assessment": workload_assessment,
+        "availability_evidence": availability_evidence,
         "inclusion_status": (
             "INCLUDED" if included else "EXCLUDED"
         ),
@@ -289,6 +297,12 @@ def unavailable_pitcher_evidence(
     pitcher: dict[str, Any],
 ) -> dict[str, Any]:
     workload = unavailable_workload_facts()
+    role_evidence = unavailable_role_evidence()
+    workload_assessment = build_workload_assessment(
+        workload,
+        source_quality="UNAVAILABLE",
+        game_log_status="FAILED",
+    )
     return {
         "pitcher_id": pitcher.get("player_id"),
         "pitcher_name": pitcher.get("player_name"),
@@ -314,11 +328,14 @@ def unavailable_pitcher_evidence(
         ],
         "consecutive_days_used": workload["consecutive_days_used"],
         "limited_history": workload["limited_history"],
-        "role_evidence": unavailable_role_evidence(),
-        "workload_assessment": build_workload_assessment(
-            workload,
+        "role_evidence": role_evidence,
+        "workload_assessment": workload_assessment,
+        "availability_evidence": build_availability_evidence(
             source_quality="UNAVAILABLE",
             game_log_status="FAILED",
+            limited_history=workload["limited_history"],
+            workload_assessment=workload_assessment,
+            role_evidence=role_evidence,
         ),
         "inclusion_status": "EXCLUDED",
         "exclusion_reason": "game_log_unavailable",
@@ -332,6 +349,12 @@ def empty_pitcher_evidence(
 ) -> dict[str, Any]:
     """Keep successful-but-empty game logs distinct from zero workload."""
     workload = empty_workload_facts()
+    role_evidence = unavailable_role_evidence()
+    workload_assessment = build_workload_assessment(
+        workload,
+        source_quality="COMPLETE",
+        game_log_status="EMPTY",
+    )
     return {
         "pitcher_id": pitcher.get("player_id"),
         "pitcher_name": pitcher.get("player_name"),
@@ -357,11 +380,14 @@ def empty_pitcher_evidence(
         ],
         "consecutive_days_used": workload["consecutive_days_used"],
         "limited_history": workload["limited_history"],
-        "role_evidence": unavailable_role_evidence(),
-        "workload_assessment": build_workload_assessment(
-            workload,
+        "role_evidence": role_evidence,
+        "workload_assessment": workload_assessment,
+        "availability_evidence": build_availability_evidence(
             source_quality="COMPLETE",
             game_log_status="EMPTY",
+            limited_history=workload["limited_history"],
+            workload_assessment=workload_assessment,
+            role_evidence=role_evidence,
         ),
         "inclusion_status": "EXCLUDED",
         "exclusion_reason": "no_game_log_appearances",
@@ -549,6 +575,167 @@ def build_workload_assessment(
             assessment_quality=assessment_quality,
         ),
     }
+
+
+def build_availability_evidence(
+    *,
+    source_quality: str | None,
+    game_log_status: str | None,
+    limited_history: bool | None,
+    workload_assessment: dict[str, Any] | None,
+    role_evidence: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Summarize workload evidence without predicting pitcher availability."""
+    assessment_quality = availability_source_quality(
+        source_quality,
+        game_log_status,
+        limited_history,
+        workload_assessment,
+    )
+    overall_workload = (
+        workload_assessment.get("overall_workload")
+        if isinstance(workload_assessment, dict)
+        else None
+    )
+
+    if availability_evidence_is_unknown(
+        source_quality=source_quality,
+        game_log_status=game_log_status,
+        limited_history=limited_history,
+        assessment_quality=assessment_quality,
+        overall_workload=overall_workload,
+    ):
+        return {
+            "status": "UNKNOWN",
+            "confidence": "LOW",
+            "source_quality": assessment_quality,
+            "reasons": availability_unknown_reasons(
+                source_quality=source_quality,
+                game_log_status=game_log_status,
+                limited_history=limited_history,
+                workload_assessment=workload_assessment,
+            ),
+        }
+
+    if overall_workload in {"MODERATE", "HEAVY"}:
+        return {
+            "status": "OBSERVED_WORKLOAD_CONCERN",
+            "confidence": "HIGH",
+            "source_quality": assessment_quality,
+            "reasons": availability_concern_reasons(
+                workload_assessment,
+                role_evidence,
+            ),
+        }
+
+    return {
+        "status": "NO_OBSERVED_CONCERN",
+        "confidence": "HIGH",
+        "source_quality": assessment_quality,
+        "reasons": availability_no_concern_reasons(workload_assessment),
+    }
+
+
+def availability_source_quality(
+    source_quality: str | None,
+    game_log_status: str | None,
+    limited_history: bool | None,
+    workload_assessment: dict[str, Any] | None,
+) -> str:
+    if (
+        source_quality is None
+        or source_quality == "UNAVAILABLE"
+        or game_log_status == "FAILED"
+    ):
+        return "UNAVAILABLE"
+    if game_log_status == "EMPTY":
+        return "EMPTY"
+    if limited_history or source_quality == "PARTIAL":
+        return "PARTIAL"
+    if not isinstance(workload_assessment, dict):
+        return "UNAVAILABLE"
+    return workload_assessment.get("source_quality") or "UNAVAILABLE"
+
+
+def availability_evidence_is_unknown(
+    *,
+    source_quality: str | None,
+    game_log_status: str | None,
+    limited_history: bool | None,
+    assessment_quality: str,
+    overall_workload: str | None,
+) -> bool:
+    return (
+        source_quality in {None, "UNAVAILABLE", "PARTIAL"}
+        or game_log_status in {None, "FAILED", "EMPTY"}
+        or limited_history is True
+        or assessment_quality != "COMPLETE"
+        or overall_workload not in {"NONE", "LIGHT", "MODERATE", "HEAVY"}
+    )
+
+
+def availability_unknown_reasons(
+    *,
+    source_quality: str | None,
+    game_log_status: str | None,
+    limited_history: bool | None,
+    workload_assessment: dict[str, Any] | None,
+) -> list[str]:
+    if source_quality == "UNAVAILABLE" or game_log_status == "FAILED":
+        return ["pitcher game log unavailable"]
+    if game_log_status == "EMPTY":
+        return ["successful game log contains no appearances"]
+    if limited_history:
+        return ["limited observed relief history"]
+    if source_quality == "PARTIAL":
+        return ["partial pitcher evidence"]
+    if not isinstance(workload_assessment, dict):
+        return ["workload assessment unavailable"]
+    return ["workload assessment has incomplete provenance"]
+
+
+def availability_concern_reasons(
+    workload_assessment: dict[str, Any],
+    role_evidence: dict[str, Any] | None,
+) -> list[str]:
+    overall_workload = workload_assessment["overall_workload"].lower()
+    reasons = [f"{overall_workload.title()} workload assessment"]
+    reasons.extend(workload_assessment.get("reasons", []))
+
+    role = primary_role_candidate(role_evidence)
+    if role:
+        reasons.append(
+            f"{role.replace('_', ' ').title()} candidate with {overall_workload} recent workload"
+        )
+    return reasons
+
+
+def availability_no_concern_reasons(
+    workload_assessment: dict[str, Any],
+) -> list[str]:
+    overall_workload = workload_assessment["overall_workload"]
+    reasons = [
+        (
+            "no observed workload"
+            if overall_workload == "NONE"
+            else "light workload assessment"
+        )
+    ]
+    reasons.extend(workload_assessment.get("reasons", []))
+    reasons.append("no elevated workload buckets observed")
+    return reasons
+
+
+def primary_role_candidate(
+    role_evidence: dict[str, Any] | None,
+) -> str | None:
+    if not isinstance(role_evidence, dict):
+        return None
+    candidates = role_evidence.get("candidate_roles")
+    if not isinstance(candidates, list) or not candidates:
+        return None
+    role = candidates[0].get("role") if isinstance(candidates[0], dict) else None
+    return role if isinstance(role, str) else None
 
 
 def workload_assessment_source_quality(

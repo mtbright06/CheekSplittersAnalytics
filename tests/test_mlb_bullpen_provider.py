@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from engine.mlb.bullpen.provider import (
     build_bullpen_snapshot,
+    build_availability_evidence,
     build_role_evidence,
     build_workload_assessment,
     classify_reliever_appearances,
@@ -217,6 +218,12 @@ def test_bullpen_evidence_ledger_preserves_evaluated_pitcher_facts():
                 "limited observed relief history",
             ],
         },
+        "availability_evidence": {
+            "status": "UNKNOWN",
+            "confidence": "LOW",
+            "source_quality": "PARTIAL",
+            "reasons": ["limited observed relief history"],
+        },
         "inclusion_status": "INCLUDED",
         "exclusion_reason": None,
         "source_quality": "COMPLETE",
@@ -256,6 +263,12 @@ def test_bullpen_evidence_ledger_preserves_evaluated_pitcher_facts():
             "limited observed relief history",
         ],
     }
+    assert mixed_entry["availability_evidence"] == {
+        "status": "UNKNOWN",
+        "confidence": "LOW",
+        "source_quality": "PARTIAL",
+        "reasons": ["limited observed relief history"],
+    }
     assert failed_entry["inclusion_status"] == "EXCLUDED"
     assert failed_entry["exclusion_reason"] == "game_log_unavailable"
     assert failed_entry["game_log_status"] == "FAILED"
@@ -264,6 +277,12 @@ def test_bullpen_evidence_ledger_preserves_evaluated_pitcher_facts():
     assert failed_entry["included_relief_appearances"] is None
     assert failed_entry["workload_assessment"]["overall_workload"] == "UNKNOWN"
     assert failed_entry["workload_assessment"]["source_quality"] == "UNAVAILABLE"
+    assert failed_entry["availability_evidence"] == {
+        "status": "UNKNOWN",
+        "confidence": "LOW",
+        "source_quality": "UNAVAILABLE",
+        "reasons": ["pitcher game log unavailable"],
+    }
 
 
 def test_observed_relief_workload_uses_calendar_windows_and_outs():
@@ -358,6 +377,12 @@ def test_empty_and_failed_game_logs_remain_distinguishable_in_ledger():
             "successful game log contains no appearances",
         ],
     }
+    assert empty_entry["availability_evidence"] == {
+        "status": "UNKNOWN",
+        "confidence": "LOW",
+        "source_quality": "EMPTY",
+        "reasons": ["successful game log contains no appearances"],
+    }
     assert failed_entry["game_log_status"] == "FAILED"
     assert failed_entry["source_quality"] == "UNAVAILABLE"
     assert failed_entry["appearances_last3"] is None
@@ -372,6 +397,135 @@ def test_empty_and_failed_game_logs_remain_distinguishable_in_ledger():
         "source_quality": "UNAVAILABLE",
         "reasons": ["pitcher game log unavailable"],
     }
+    assert failed_entry["availability_evidence"] == {
+        "status": "UNKNOWN",
+        "confidence": "LOW",
+        "source_quality": "UNAVAILABLE",
+        "reasons": ["pitcher game log unavailable"],
+    }
+
+
+def test_availability_evidence_uses_only_workload_and_provenance():
+    complete_workload = {
+        "overall_workload": "NONE",
+        "source_quality": "COMPLETE",
+        "reasons": [],
+    }
+    light_workload = {
+        "overall_workload": "LIGHT",
+        "source_quality": "COMPLETE",
+        "reasons": ["1 appearance in the last 3 calendar days"],
+    }
+    moderate_workload = {
+        "overall_workload": "MODERATE",
+        "source_quality": "COMPLETE",
+        "reasons": ["2 appearances in the last 3 calendar days"],
+    }
+    heavy_workload = {
+        "overall_workload": "HEAVY",
+        "source_quality": "COMPLETE",
+        "reasons": ["3 consecutive usage dates"],
+    }
+    closer_evidence = {
+        "candidate_roles": [{"role": "CLOSER", "confidence": "HIGH"}],
+    }
+
+    no_concern = build_availability_evidence(
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+        limited_history=False,
+        workload_assessment=complete_workload,
+        role_evidence={"candidate_roles": []},
+    )
+    light = build_availability_evidence(
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+        limited_history=False,
+        workload_assessment=light_workload,
+        role_evidence={"candidate_roles": []},
+    )
+    moderate = build_availability_evidence(
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+        limited_history=False,
+        workload_assessment=moderate_workload,
+        role_evidence={"candidate_roles": []},
+    )
+    heavy = build_availability_evidence(
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+        limited_history=False,
+        workload_assessment=heavy_workload,
+        role_evidence=closer_evidence,
+    )
+
+    assert no_concern == {
+        "status": "NO_OBSERVED_CONCERN",
+        "confidence": "HIGH",
+        "source_quality": "COMPLETE",
+        "reasons": [
+            "no observed workload",
+            "no elevated workload buckets observed",
+        ],
+    }
+    assert light["status"] == "NO_OBSERVED_CONCERN"
+    assert light["confidence"] == "HIGH"
+    assert moderate["status"] == "OBSERVED_WORKLOAD_CONCERN"
+    assert moderate["confidence"] == "HIGH"
+    assert heavy["status"] == "OBSERVED_WORKLOAD_CONCERN"
+    assert heavy["reasons"] == [
+        "Heavy workload assessment",
+        "3 consecutive usage dates",
+        "Closer candidate with heavy recent workload",
+    ]
+
+
+def test_availability_evidence_prefers_unknown_for_incomplete_provenance():
+    complete_workload = {
+        "overall_workload": "HEAVY",
+        "source_quality": "COMPLETE",
+        "reasons": ["heavy observed workload"],
+    }
+
+    limited = build_availability_evidence(
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+        limited_history=True,
+        workload_assessment=complete_workload,
+        role_evidence={"candidate_roles": []},
+    )
+    partial = build_availability_evidence(
+        source_quality="PARTIAL",
+        game_log_status="AVAILABLE",
+        limited_history=False,
+        workload_assessment=complete_workload,
+        role_evidence={"candidate_roles": []},
+    )
+    failed = build_availability_evidence(
+        source_quality="UNAVAILABLE",
+        game_log_status="FAILED",
+        limited_history=None,
+        workload_assessment=None,
+        role_evidence=None,
+    )
+    unknown_provenance = build_availability_evidence(
+        source_quality=None,
+        game_log_status="AVAILABLE",
+        limited_history=False,
+        workload_assessment=complete_workload,
+        role_evidence={"candidate_roles": []},
+    )
+
+    assert limited["status"] == "UNKNOWN"
+    assert limited["confidence"] == "LOW"
+    assert limited["reasons"] == ["limited observed relief history"]
+    assert partial["status"] == "UNKNOWN"
+    assert partial["source_quality"] == "PARTIAL"
+    assert partial["reasons"] == ["partial pitcher evidence"]
+    assert failed["status"] == "UNKNOWN"
+    assert failed["source_quality"] == "UNAVAILABLE"
+    assert unknown_provenance["status"] == "UNKNOWN"
+    assert unknown_provenance["source_quality"] == "UNAVAILABLE"
 
 
 def test_workload_assessment_uses_deterministic_descriptive_buckets():

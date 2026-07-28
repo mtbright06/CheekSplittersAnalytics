@@ -94,6 +94,15 @@ game-log facts, preserves unknown and empty states, applies to excluded
 mixed-role pitchers, and does not infer availability or affect bullpen
 aggregation, scoring, totals, confidence, or recommendations.
 
+**Sprint 59 — Conservative Availability Evidence:** implemented and awaiting
+review. The ledger now adds `availability_evidence`, derived only from
+provenance, `workload_assessment`, and role evidence. Its only statuses are
+`UNKNOWN`, `NO_OBSERVED_CONCERN`, and `OBSERVED_WORKLOAD_CONCERN`; none
+predict a pitcher will appear. Incomplete, empty, failed, or limited-history
+evidence remains `UNKNOWN`. Role candidates add explanatory context only, and
+the new object remains unused by aggregation, scoring, totals, confidence, and
+recommendations.
+
 The MLB full slate presents projected-winner ranking separately from betting
 value. Its compact cards display the canonical conviction and market-value
 badges; diagnostics, including Hammer and Market vs Model, remain inside

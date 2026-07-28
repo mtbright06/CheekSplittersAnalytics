@@ -4,6 +4,7 @@ from unittest.mock import patch
 from engine.mlb.bullpen.provider import (
     build_bullpen_snapshot,
     build_role_evidence,
+    build_workload_assessment,
     classify_reliever_appearances,
     fetch_bullpen_profile,
     observed_relief_workload,
@@ -201,6 +202,21 @@ def test_bullpen_evidence_ledger_preserves_evaluated_pitcher_facts():
                 }
             ],
         },
+        "workload_assessment": {
+            "rest_bucket": "SAME_DAY",
+            "consecutive_usage_bucket": "NONE",
+            "appearance_volume": "MODERATE",
+            "innings_volume": "MODERATE",
+            "multi_inning_load": "PRESENT",
+            "overall_workload": "HEAVY",
+            "source_quality": "PARTIAL",
+            "reasons": [
+                "2 appearances in the last 3 calendar days",
+                "3.0 observed relief innings in the last 3 calendar days",
+                "1 multi-inning relief appearances in the last 5 calendar days",
+                "limited observed relief history",
+            ],
+        },
         "inclusion_status": "INCLUDED",
         "exclusion_reason": None,
         "source_quality": "COMPLETE",
@@ -226,12 +242,28 @@ def test_bullpen_evidence_ledger_preserves_evaluated_pitcher_facts():
             ],
         }
     ]
+    assert mixed_entry["workload_assessment"] == {
+        "rest_bucket": "ONE_DAY",
+        "consecutive_usage_bucket": "NONE",
+        "appearance_volume": "LIGHT",
+        "innings_volume": "LIGHT",
+        "multi_inning_load": "NONE",
+        "overall_workload": "UNKNOWN",
+        "source_quality": "PARTIAL",
+        "reasons": [
+            "1 appearance in the last 3 calendar days",
+            "1.0 observed relief innings in the last 3 calendar days",
+            "limited observed relief history",
+        ],
+    }
     assert failed_entry["inclusion_status"] == "EXCLUDED"
     assert failed_entry["exclusion_reason"] == "game_log_unavailable"
     assert failed_entry["game_log_status"] == "FAILED"
     assert failed_entry["relief_appearances"] is None
     assert failed_entry["observed_relief_appearances"] is None
     assert failed_entry["included_relief_appearances"] is None
+    assert failed_entry["workload_assessment"]["overall_workload"] == "UNKNOWN"
+    assert failed_entry["workload_assessment"]["source_quality"] == "UNAVAILABLE"
 
 
 def test_observed_relief_workload_uses_calendar_windows_and_outs():
@@ -313,10 +345,163 @@ def test_empty_and_failed_game_logs_remain_distinguishable_in_ledger():
     assert empty_entry["source_quality"] == "COMPLETE"
     assert empty_entry["appearances_last3"] is None
     assert empty_entry["limited_history"] is True
+    assert empty_entry["workload_assessment"] == {
+        "rest_bucket": "NO_DATED_APPEARANCE",
+        "consecutive_usage_bucket": "NONE",
+        "appearance_volume": "NONE",
+        "innings_volume": "NONE",
+        "multi_inning_load": "NONE",
+        "overall_workload": "NONE",
+        "source_quality": "EMPTY",
+        "reasons": [
+            "no dated observed relief appearance",
+            "successful game log contains no appearances",
+        ],
+    }
     assert failed_entry["game_log_status"] == "FAILED"
     assert failed_entry["source_quality"] == "UNAVAILABLE"
     assert failed_entry["appearances_last3"] is None
     assert failed_entry["limited_history"] is None
+    assert failed_entry["workload_assessment"] == {
+        "rest_bucket": "UNKNOWN",
+        "consecutive_usage_bucket": "UNKNOWN",
+        "appearance_volume": "UNKNOWN",
+        "innings_volume": "UNKNOWN",
+        "multi_inning_load": "UNKNOWN",
+        "overall_workload": "UNKNOWN",
+        "source_quality": "UNAVAILABLE",
+        "reasons": ["pitcher game log unavailable"],
+    }
+
+
+def test_workload_assessment_uses_deterministic_descriptive_buckets():
+    base = {
+        "days_since_last_appearance": 3,
+        "consecutive_days_used": 0,
+        "appearances_last3": 0,
+        "appearances_last5": 0,
+        "innings_last3": 0.0,
+        "innings_last5": 0.0,
+        "multi_inning_appearances_last5": 0,
+        "limited_history": False,
+    }
+
+    no_recent = build_workload_assessment(
+        base,
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+    )
+    one_appearance = build_workload_assessment(
+        {
+            **base,
+            "days_since_last_appearance": 1,
+            "appearances_last3": 1,
+            "appearances_last5": 1,
+            "innings_last3": 1.0,
+            "innings_last5": 1.0,
+        },
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+    )
+    back_to_back = build_workload_assessment(
+        {
+            **base,
+            "days_since_last_appearance": 0,
+            "consecutive_days_used": 2,
+            "appearances_last3": 2,
+            "appearances_last5": 2,
+            "innings_last3": 1.0,
+            "innings_last5": 1.0,
+        },
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+    )
+    three_days = build_workload_assessment(
+        {
+            **base,
+            "days_since_last_appearance": 0,
+            "consecutive_days_used": 3,
+            "appearances_last3": 3,
+            "appearances_last5": 3,
+            "innings_last3": 2.0,
+            "innings_last5": 2.0,
+        },
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+    )
+    four_days = build_workload_assessment(
+        {
+            **base,
+            "days_since_last_appearance": 0,
+            "consecutive_days_used": 4,
+            "appearances_last3": 2,
+            "appearances_last5": 4,
+            "innings_last3": 1.0,
+            "innings_last5": 2.0,
+        },
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+    )
+    heavy_innings = build_workload_assessment(
+        {
+            **base,
+            "days_since_last_appearance": 0,
+            "appearances_last3": 1,
+            "appearances_last5": 2,
+            "innings_last3": 4.0,
+            "innings_last5": 4.0,
+        },
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+    )
+    repeated_multi_inning = build_workload_assessment(
+        {
+            **base,
+            "days_since_last_appearance": 0,
+            "appearances_last3": 2,
+            "appearances_last5": 2,
+            "innings_last3": 2.0,
+            "innings_last5": 2.0,
+            "multi_inning_appearances_last5": 2,
+        },
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+    )
+
+    assert no_recent["rest_bucket"] == "THREE_PLUS_DAYS"
+    assert no_recent["overall_workload"] == "NONE"
+    assert one_appearance["overall_workload"] == "LIGHT"
+    assert back_to_back["consecutive_usage_bucket"] == "TWO_DAYS"
+    assert back_to_back["overall_workload"] == "MODERATE"
+    assert three_days["consecutive_usage_bucket"] == "THREE_DAYS"
+    assert three_days["overall_workload"] == "HEAVY"
+    assert four_days["consecutive_usage_bucket"] == "FOUR_PLUS_DAYS"
+    assert four_days["overall_workload"] == "HEAVY"
+    assert heavy_innings["innings_volume"] == "HEAVY"
+    assert heavy_innings["overall_workload"] == "HEAVY"
+    assert repeated_multi_inning["multi_inning_load"] == "REPEATED"
+    assert repeated_multi_inning["overall_workload"] == "HEAVY"
+
+
+def test_workload_assessment_preserves_partial_history_as_unknown_without_evidence():
+    assessment = build_workload_assessment(
+        {
+            "days_since_last_appearance": None,
+            "consecutive_days_used": None,
+            "appearances_last3": None,
+            "appearances_last5": None,
+            "innings_last3": None,
+            "innings_last5": None,
+            "multi_inning_appearances_last5": None,
+            "limited_history": True,
+        },
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+    )
+
+    assert assessment["source_quality"] == "PARTIAL"
+    assert assessment["overall_workload"] == "UNKNOWN"
+    assert assessment["rest_bucket"] == "NO_DATED_APPEARANCE"
 
 
 def test_role_evidence_candidates_use_only_observed_game_log_facts():

@@ -190,6 +190,11 @@ def pitcher_evidence(
         observed_relief_appearances,
         as_of=as_of,
     )
+    workload_assessment = build_workload_assessment(
+        workload,
+        source_quality="COMPLETE",
+        game_log_status="AVAILABLE",
+    )
     season_starts = sum(
         to_int(appearance.get("stat", {}).get("gamesStarted")) or 0
         for appearance in appearances
@@ -260,6 +265,7 @@ def pitcher_evidence(
         ],
         "limited_history": workload["limited_history"],
         "role_evidence": role_evidence,
+        "workload_assessment": workload_assessment,
         "inclusion_status": (
             "INCLUDED" if included else "EXCLUDED"
         ),
@@ -282,6 +288,7 @@ def pitcher_evidence(
 def unavailable_pitcher_evidence(
     pitcher: dict[str, Any],
 ) -> dict[str, Any]:
+    workload = unavailable_workload_facts()
     return {
         "pitcher_id": pitcher.get("player_id"),
         "pitcher_name": pitcher.get("player_name"),
@@ -293,17 +300,26 @@ def unavailable_pitcher_evidence(
         "last_appearance_date": None,
         "appearances_last3": None,
         "innings_last3": None,
-        "observed_last_appearance_date": None,
-        "observed_appearances_last3": None,
-        "observed_innings_last3": None,
-        "appearances_last5": None,
-        "innings_last5": None,
-        "multi_inning_appearances_last5": None,
-        "days_since_last_appearance": None,
-        "appeared_on_consecutive_days": None,
-        "consecutive_days_used": None,
-        "limited_history": None,
+        "observed_last_appearance_date": workload["last_appearance_date"],
+        "observed_appearances_last3": workload["appearances_last3"],
+        "observed_innings_last3": workload["innings_last3"],
+        "appearances_last5": workload["appearances_last5"],
+        "innings_last5": workload["innings_last5"],
+        "multi_inning_appearances_last5": workload[
+            "multi_inning_appearances_last5"
+        ],
+        "days_since_last_appearance": workload["days_since_last_appearance"],
+        "appeared_on_consecutive_days": workload[
+            "appeared_on_consecutive_days"
+        ],
+        "consecutive_days_used": workload["consecutive_days_used"],
+        "limited_history": workload["limited_history"],
         "role_evidence": unavailable_role_evidence(),
+        "workload_assessment": build_workload_assessment(
+            workload,
+            source_quality="UNAVAILABLE",
+            game_log_status="FAILED",
+        ),
         "inclusion_status": "EXCLUDED",
         "exclusion_reason": "game_log_unavailable",
         "source_quality": "UNAVAILABLE",
@@ -315,6 +331,7 @@ def empty_pitcher_evidence(
     pitcher: dict[str, Any],
 ) -> dict[str, Any]:
     """Keep successful-but-empty game logs distinct from zero workload."""
+    workload = empty_workload_facts()
     return {
         "pitcher_id": pitcher.get("player_id"),
         "pitcher_name": pitcher.get("player_name"),
@@ -326,17 +343,26 @@ def empty_pitcher_evidence(
         "last_appearance_date": None,
         "appearances_last3": None,
         "innings_last3": None,
-        "observed_last_appearance_date": None,
-        "observed_appearances_last3": None,
-        "observed_innings_last3": None,
-        "appearances_last5": None,
-        "innings_last5": None,
-        "multi_inning_appearances_last5": None,
-        "days_since_last_appearance": None,
-        "appeared_on_consecutive_days": None,
-        "consecutive_days_used": None,
-        "limited_history": True,
+        "observed_last_appearance_date": workload["last_appearance_date"],
+        "observed_appearances_last3": workload["appearances_last3"],
+        "observed_innings_last3": workload["innings_last3"],
+        "appearances_last5": workload["appearances_last5"],
+        "innings_last5": workload["innings_last5"],
+        "multi_inning_appearances_last5": workload[
+            "multi_inning_appearances_last5"
+        ],
+        "days_since_last_appearance": workload["days_since_last_appearance"],
+        "appeared_on_consecutive_days": workload[
+            "appeared_on_consecutive_days"
+        ],
+        "consecutive_days_used": workload["consecutive_days_used"],
+        "limited_history": workload["limited_history"],
         "role_evidence": unavailable_role_evidence(),
+        "workload_assessment": build_workload_assessment(
+            workload,
+            source_quality="COMPLETE",
+            game_log_status="EMPTY",
+        ),
         "inclusion_status": "EXCLUDED",
         "exclusion_reason": "no_game_log_appearances",
         "source_quality": "COMPLETE",
@@ -369,18 +395,7 @@ def observed_relief_workload(
 ) -> dict[str, Any]:
     """Return factual recent workload for observed non-start outings only."""
     if game_log_empty:
-        return {
-            "last_appearance_date": None,
-            "appearances_last3": None,
-            "innings_last3": None,
-            "appearances_last5": None,
-            "innings_last5": None,
-            "multi_inning_appearances_last5": None,
-            "days_since_last_appearance": None,
-            "appeared_on_consecutive_days": None,
-            "consecutive_days_used": None,
-            "limited_history": True,
-        }
+        return empty_workload_facts()
 
     dated_appearances = [
         appearance
@@ -441,6 +456,306 @@ def observed_relief_workload(
             len(appearances) < 3 or not dated_appearances
         ),
     }
+
+
+def unavailable_workload_facts() -> dict[str, Any]:
+    return {
+        "last_appearance_date": None,
+        "appearances_last3": None,
+        "innings_last3": None,
+        "appearances_last5": None,
+        "innings_last5": None,
+        "multi_inning_appearances_last5": None,
+        "days_since_last_appearance": None,
+        "appeared_on_consecutive_days": None,
+        "consecutive_days_used": None,
+        "limited_history": None,
+    }
+
+
+def empty_workload_facts() -> dict[str, Any]:
+    facts = unavailable_workload_facts()
+    facts["limited_history"] = True
+    return facts
+
+
+def build_workload_assessment(
+    workload: dict[str, Any],
+    *,
+    source_quality: str,
+    game_log_status: str,
+) -> dict[str, Any]:
+    """Describe observed workload without inferring pitcher availability.
+
+    Thresholds are descriptive only: appearances are HEAVY at 3 in three days
+    or 4 in five days; innings are HEAVY at 4.0 in three days or 5.0 in five.
+    MODERATE begins at 2 appearances / 2.0 innings in three days or 3
+    appearances / 3.0 innings in five days. Any lower observed activity is
+    LIGHT.
+    """
+    assessment_quality = workload_assessment_source_quality(
+        source_quality,
+        game_log_status,
+        workload.get("limited_history"),
+    )
+    unavailable = assessment_quality == "UNAVAILABLE"
+    empty = assessment_quality == "EMPTY"
+
+    rest_bucket = rest_bucket_for_workload(
+        workload.get("days_since_last_appearance"),
+        unavailable=unavailable,
+    )
+    consecutive_usage_bucket = consecutive_usage_bucket_for_workload(
+        workload.get("consecutive_days_used"),
+        unavailable=unavailable,
+        empty=empty,
+    )
+    appearance_volume = appearance_volume_for_workload(
+        workload.get("appearances_last3"),
+        workload.get("appearances_last5"),
+        unavailable=unavailable,
+        empty=empty,
+    )
+    innings_volume = innings_volume_for_workload(
+        workload.get("innings_last3"),
+        workload.get("innings_last5"),
+        unavailable=unavailable,
+        empty=empty,
+    )
+    multi_inning_load = multi_inning_load_for_workload(
+        workload.get("multi_inning_appearances_last5"),
+        unavailable=unavailable,
+        empty=empty,
+    )
+    overall_workload = overall_workload_for_assessment(
+        appearance_volume=appearance_volume,
+        innings_volume=innings_volume,
+        consecutive_usage_bucket=consecutive_usage_bucket,
+        multi_inning_load=multi_inning_load,
+        assessment_quality=assessment_quality,
+    )
+
+    return {
+        "rest_bucket": rest_bucket,
+        "consecutive_usage_bucket": consecutive_usage_bucket,
+        "appearance_volume": appearance_volume,
+        "innings_volume": innings_volume,
+        "multi_inning_load": multi_inning_load,
+        "overall_workload": overall_workload,
+        "source_quality": assessment_quality,
+        "reasons": workload_assessment_reasons(
+            workload,
+            rest_bucket=rest_bucket,
+            assessment_quality=assessment_quality,
+        ),
+    }
+
+
+def workload_assessment_source_quality(
+    source_quality: str,
+    game_log_status: str,
+    limited_history: bool | None,
+) -> str:
+    if source_quality == "UNAVAILABLE" or game_log_status == "FAILED":
+        return "UNAVAILABLE"
+    if game_log_status == "EMPTY":
+        return "EMPTY"
+    if source_quality == "PARTIAL" or limited_history:
+        return "PARTIAL"
+    return "COMPLETE"
+
+
+def rest_bucket_for_workload(
+    days_since_last_appearance: int | None,
+    *,
+    unavailable: bool,
+) -> str:
+    if unavailable:
+        return "UNKNOWN"
+    if days_since_last_appearance is None:
+        return "NO_DATED_APPEARANCE"
+    if days_since_last_appearance <= 0:
+        return "SAME_DAY"
+    if days_since_last_appearance == 1:
+        return "ONE_DAY"
+    if days_since_last_appearance == 2:
+        return "TWO_DAYS"
+    return "THREE_PLUS_DAYS"
+
+
+def consecutive_usage_bucket_for_workload(
+    consecutive_days_used: int | None,
+    *,
+    unavailable: bool,
+    empty: bool,
+) -> str:
+    if unavailable:
+        return "UNKNOWN"
+    if empty:
+        return "NONE"
+    if consecutive_days_used is None:
+        return "UNKNOWN"
+    if consecutive_days_used <= 1:
+        return "NONE"
+    if consecutive_days_used == 2:
+        return "TWO_DAYS"
+    if consecutive_days_used == 3:
+        return "THREE_DAYS"
+    return "FOUR_PLUS_DAYS"
+
+
+def appearance_volume_for_workload(
+    appearances_last3: int | None,
+    appearances_last5: int | None,
+    *,
+    unavailable: bool,
+    empty: bool,
+) -> str:
+    if unavailable:
+        return "UNKNOWN"
+    if empty:
+        return "NONE"
+    if appearances_last3 is None or appearances_last5 is None:
+        return "UNKNOWN"
+    if appearances_last3 >= 3 or appearances_last5 >= 4:
+        return "HEAVY"
+    if appearances_last3 >= 2 or appearances_last5 >= 3:
+        return "MODERATE"
+    if appearances_last3 > 0 or appearances_last5 > 0:
+        return "LIGHT"
+    return "NONE"
+
+
+def innings_volume_for_workload(
+    innings_last3: float | None,
+    innings_last5: float | None,
+    *,
+    unavailable: bool,
+    empty: bool,
+) -> str:
+    if unavailable:
+        return "UNKNOWN"
+    if empty:
+        return "NONE"
+    if innings_last3 is None or innings_last5 is None:
+        return "UNKNOWN"
+    if innings_last3 >= 4.0 or innings_last5 >= 5.0:
+        return "HEAVY"
+    if innings_last3 >= 2.0 or innings_last5 >= 3.0:
+        return "MODERATE"
+    if innings_last3 > 0 or innings_last5 > 0:
+        return "LIGHT"
+    return "NONE"
+
+
+def multi_inning_load_for_workload(
+    multi_inning_appearances_last5: int | None,
+    *,
+    unavailable: bool,
+    empty: bool,
+) -> str:
+    if unavailable:
+        return "UNKNOWN"
+    if empty:
+        return "NONE"
+    if multi_inning_appearances_last5 is None:
+        return "UNKNOWN"
+    if multi_inning_appearances_last5 >= 2:
+        return "REPEATED"
+    if multi_inning_appearances_last5 == 1:
+        return "PRESENT"
+    return "NONE"
+
+
+def overall_workload_for_assessment(
+    *,
+    appearance_volume: str,
+    innings_volume: str,
+    consecutive_usage_bucket: str,
+    multi_inning_load: str,
+    assessment_quality: str,
+) -> str:
+    if assessment_quality == "UNAVAILABLE":
+        return "UNKNOWN"
+
+    severe_components = (
+        appearance_volume == "HEAVY",
+        innings_volume == "HEAVY",
+        consecutive_usage_bucket == "FOUR_PLUS_DAYS",
+    )
+    elevated_components = sum(
+        (
+            appearance_volume in {"MODERATE", "HEAVY"},
+            innings_volume in {"MODERATE", "HEAVY"},
+            consecutive_usage_bucket in {"THREE_DAYS", "FOUR_PLUS_DAYS"},
+            multi_inning_load == "REPEATED",
+        )
+    )
+    light_components = (
+        appearance_volume == "LIGHT",
+        innings_volume == "LIGHT",
+        consecutive_usage_bucket == "TWO_DAYS",
+        multi_inning_load == "PRESENT",
+    )
+
+    if any(severe_components) or elevated_components >= 2:
+        return "HEAVY"
+    if elevated_components == 1:
+        return "MODERATE"
+    if assessment_quality == "PARTIAL":
+        return "UNKNOWN"
+    if any(light_components):
+        return "LIGHT"
+    return "NONE"
+
+
+def workload_assessment_reasons(
+    workload: dict[str, Any],
+    *,
+    rest_bucket: str,
+    assessment_quality: str,
+) -> list[str]:
+    reasons = []
+    appearances_last3 = workload.get("appearances_last3")
+    appearances_last5 = workload.get("appearances_last5")
+    innings_last3 = workload.get("innings_last3")
+    innings_last5 = workload.get("innings_last5")
+    consecutive_days_used = workload.get("consecutive_days_used")
+    multi_inning_appearances_last5 = workload.get(
+        "multi_inning_appearances_last5"
+    )
+
+    if appearances_last3:
+        reasons.append(
+            f"{appearances_last3} {'appearance' if appearances_last3 == 1 else 'appearances'} in the last 3 calendar days"
+        )
+    if appearances_last5 and appearances_last5 != appearances_last3:
+        reasons.append(
+            f"{appearances_last5} {'appearance' if appearances_last5 == 1 else 'appearances'} in the last 5 calendar days"
+        )
+    if innings_last3:
+        reasons.append(
+            f"{innings_last3:.1f} observed relief innings in the last 3 calendar days"
+        )
+    if innings_last5 and innings_last5 != innings_last3:
+        reasons.append(
+            f"{innings_last5:.1f} observed relief innings in the last 5 calendar days"
+        )
+    if consecutive_days_used and consecutive_days_used >= 2:
+        reasons.append(f"{consecutive_days_used} consecutive usage dates")
+    if multi_inning_appearances_last5:
+        reasons.append(
+            f"{multi_inning_appearances_last5} multi-inning relief appearances in the last 5 calendar days"
+        )
+    if rest_bucket == "NO_DATED_APPEARANCE":
+        reasons.append("no dated observed relief appearance")
+    if assessment_quality == "EMPTY":
+        reasons.append("successful game log contains no appearances")
+    elif assessment_quality == "PARTIAL":
+        reasons.append("limited observed relief history")
+    elif assessment_quality == "UNAVAILABLE":
+        reasons.append("pitcher game log unavailable")
+    return reasons
 
 
 def innings_from_appearances(

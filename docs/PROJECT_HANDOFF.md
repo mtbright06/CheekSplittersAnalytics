@@ -85,6 +85,15 @@ outs-based multi-inning or short-start-plus-relief patterns. These confidence
 labels measure observed evidence strength, not a definitive role or
 availability, and remain unused by all models.
 
+**Sprint 59 — Bullpen Workload Assessment:** implemented and awaiting review.
+Each bullpen evidence-ledger entry now includes an additive,
+evidence-only `workload_assessment`: factual rest, consecutive-usage,
+appearance-volume, innings-volume, multi-inning, and overall workload buckets
+with short reasons and explicit source completeness. It uses only existing
+game-log facts, preserves unknown and empty states, applies to excluded
+mixed-role pitchers, and does not infer availability or affect bullpen
+aggregation, scoring, totals, confidence, or recommendations.
+
 The MLB full slate presents projected-winner ranking separately from betting
 value. Its compact cards display the canonical conviction and market-value
 badges; diagnostics, including Hammer and Market vs Model, remain inside

@@ -16,6 +16,11 @@ from app.services.game_result_ingestion_service import (
     GameResultIngestionService,
     GameResultInput,
 )
+from app.services.daily_persistence_service import (
+    DailyPersistenceError,
+    DailyPersistenceService,
+    DailyPersistenceSummary,
+)
 from app.services.prediction_snapshot_service import (
     PredictionIdentity,
     PredictionRunContext,
@@ -35,6 +40,9 @@ from app.services.prediction_snapshot_grading_service import (
 
 __all__ = [
     "GameInput",
+    "DailyPersistenceError",
+    "DailyPersistenceService",
+    "DailyPersistenceSummary",
     "GameResultIngestionError",
     "GameResultIngestionResult",
     "GameResultIngestionService",

@@ -11,8 +11,8 @@
 **Primary branch:** `feature/recommendation-history`
 **Environment:** Windows 11 / PowerShell / Python 3.13+
 **Current milestone:** Epic 1 â€” Model Correctness
-**Current work item:** Sprint 64 Recommendation Grading
-**Working tree:** Documentation updates pending review; do not commit or push
+**Current work item:** Sprint 65 Operational Persistence Wiring
+**Working tree:** Sprint 65 wiring and documentation updates pending review; do not commit or push
 **Sprint 62 status:** Completion pending review
 
 SharpStack is stable and actively developed. The platform already has a functioning MLB recommendation pipeline, Recommendation Registry, Play of the Day, structured explanations, dashboard, Discord reporting, recommendation history, and an Azure PostgreSQL persistence foundation.
@@ -156,14 +156,34 @@ grade identity: each snapshot/result revision has exactly one grade. A future
 grading-rule upgrade must migrate or recompute that canonical record rather
 than create parallel versioned grades.
 
+**Sprint 65 — Operational Persistence Wiring:** in progress. The standard
+`build.py` workflow now invokes `tools_persist_daily_history.py` after the
+canonical Registry is built and before downstream Explorer and Discord output.
+The command persists immutable Registry snapshots via the existing lifecycle
+service, normalizes recent MLB Stats API schedule results through
+`GameResultIngestionService`, then grades matching snapshots using stable MLB
+provider game IDs. It does not write directly to `game_results`, change model
+outputs, or alter Registry JSON. Azure is currently at Alembic revision
+`c0f6e12d9a41`; Sprint 62-64 tables are not present yet, so the migration must
+be reviewed and applied explicitly before the required persistence build step
+can succeed in production. The audit found three legacy `model_runs` and six
+legacy `recommendations`, but no activation events, active slots, game
+results, or immutable prediction grades. MLB totals now prefer the canonical
+MLB `game_id` when building Registry records; historical totals with an opaque
+odds-provider event ID remain an unmatched-data risk. KBO snapshots persist,
+but this sprint adds only the MLB result adapter; KBO result ingestion and
+grading remain a visible follow-up rather than being silently claimed as
+complete.
+
 The MLB full slate presents projected-winner ranking separately from betting
 value. Its compact cards display the canonical conviction and market-value
 badges; diagnostics, including Hammer and Market vs Model, remain inside
 SharpStack Intelligence. Best Bets retains Registry-owned ranking.
 
 **Approved next sequence:** Sprint 63 Results Ingestion records objective game
-truth only; Sprint 64 grades immutable snapshots; Sprint 65 measures model
-health; Sprint 66 records market observations; Sprint 67+ researches whether
+truth only; Sprint 64 grades immutable snapshots; Sprint 65 operationalizes
+their daily persistence flow; Sprint 66 measures model health; Sprint 67
+records market observations; Sprint 68+ researches whether
 line movement has independently demonstrated value. This order creates durable
 prediction memory, outcome truth, grading, evidence, and market history before
 any market-movement signal is considered. Provider reliability, Epic 2 model
@@ -203,7 +223,7 @@ The Sprint 54, Sprint 55, and Sprint 56 execution queue is complete. Do not
 select or implement new work without roadmap governance.
 
 Do not begin Sprint 63 until Sprint 62 is approved. After Sprint 62, follow the
-approved Sprint 63-67+ outcomes-and-learning sequence before returning to
+approved Sprint 63-68+ outcomes-and-learning sequence before returning to
 deferred provider, Epic 2, calibration, or future-sport work.
 
 ---
@@ -829,8 +849,9 @@ conviction from SSRP market value. Hammer is advisory only for MLB moneylines.
 
 Sprint 62 prediction persistence is awaiting review. Sprint 63 is limited to
 objective outcome truth, and Sprint 64 now evaluates those results against
-immutable snapshots. Sprint 65 Model Health, Sprint 66 Market Observation, and
-Sprint 67+ line-movement research remain next in order. Keep all-snapshot, final-active-call, published,
+immutable snapshots. Sprint 65 wires those services into the daily build;
+Sprint 66 Model Health, Sprint 67 Market Observation, and Sprint 68+
+line-movement research remain next in order. Keep all-snapshot, final-active-call, published,
 placed-wager, model-accuracy, and profit/ROI reporting distinct.
 
 Do not select a new sprint without roadmap governance. Use small targeted

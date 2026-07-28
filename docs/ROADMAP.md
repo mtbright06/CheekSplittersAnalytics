@@ -58,9 +58,11 @@ Completed:
 - SSRP v1, market freshness/provenance, and MLB conviction/market-value
   separation
 
-All defined Sprints 52-56 are complete. Sprint 62 is the current
-completion-pending persistence sprint. The approved next phase prioritizes
-objective outcomes and model learning before additional provider or model work.
+All defined Sprints 52-56 are complete. Sprints 62-64 established the local
+prediction-persistence, results, and grading architecture. Sprint 65 is the
+operational wiring step: apply the reviewed schema through the normal Azure
+release process, persist the daily Registry, ingest authoritative results, and
+grade eligible historical snapshots before beginning model-health reporting.
 
 ## Sprint 54: Pitcher Sample Stabilization
 
@@ -150,7 +152,19 @@ persisted prediction snapshot and a specific `GameResult` revision. It stores
 only derived evaluation status, grading version, and timestamps. The legacy
 wager-settlement table remains separate and is not a Sprint 64 input or output.
 
-## Sprint 65: Model Health
+## Sprint 65: Operational Persistence Wiring
+
+**Status:** In progress.
+
+Wire the existing immutable PredictionSnapshot, GameResult, and
+RecommendationGrade services into the standard daily build. Persist the
+completed Registry idempotently, ingest authoritative provider results through
+the ingestion service, and grade matching snapshots by stable provider game
+identity. This sprint does not add analytics, ROI, CLV, or model-health
+reporting. Azure migration application remains an explicit operational action,
+not an automated build side effect.
+
+## Sprint 66: Model Health
 
 Observe existing behavior through overall accuracy, recommendation-tier and
 confidence performance, probability calibration, Hammer and Market Value
@@ -160,7 +174,7 @@ final-active-call versus all-snapshot performance.
 Do not alter recommendation logic from early samples. Model changes require
 adequate sample size and documented evidence.
 
-## Sprint 66: Market Observation
+## Sprint 67: Market Observation
 
 Persist timestamped sportsbook and consensus observations by provider game,
 league, market, selection, sportsbook, price/line, SSRP where applicable,
@@ -170,14 +184,14 @@ available.
 Market movement is observational only in this sprint and must not change
 predictions or recommendations.
 
-## Sprint 67+: Line Movement and Market Validation Research
+## Sprint 68+: Line Movement and Market Validation Research
 
 Use SharpStack's own historical dataset to evaluate movement direction,
 magnitude, speed, timing, sportsbook leadership, disagreement, CLV, and
 interactions with confidence, Hammer, and Market Value. Do not assume line
 movement is useful; collect, measure, validate, then consider it as a signal.
 
-# Deferred Priorities After Sprint 67+
+# Deferred Priorities After Sprint 68+
 
 ## Sprint 57: Provider Reliability
 
@@ -204,7 +218,7 @@ more expensive.
 
 **Status:** Not started
 
-These enhancements remain planned after the approved Sprint 63-67+ sequence:
+These enhancements remain planned after the approved Sprint 63-68+ sequence:
 
 - Source Quality Confidence
 - Lineup-Aware Offense
@@ -213,14 +227,14 @@ These enhancements remain planned after the approved Sprint 63-67+ sequence:
 
 # Deferred Measurement Follow-On
 
-**Status:** Deferred behind Sprint 63-67+.
+**Status:** Deferred behind Sprint 63-68+.
 
 Measurement reports what has already happened. It does not alter model
 weights, probabilities, Hammer, thresholds, or recommendations.
 
 Priority deliverables:
 
-- Recommendation Performance Dashboard, after Sprint 65 establishes model
+- Recommendation Performance Dashboard, after Sprint 66 establishes model
   health and sufficient persisted recommendation history exists
   - recommendation count and historical record
   - win/loss and win rate by recommendation tier
@@ -342,7 +356,7 @@ deferred until that queue completes.
 
 ## Market Intelligence
 
-Sprint 67+ research and later follow-ons:
+Sprint 68+ research and later follow-ons:
 
 - Closing Line Value
 - line movement
@@ -381,7 +395,7 @@ Epic 4 future work, after MLB reaches production quality:
 # Explicit Anti-Drift Rule
 
 Do not promote deferred provider work, Epic 2, calibration, or Epic 4 work
-ahead of the approved Sprint 63-67+ sequence. Deferred measurement and
+ahead of the approved Sprint 63-68+ sequence. Deferred measurement and
 calibration work remain evidence-gated.
 Do not redesign scoring or confidence during Sprint 54, and do not integrate
 research metrics from Sprint 55 into production.

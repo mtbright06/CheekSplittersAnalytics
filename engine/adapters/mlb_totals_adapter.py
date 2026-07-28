@@ -81,7 +81,7 @@ def adapt_mlb_totals_game(
     return Recommendation(
         sport="BASEBALL",
         league="MLB",
-        event_id=str(_first_present(total_quote.get("event_id"), odds.get("event_id"), game.get("game_id")) or ""),
+        event_id=str(_first_present(game.get("game_id"), total_quote.get("event_id"), odds.get("event_id")) or ""),
         matchup=_matchup_text(game),
         event_time=_first_present(total_quote.get("commence_time"), odds.get("commence_time"), game.get("commence_time")),
         market="totals",

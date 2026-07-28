@@ -261,6 +261,13 @@ Every recommendation should answer:
 - Every recommendation should trace to game, model version, run, timestamp, market snapshot, and supporting evidence.
 - Prediction engines must not depend directly on persistence.
 
+The operational build boundary is the completed Recommendation Registry. The
+daily persistence command may persist that immutable artifact, then invoke
+provider-specific result adapters through `GameResultIngestionService` and
+grade snapshots through `PredictionSnapshotGradingService`. Provider adapters
+normalize external truth only; they never write database rows directly.
+Registry JSON and presentation remain separate consumers.
+
 ## SharpStack Reference Price (SSRP)
 
 Moneyline edge uses the immutable SSRP: the first production-eligible pregame
@@ -301,13 +308,13 @@ Before changing architecture, document:
 
 # 15. Current Focus
 
-1. Complete Sprint 64 immutable prediction grading against authoritative
-   GameResult revisions without adding analytics or betting-performance logic.
-2. Follow the governed outcomes-and-learning sequence: results ingestion,
-   recommendation grading, model health, market observation, then line-movement
-   research.
+1. Complete Sprint 65 operational wiring for immutable Registry persistence,
+   authoritative results ingestion, and grading without adding analytics or
+   betting-performance logic.
+2. Follow the governed outcomes-and-learning sequence: operational persistence,
+   model health, market observation, then line-movement research.
 3. Keep all historical snapshots immutable and distinguish all-snapshot,
    final-active-call, published, placed-wager, model-accuracy, and profit/ROI
    reporting.
 4. Defer provider/model intelligence, calibration, and platform work until the
-   approved Sprint 63-67+ sequence establishes the required evidence.
+   approved Sprint 63-68+ sequence establishes the required evidence.

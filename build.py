@@ -40,6 +40,12 @@ STEPS = [
     ),
 
     (
+        "Persist Predictions and Grade Results",
+        [sys.executable, "tools_persist_daily_history.py"],
+        True,
+    ),
+
+    (
         "Build Recommendation Explorer",
         [sys.executable, "tools_build_recommendation_explorer.py"],
         False,

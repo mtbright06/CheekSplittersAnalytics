@@ -60,13 +60,13 @@ class Recommendation(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         ),
     )
 
-    game_id: Mapped[UUID] = mapped_column(
+    game_id: Mapped[UUID | None] = mapped_column(
         PostgreSQLUUID(as_uuid=True),
         ForeignKey(
             "games.id",
             ondelete="RESTRICT",
         ),
-        nullable=False,
+        nullable=True,
         index=True,
     )
 
@@ -107,9 +107,9 @@ class Recommendation(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         nullable=True,
     )
 
-    projection: Mapped[Decimal] = mapped_column(
+    projection: Mapped[Decimal | None] = mapped_column(
         Numeric(10, 3),
-        nullable=False,
+        nullable=True,
     )
 
     edge: Mapped[Decimal | None] = mapped_column(
@@ -117,9 +117,9 @@ class Recommendation(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         nullable=True,
     )
 
-    confidence: Mapped[Decimal] = mapped_column(
+    confidence: Mapped[Decimal | None] = mapped_column(
         Numeric(6, 5),
-        nullable=False,
+        nullable=True,
     )
 
     components: Mapped[dict[str, Any]] = mapped_column(
@@ -147,6 +147,35 @@ class Recommendation(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         nullable=False,
         server_default=func.now(),
         index=True,
+    )
+
+    idempotency_key: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
+    provider_game_id: Mapped[str | None] = mapped_column(
+        String(150),
+        nullable=True,
+        index=True,
+    )
+
+    league_code: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        index=True,
+    )
+
+    sport: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+
+    scheduled_start_at_prediction: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     game: Mapped["Game"] = relationship(

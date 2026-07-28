@@ -58,28 +58,9 @@ Completed:
 - SSRP v1, market freshness/provenance, and MLB conviction/market-value
   separation
 
-All defined Sprints 52-56 are complete. Epic 1 remains active for validation
-and approved technical-debt work; selecting a new sprint requires governance.
-
-## Sprint 57: Provider Reliability
-
-**Status:** In review — Phases 1 and 2 implemented.
-
-Phase 1 adds a request-scoped pitcher game-log cache for one MLB card build.
-It removes duplicate starter/bullpen game-log requests without persistent
-caching, contract changes, or model behavior changes. Later phases remain
-limited to approved provider efficiency and source-quality work.
-
-Phase 2 adds a request-scoped MLB team-context cache for doubleheaders. It
-reuses deterministic batting and bullpen retrieval by team ID within one card
-build, while retaining separate game-specific starter construction and no
-persistent cache.
-
-Consciously deferred: a shared MLB schedule snapshot across the MLB Card,
-First Five, and Bomb Lab. Measured savings are approximately 0.52 seconds per
-build, below 1% of total build time. Do not implement this unless build
-orchestration changes substantially or schedule retrieval becomes materially
-more expensive.
+All defined Sprints 52-56 are complete. Sprint 62 is the current
+completion-pending persistence sprint. The approved next phase prioritizes
+objective outcomes and model learning before additional provider or model work.
 
 ## Sprint 54: Pitcher Sample Stabilization
 
@@ -121,29 +102,119 @@ Delivered:
   completeness credit and cannot create an edge or actionable recommendation.
 - Real market edge and recommendation are finalized only after odds enrichment.
 
+## Sprint 62: Azure Prediction Persistence and Active Recommendation Lifecycle
+
+**Status:** Completion pending review.
+
+Immutable PredictionSnapshots, deterministic idempotency, append-only
+activation events, and one active recommendation slot per game/league/market
+are implemented locally. The migration has not been applied to Azure, and no
+Registry, dashboard, Discord, Play of the Day, or grading consumer has been
+rewired yet.
+
+# Approved Near-Term Outcomes and Learning Sequence
+
+**Rationale:** persistence gives SharpStack durable prediction memory. Results
+ingestion provides objective outcome truth. Grading connects predictions to
+outcomes. Model Health turns graded outcomes into evidence. Market Observation
+captures market behavior. Only after those foundations exist should SharpStack
+evaluate line movement as a possible signal.
+
+## Sprint 63: Results Ingestion
+
+**Status:** In progress.
+
+Store objective provider game truth only: provider game identity, final status,
+away/home scores, derived final total, winner, completion timestamp,
+regulation/extra-inning context where available, postponed/canceled/suspended/
+incomplete states, and source metadata. Ingestion must be correction-safe and
+refresh-safe.
+
+Do not grade recommendations or calculate ROI, profit, CLV, or model-health
+metrics in this sprint.
+
+## Sprint 64: Recommendation Grading
+
+Grade immutable PredictionSnapshots against authoritative results as `WIN`,
+`LOSS`, `PUSH`, `VOID`, or `UNGRADED`/`PENDING` where appropriate. Preserve the
+exact recommendation UUID, keep superseded snapshots historically gradable,
+and distinguish final active-call performance from all historical snapshots.
+
+Prepare for later odds-based profit and ROI, but do not require either in the
+first grading implementation.
+
+## Sprint 65: Model Health
+
+Observe existing behavior through overall accuracy, recommendation-tier and
+confidence performance, probability calibration, Hammer and Market Value
+effectiveness, league/market/model-version breakdowns, time-series views, and
+final-active-call versus all-snapshot performance.
+
+Do not alter recommendation logic from early samples. Model changes require
+adequate sample size and documented evidence.
+
+## Sprint 66: Market Observation
+
+Persist timestamped sportsbook and consensus observations by provider game,
+league, market, selection, sportsbook, price/line, SSRP where applicable,
+timestamp, and source. Retain opening, latest, and closing observations where
+available.
+
+Market movement is observational only in this sprint and must not change
+predictions or recommendations.
+
+## Sprint 67+: Line Movement and Market Validation Research
+
+Use SharpStack's own historical dataset to evaluate movement direction,
+magnitude, speed, timing, sportsbook leadership, disagreement, CLV, and
+interactions with confidence, Hammer, and Market Value. Do not assume line
+movement is useful; collect, measure, validate, then consider it as a signal.
+
+# Deferred Priorities After Sprint 67+
+
+## Sprint 57: Provider Reliability
+
+**Status:** In review — Phases 1 and 2 implemented; deferred behind the
+approved outcomes-and-learning sequence.
+
+Phase 1 adds a request-scoped pitcher game-log cache for one MLB card build.
+It removes duplicate starter/bullpen game-log requests without persistent
+caching, contract changes, or model behavior changes. Later phases remain
+limited to approved provider efficiency and source-quality work.
+
+Phase 2 adds a request-scoped MLB team-context cache for doubleheaders. It
+reuses deterministic batting and bullpen retrieval by team ID within one card
+build, while retaining separate game-specific starter construction and no
+persistent cache.
+
+Consciously deferred: a shared MLB schedule snapshot across the MLB Card,
+First Five, and Bomb Lab. Measured savings are approximately 0.52 seconds per
+build, below 1% of total build time. Do not implement this unless build
+orchestration changes substantially or schedule retrieval becomes materially
+more expensive.
+
 # Epic 2: Model Intelligence
 
 **Status:** Not started
 
-These enhancements intentionally occur after Epic 1 completes:
+These enhancements remain planned after the approved Sprint 63-67+ sequence:
 
 - Source Quality Confidence
 - Lineup-Aware Offense
 - Rolling Form
 - Park & Weather Integration
 
-# Epic 3A: Recommendation Measurement & Historical Intelligence
+# Deferred Measurement Follow-On
 
-**Status:** Planned for Sprint 63, or the earliest approved point after
-sufficient persisted recommendation history is available
+**Status:** Deferred behind Sprint 63-67+.
 
 Measurement reports what has already happened. It does not alter model
 weights, probabilities, Hammer, thresholds, or recommendations.
 
 Priority deliverables:
 
-- Recommendation Performance Dashboard (Sprint 63 target; highest-priority
-  Epic 3A deliverable once persisted recommendation history is sufficient)
+- Recommendation Performance Dashboard, after Sprint 65 establishes model
+  health and sufficient persisted recommendation history exists
   - recommendation count and historical record
   - win/loss and win rate by recommendation tier
   - win/loss and win rate by market-value tier
@@ -158,7 +229,7 @@ Priority deliverables:
 These are validation capabilities, not model features. They make the existing
 conviction-versus-market-value contract observable before any recalibration.
 
-# Epic 3B: Calibration & Persistence
+# Deferred Calibration and Optimization
 
 **Status:** Deferred
 
@@ -167,7 +238,6 @@ history exists.
 
 Includes:
 
-- Recommendation grading
 - Weight optimization
 - Probability calibration
 - Hammer Score calibration
@@ -247,10 +317,11 @@ Later:
 
 ## Historical Analytics
 
-Epic 3A measurement goals:
+Deferred follow-on dashboards consume the outcome, grading, health, and market
+records created by Sprints 63-66. They do not replace those foundational
+systems.
 
-- grading
-- W/L/P tracking
+- historical performance views
 - ROI and units
 - rolling performance
 - signal attribution
@@ -264,7 +335,7 @@ deferred until that queue completes.
 
 ## Market Intelligence
 
-Planned:
+Sprint 67+ research and later follow-ons:
 
 - Closing Line Value
 - line movement
@@ -302,9 +373,9 @@ Epic 4 future work, after MLB reaches production quality:
 
 # Explicit Anti-Drift Rule
 
-Do not promote Epic 2, Epic 3A, Epic 3B, or Epic 4 work while Epic 1 remains
-active. Epic 3A measures existing recommendations; Epic 3B calibrates only
-after sufficient graded history exists.
+Do not promote deferred provider work, Epic 2, calibration, or Epic 4 work
+ahead of the approved Sprint 63-67+ sequence. Deferred measurement and
+calibration work remain evidence-gated.
 Do not redesign scoring or confidence during Sprint 54, and do not integrate
 research metrics from Sprint 55 into production.
 

@@ -63,6 +63,7 @@ Presentation
 | Hammer Score | Decision Builder |
 | Recommendation Registry | Registry builder |
 | Play of the Day | Play of the Day service |
+| Authoritative game outcome truth | `GameResult` ingestion service |
 | Historical grading | Analytics layer |
 | Rendering | Presentation layer |
 
@@ -294,9 +295,13 @@ Before changing architecture, document:
 
 # 15. Current Focus
 
-1. Complete Epic 1 model correctness.
-2. Preserve the completed Sprint 52-56, SSRP, and MLB recommendation contracts
-   through validation and targeted technical-debt work.
-3. Do not select a new sprint without roadmap governance.
-4. Defer model intelligence, calibration, persistence expansion, and platform
-   work until their governing prerequisites are satisfied.
+1. Complete Sprint 63 authoritative game-results ingestion without coupling it
+   to prediction or grading records.
+2. Follow the governed outcomes-and-learning sequence: results ingestion,
+   recommendation grading, model health, market observation, then line-movement
+   research.
+3. Keep all historical snapshots immutable and distinguish all-snapshot,
+   final-active-call, published, placed-wager, model-accuracy, and profit/ROI
+   reporting.
+4. Defer provider/model intelligence, calibration, and platform work until the
+   approved Sprint 63-67+ sequence establishes the required evidence.

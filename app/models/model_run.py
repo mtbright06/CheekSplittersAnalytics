@@ -107,6 +107,13 @@ class ModelRun(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         server_default="{}",
     )
 
+    logical_run_key: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
     model_version: Mapped["ModelVersion"] = relationship(
         back_populates="model_runs",
     )

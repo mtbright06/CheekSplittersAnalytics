@@ -11,10 +11,9 @@
 **Primary branch:** `feature/recommendation-history`
 **Environment:** Windows 11 / PowerShell / Python 3.13+
 **Current milestone:** Epic 1 â€” Model Correctness
-**Current work item:** Documentation synchronization after completed SSRP and
-MLB recommendation-contract work
+**Current work item:** Sprint 63 Results Ingestion
 **Working tree:** Documentation updates pending review; do not commit or push
-**Sprint 56 status:** Complete
+**Sprint 62 status:** Completion pending review
 
 SharpStack is stable and actively developed. The platform already has a functioning MLB recommendation pipeline, Recommendation Registry, Play of the Day, structured explanations, dashboard, Discord reporting, recommendation history, and an Azure PostgreSQL persistence foundation.
 
@@ -118,19 +117,47 @@ The legacy per-game `RecommendationService.save_batch()`
 still creates `ModelRun` records and must be replaced by a future transactional
 Azure adapter after an idempotency-key schema migration is approved.
 
+**Sprint 62 — Azure Prediction Persistence and Active Recommendation
+Lifecycle:** implemented and awaiting review. Immutable snapshots now persist
+through `Recommendation` with deterministic idempotency and direct
+prediction-time identity fields. Append-only activation events record
+activation, supersession, withdrawal, and reinstatement; a unique mutable
+active-slot projection exposes only one current snapshot for each provider
+game, league, and market. The transaction creates the run, inserts snapshots,
+locks active slots, records events, updates slots, and completes the run as one
+unit. Only an already completed logical run is idempotent; any persisted
+incomplete run fails loudly, while a fully rolled-back attempt has no run row
+and can retry cleanly. Registry JSON, dashboard, Discord, Play of the Day, and grading behavior
+remain unchanged until a later approved consumer-integration patch.
+
+**Sprint 63 — Ground Truth (Game Results):** in progress. `GameResult` is a
+standalone mutable provider-outcome record keyed by provider, league, and
+provider game ID. It stores canonical game status, final scores, winner side,
+derived total score, completion/extra-innings context where supplied, source
+update metadata, local ingestion time, and an incrementing revision for
+provider corrections. The ingestion service derives totals from away/home
+scores and rejects an inconsistent supplied total. It performs idempotent
+identity lookup and correction-safe updates in one transaction. It does not read or write PredictionSnapshots,
+recommendations, grades, odds, ROI, CLV, Hammer, Market Value, or model logic.
+
 The MLB full slate presents projected-winner ranking separately from betting
 value. Its compact cards display the canonical conviction and market-value
 badges; diagnostics, including Hammer and Market vs Model, remain inside
 SharpStack Intelligence. Best Bets retains Registry-owned ranking.
 
-**Roadmap sequence:** retain Epic 1 technical-debt and provider-quality work,
-then Epic 2 Model Intelligence in order: Source Quality Confidence,
-Lineup-Aware Offense, Rolling Form, and Park & Weather Integration. Epic 3A
-then adds Recommendation Performance reporting at Sprint 63, or the earliest
-approved point after sufficient persisted recommendation history is available,
-followed by Historical Intelligence;
-Epic 3B calibration, CLV, ROI optimization, and threshold tuning remain
-evidence-gated. Epic 4 retains platform expansion and additional sports.
+**Approved next sequence:** Sprint 63 Results Ingestion records objective game
+truth only; Sprint 64 grades immutable snapshots; Sprint 65 measures model
+health; Sprint 66 records market observations; Sprint 67+ researches whether
+line movement has independently demonstrated value. This order creates durable
+prediction memory, outcome truth, grading, evidence, and market history before
+any market-movement signal is considered. Provider reliability, Epic 2 model
+intelligence, historical presentation follow-ons, calibration, and platform
+work remain deferred behind this sequence, not canceled.
+
+Future reporting must keep separate: all historical snapshot performance,
+final active recommendation performance, published recommendation performance,
+wagers actually placed, model accuracy, and betting profit/ROI. They are not
+one record or one headline metric.
 
 ---
 
@@ -159,10 +186,9 @@ This was a provider/data-correctness issue, and SharpStack's architecture requir
 The Sprint 54, Sprint 55, and Sprint 56 execution queue is complete. Do not
 select or implement new work without roadmap governance.
 
-Do not drift into Epic 2 enhancements, Epic 3A measurement, calibration, or
-future sports before Epic 1 completes. Epic 3A is planned after Epic 2 to
-measure the existing recommendation record; Epic 3B calibration remains gated
-on sufficient graded history.
+Do not begin Sprint 63 until Sprint 62 is approved. After Sprint 62, follow the
+approved Sprint 63-67+ outcomes-and-learning sequence before returning to
+deferred provider, Epic 2, calibration, or future-sport work.
 
 ---
 
@@ -785,6 +811,12 @@ Sprint 55 research and Sprint 56 KBO confidence correctness are complete.
 SSRP v1 is implemented, and MLB recommendation output now separates model
 conviction from SSRP market value. Hammer is advisory only for MLB moneylines.
 
+Sprint 62 prediction persistence is awaiting review. Sprint 63 is now limited
+to objective outcome truth. Sprint 64 Recommendation Grading, Sprint 65 Model
+Health, Sprint 66 Market Observation, and Sprint 67+ line-movement research
+remain next in order. Keep all-snapshot, final-active-call, published,
+placed-wager, model-accuracy, and profit/ROI reporting distinct.
+
 Do not select a new sprint without roadmap governance. Use small targeted
 edits, preserve backward compatibility, and verify provider data before tuning
 models.
@@ -807,5 +839,5 @@ SharpStack is evolving into an explainable, evidence-driven sports analytics pla
 
 The immediate discipline is simple:
 
-**Complete Epic 1 model correctness before Epic 2 intelligence, Epic 3A
-measurement, Epic 3B calibration, or Epic 4 platform work.**
+**Complete the approved outcomes-and-learning sequence before returning to
+deferred provider/model intelligence, calibration, or platform work.**

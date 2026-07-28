@@ -150,6 +150,11 @@ Must remain explainable.
 
 # Historical Analytics
 
+Roadmap priority is Sprint 63 Results Ingestion, Sprint 64 Recommendation
+Grading, Sprint 65 Model Health, Sprint 66 Market Observation, and Sprint 67+
+line-movement research. The items below remain deferred follow-ons and must
+not displace that sequence.
+
 - signal attribution
 - confidence bands
 - feature importance

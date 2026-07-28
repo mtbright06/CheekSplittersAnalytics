@@ -11,8 +11,8 @@
 **Primary branch:** `feature/recommendation-history`
 **Environment:** Windows 11 / PowerShell / Python 3.13+
 **Current milestone:** Epic 1 â€” Model Correctness
-**Current work item:** Sprint 65 Operational Persistence Wiring
-**Working tree:** Sprint 65 wiring and documentation updates pending review; do not commit or push
+**Current work item:** Sprint 66 Model Health Analytics Service
+**Working tree:** Sprint 66 analytics and documentation updates pending review; do not commit or push
 **Sprint 62 status:** Completion pending review
 
 SharpStack is stable and actively developed. The platform already has a functioning MLB recommendation pipeline, Recommendation Registry, Play of the Day, structured explanations, dashboard, Discord reporting, recommendation history, and an Azure PostgreSQL persistence foundation.
@@ -178,6 +178,20 @@ display time, or null; immutable snapshots populate
 `scheduled_start_at_prediction` only from the optional canonical
 `scheduled_start_at` Registry field. Absent canonical time remains null rather
 than being inferred from display text.
+
+**Sprint 66 — Model Health Analytics Service:** in progress. The read-only
+`RecommendationAnalyticsService` derives on-demand model-health buckets from
+persisted prediction snapshots and their latest immutable grade revision. It
+groups by league, market, and canonical recommendation tier and reports sample
+size, grade counts, win percentage, decision rate, and first/last prediction
+timestamps. It writes no analytics records and is independent of dashboard/UI,
+persistence, and grading behavior.
+Model Health excludes legacy rows by default: an immutable snapshot requires
+both `idempotency_key` and `model_run_id`. Display `NO PLAY` variants normalize
+to `PASS`; `BET` remains the established MLB totals tier and is not relabeled
+as a moneyline tier. Historical totals stored with opaque odds-provider event
+IDs cannot safely match authoritative MLB game results and remain pending;
+the service does not infer a matchup-based link or alter grading rules.
 
 The MLB full slate presents projected-winner ranking separately from betting
 value. Its compact cards display the canonical conviction and market-value

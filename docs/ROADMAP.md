@@ -166,6 +166,8 @@ not an automated build side effect.
 
 ## Sprint 66: Model Health
 
+**Status:** In progress.
+
 Observe existing behavior through overall accuracy, recommendation-tier and
 confidence performance, probability calibration, Hammer and Market Value
 effectiveness, league/market/model-version breakdowns, time-series views, and

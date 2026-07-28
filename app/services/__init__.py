@@ -21,6 +21,12 @@ from app.services.daily_persistence_service import (
     DailyPersistenceService,
     DailyPersistenceSummary,
 )
+from app.services.recommendation_analytics_service import (
+    ModelHealthBucket,
+    ModelHealthReport,
+    RecommendationAnalyticsError,
+    RecommendationAnalyticsService,
+)
 from app.services.prediction_snapshot_service import (
     PredictionIdentity,
     PredictionRunContext,
@@ -47,6 +53,8 @@ __all__ = [
     "GameResultIngestionResult",
     "GameResultIngestionService",
     "GameResultInput",
+    "ModelHealthBucket",
+    "ModelHealthReport",
     "ModelIdentity",
     "PredictionIdentity",
     "PredictionRunContext",
@@ -56,6 +64,8 @@ __all__ = [
     "PredictionSnapshotGradingError",
     "PredictionSnapshotGradingService",
     "RecommendationInput",
+    "RecommendationAnalyticsError",
+    "RecommendationAnalyticsService",
     "RecommendationService",
     "SavedRecommendationBatch",
     "TeamInput",

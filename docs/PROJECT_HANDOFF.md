@@ -103,6 +103,21 @@ evidence remains `UNKNOWN`. Role candidates add explanatory context only, and
 the new object remains unused by aggregation, scoring, totals, confidence, and
 recommendations.
 
+**Sprint 61 — Prediction Snapshot Architecture:** implemented as a
+persistence-neutral domain boundary and awaiting review. A typed immutable
+`PredictionSnapshot` now converts canonical Registry rows into prediction-time
+identity, run, model, market, evidence-summary, component, and explanation
+data. Its prediction-time schedule field is explicitly
+`scheduled_start_at_prediction`; later schedule changes are external mutable
+observations. `PredictionSnapshotLifecycle` owns one in-memory slate run with explicit
+begin, persist, complete, and fail transitions; it has no Azure write hook or
+build integration yet. A retry-stable `logical_run_key` is derived from the
+durable logical build ID, canonical artifact fingerprint, model identity, and
+schema version; database `ModelRun` UUIDs remain relational identities only.
+The legacy per-game `RecommendationService.save_batch()`
+still creates `ModelRun` records and must be replaced by a future transactional
+Azure adapter after an idempotency-key schema migration is approved.
+
 The MLB full slate presents projected-winner ranking separately from betting
 value. Its compact cards display the canonical conviction and market-value
 badges; diagnostics, including Hammer and Market vs Model, remain inside

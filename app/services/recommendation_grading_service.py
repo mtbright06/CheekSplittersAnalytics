@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.database.session import SessionLocal
-from app.models import Recommendation, RecommendationGrade
+from app.models import LegacyRecommendationSettlement, Recommendation
 
 
 VALID_OUTCOMES = frozenset({"WIN", "LOSS", "PUSH", "VOID"})
@@ -134,7 +134,7 @@ class RecommendationGradingService:
                 stake_units=stake_units,
             )
 
-            grade = RecommendationGrade(
+            grade = LegacyRecommendationSettlement(
                 recommendation_id=recommendation.id,
                 outcome=outcome,
                 american_odds=american_odds,

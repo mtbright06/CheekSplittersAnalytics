@@ -64,10 +64,16 @@ Presentation
 | Recommendation Registry | Registry builder |
 | Play of the Day | Play of the Day service |
 | Authoritative game outcome truth | `GameResult` ingestion service |
-| Historical grading | Analytics layer |
+| Immutable prediction grading | `PredictionSnapshotGradingService` |
+| Legacy wager settlement | Legacy settlement service; not Sprint 64 grading |
 | Rendering | Presentation layer |
 
 Downstream consumers must not rebuild upstream decisions.
+
+Snapshot identity preserves display selection and, for moneylines, an immutable
+`selection_side` derived at prediction time. Grading uses that canonical side
+against `GameResult.winner_side`; totals grading uses the snapshot's immutable
+market line against `GameResult.total_score`.
 
 # 5. MLB Provider and Normalization
 
@@ -295,8 +301,8 @@ Before changing architecture, document:
 
 # 15. Current Focus
 
-1. Complete Sprint 63 authoritative game-results ingestion without coupling it
-   to prediction or grading records.
+1. Complete Sprint 64 immutable prediction grading against authoritative
+   GameResult revisions without adding analytics or betting-performance logic.
 2. Follow the governed outcomes-and-learning sequence: results ingestion,
    recommendation grading, model health, market observation, then line-movement
    research.

@@ -27,6 +27,11 @@ from app.services.prediction_snapshot_persistence_service import (
     PredictionSnapshotPersistenceService,
     WithdrawalRequest,
 )
+from app.services.prediction_snapshot_grading_service import (
+    PredictionSnapshotGradingError,
+    PredictionSnapshotGradingService,
+    SavedPredictionSnapshotGrade,
+)
 
 __all__ = [
     "GameInput",
@@ -40,10 +45,13 @@ __all__ = [
     "PredictionSnapshot",
     "PredictionSnapshotLifecycle",
     "PredictionSnapshotPersistenceService",
+    "PredictionSnapshotGradingError",
+    "PredictionSnapshotGradingService",
     "RecommendationInput",
     "RecommendationService",
     "SavedRecommendationBatch",
     "TeamInput",
     "WithdrawalRequest",
     "SnapshotModelIdentity",
+    "SavedPredictionSnapshotGrade",
 ]

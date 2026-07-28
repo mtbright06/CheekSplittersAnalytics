@@ -122,7 +122,7 @@ evaluate line movement as a possible signal.
 
 ## Sprint 63: Results Ingestion
 
-**Status:** In progress.
+**Status:** Complete pending review.
 
 Store objective provider game truth only: provider game identity, final status,
 away/home scores, derived final total, winner, completion timestamp,
@@ -135,13 +135,20 @@ metrics in this sprint.
 
 ## Sprint 64: Recommendation Grading
 
+**Status:** In progress.
+
 Grade immutable PredictionSnapshots against authoritative results as `WIN`,
-`LOSS`, `PUSH`, `VOID`, or `UNGRADED`/`PENDING` where appropriate. Preserve the
+`LOSS`, `PUSH`, `VOID`, `UNGRADEABLE`, or `PENDING` where appropriate. Preserve the
 exact recommendation UUID, keep superseded snapshots historically gradable,
 and distinguish final active-call performance from all historical snapshots.
 
 Prepare for later odds-based profit and ROI, but do not require either in the
 first grading implementation.
+
+Sprint 64 uses an immutable `RecommendationGrade` record linked to the
+persisted prediction snapshot and a specific `GameResult` revision. It stores
+only derived evaluation status, grading version, and timestamps. The legacy
+wager-settlement table remains separate and is not a Sprint 64 input or output.
 
 ## Sprint 65: Model Health
 

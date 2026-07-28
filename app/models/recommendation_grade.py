@@ -1,113 +1,88 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, event, func
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
-from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
 from app.models.mixins import CreatedAtMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
+    from app.models.game_result import GameResult
     from app.models.recommendation import Recommendation
 
 
 class RecommendationGrade(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
-    """Append-only settlement record for an immutable recommendation.
+    """Immutable evaluation of one prediction snapshot against game truth."""
 
-    A correction creates another grade row. Consumers select the newest row by
-    ``graded_at`` and ``created_at`` rather than updating or deleting history.
-    """
-
-    __tablename__ = "recommendation_grades"
+    __tablename__ = "prediction_snapshot_grades"
 
     __table_args__ = (
         CheckConstraint(
-            "outcome IN ('WIN', 'LOSS', 'PUSH', 'VOID')",
-            name="valid_outcome",
+            "grade_status IN ('PENDING', 'WIN', 'LOSS', 'PUSH', 'VOID', "
+            "'UNGRADEABLE')",
+            name="valid_grade_status",
         ),
-        CheckConstraint("stake_units > 0", name="positive_stake_units"),
-        CheckConstraint(
-            "american_odds IS NULL OR american_odds <> 0",
-            name="nonzero_american_odds",
+        CheckConstraint("grading_version >= 1", name="positive_grading_version"),
+        CheckConstraint("game_result_revision >= 1", name="positive_result_revision"),
+        UniqueConstraint(
+            "prediction_snapshot_id",
+            "game_result_id",
+            "game_result_revision",
+            name="uq_prediction_snapshot_grades_evaluation",
         ),
         Index(
-            "ix_recommendation_grades_recommendation_graded",
-            "recommendation_id",
+            "ix_prediction_snapshot_grades_snapshot_graded",
+            "prediction_snapshot_id",
             "graded_at",
+        ),
+        Index(
+            "ix_prediction_snapshot_grades_result_revision",
+            "game_result_id",
+            "game_result_revision",
         ),
     )
 
-    recommendation_id: Mapped[UUID] = mapped_column(
+    prediction_snapshot_id: Mapped[UUID] = mapped_column(
         PostgreSQLUUID(as_uuid=True),
         ForeignKey("recommendations.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
-
-    outcome: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
-
-    american_odds: Mapped[int | None] = mapped_column(nullable=True)
-
-    stake_units: Mapped[Decimal] = mapped_column(
-        Numeric(10, 3),
+    game_result_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("game_results.id", ondelete="RESTRICT"),
         nullable=False,
-        default=Decimal("1.000"),
-        server_default="1.000",
+        index=True,
     )
-
-    profit_units: Mapped[Decimal] = mapped_column(
-        Numeric(12, 4),
-        nullable=False,
-    )
-
-    actual_home_score: Mapped[Decimal | None] = mapped_column(
-        Numeric(10, 3),
-        nullable=True,
-    )
-
-    actual_away_score: Mapped[Decimal | None] = mapped_column(
-        Numeric(10, 3),
-        nullable=True,
-    )
-
+    game_result_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    grade_status: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     graded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
         index=True,
     )
-
-    source: Mapped[str] = mapped_column(
-        String(100),
+    grading_version: Mapped[int] = mapped_column(
+        Integer,
         nullable=False,
-        default="manual",
-        server_default="manual",
-        index=True,
+        default=1,
+        server_default="1",
     )
 
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    grade_metadata: Mapped[dict[str, Any]] = mapped_column(
-        MutableDict.as_mutable(JSONB),
-        nullable=False,
-        default=dict,
-        server_default="{}",
+    prediction_snapshot: Mapped["Recommendation"] = relationship(
+        back_populates="prediction_grades",
+    )
+    game_result: Mapped["GameResult"] = relationship(
+        back_populates="recommendation_grades",
     )
 
-    recommendation: Mapped["Recommendation"] = relationship(
-        back_populates="grades",
-    )
 
-    def __repr__(self) -> str:
-        return (
-            "RecommendationGrade("
-            f"id={self.id!r}, recommendation_id={self.recommendation_id!r}, "
-            f"outcome={self.outcome!r}, profit_units={self.profit_units!r})"
-        )
+@event.listens_for(RecommendationGrade, "before_update")
+@event.listens_for(RecommendationGrade, "before_delete")
+def _reject_grade_mutation(mapper, connection, target) -> None:
+    raise TypeError("RecommendationGrade records are immutable; create a new grade.")

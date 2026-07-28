@@ -255,6 +255,7 @@ class PredictionIdentity:
     market: str
     selection: str
     scheduled_start_at_prediction: datetime | None
+    selection_side: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "provider_game_id", _require_text(self.provider_game_id, "provider_game_id"))
@@ -262,6 +263,14 @@ class PredictionIdentity:
         object.__setattr__(self, "league", _require_text(self.league, "league").upper())
         object.__setattr__(self, "market", _require_text(self.market, "market").lower())
         object.__setattr__(self, "selection", normalize_selection(self.selection))
+        selection_side = _text_or_none(self.selection_side)
+        if selection_side is not None:
+            selection_side = selection_side.upper()
+            if selection_side not in {"HOME", "AWAY"}:
+                raise PredictionSnapshotValidationError(
+                    "selection_side must be HOME, AWAY, or None."
+                )
+        object.__setattr__(self, "selection_side", selection_side)
         if self.scheduled_start_at_prediction is not None:
             object.__setattr__(
                 self,
@@ -351,6 +360,7 @@ class PredictionSnapshot:
             "league": self.identity.league,
             "market": self.identity.market,
             "selection": self.identity.selection,
+            "selection_side": self.identity.selection_side,
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
@@ -364,6 +374,7 @@ class PredictionSnapshot:
                 "league": self.identity.league,
                 "market": self.identity.market,
                 "selection": self.identity.selection,
+                "selection_side": self.identity.selection_side,
                 "scheduled_start_at_prediction": _thaw(
                     self.identity.scheduled_start_at_prediction
                 ),
@@ -449,6 +460,7 @@ class PredictionSnapshot:
                 scheduled_start_at_prediction=_parse_timestamp(
                     row.get("event_time")
                 ),
+                selection_side=_selection_side_from_registry_row(row),
             ),
             run=run,
             prediction=PredictionData(
@@ -509,6 +521,31 @@ def _mapping(value: Any) -> Mapping[str, Any]:
 def _text_or_none(value: Any) -> str | None:
     text = str(value).strip() if value not in (None, "") else ""
     return text or None
+
+
+def _selection_side_from_registry_row(row: Mapping[str, Any]) -> str | None:
+    market = _text_or_none(row.get("market"))
+    selection = _text_or_none(row.get("selection"))
+    matchup = _text_or_none(row.get("matchup"))
+    if market is None or selection is None or market.strip().lower() not in {
+        "moneyline",
+        "money line",
+        "ml",
+    }:
+        return None
+
+    normalized_selection = normalize_selection(selection)
+    if normalized_selection in {"HOME", "AWAY"}:
+        return normalized_selection
+    if matchup is None or "@" not in matchup:
+        return None
+
+    away, home = (part.strip() for part in matchup.split("@", 1))
+    if normalized_selection == normalize_selection(away):
+        return "AWAY"
+    if normalized_selection == normalize_selection(home):
+        return "HOME"
+    return None
 
 
 def _bool_or_none(value: Any) -> bool | None:

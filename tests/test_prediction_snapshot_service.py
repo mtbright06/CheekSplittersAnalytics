@@ -82,6 +82,7 @@ def test_registry_row_converts_to_immutable_snapshot_without_full_ledger():
         "league": "MLB",
         "market": "moneyline",
         "selection": " Washington   Nationals ",
+        "matchup": "Arizona Diamondbacks @ Washington Nationals",
         "event_time": "2026-07-27T14:00:00Z",
         "model_probability": 0.599,
         "confidence": "HIGH",
@@ -113,6 +114,8 @@ def test_registry_row_converts_to_immutable_snapshot_without_full_ledger():
     payload = snapshot.to_dict()
 
     assert snapshot.identity.selection == "WASHINGTON NATIONALS"
+    assert snapshot.identity.selection_side == "HOME"
+    assert payload["identity"]["selection_side"] == "HOME"
     assert snapshot.market.offered_odds is None
     assert snapshot.market.reference_price is None
     assert payload["components"]["bullpen"].get("evidence_ledger") is None

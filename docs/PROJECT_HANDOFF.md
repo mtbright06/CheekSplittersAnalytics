@@ -11,7 +11,7 @@
 **Primary branch:** `feature/recommendation-history`
 **Environment:** Windows 11 / PowerShell / Python 3.13+
 **Current milestone:** Epic 1 â€” Model Correctness
-**Current work item:** Sprint 63 Results Ingestion
+**Current work item:** Sprint 64 Recommendation Grading
 **Working tree:** Documentation updates pending review; do not commit or push
 **Sprint 62 status:** Completion pending review
 
@@ -130,7 +130,8 @@ incomplete run fails loudly, while a fully rolled-back attempt has no run row
 and can retry cleanly. Registry JSON, dashboard, Discord, Play of the Day, and grading behavior
 remain unchanged until a later approved consumer-integration patch.
 
-**Sprint 63 — Ground Truth (Game Results):** in progress. `GameResult` is a
+**Sprint 63 — Ground Truth (Game Results):** implementation complete pending
+review. `GameResult` is a
 standalone mutable provider-outcome record keyed by provider, league, and
 provider game ID. It stores canonical game status, final scores, winner side,
 derived total score, completion/extra-innings context where supplied, source
@@ -139,6 +140,21 @@ provider corrections. The ingestion service derives totals from away/home
 scores and rejects an inconsistent supplied total. It performs idempotent
 identity lookup and correction-safe updates in one transaction. It does not read or write PredictionSnapshots,
 recommendations, grades, odds, ROI, CLV, Hammer, Market Value, or model logic.
+
+**Sprint 64 — Recommendation Grading:** in progress. A new immutable
+`RecommendationGrade` evaluates one persisted PredictionSnapshot against one
+specific `GameResult` revision using a grading-rule version. It records only
+`PENDING`, `WIN`, `LOSS`, `PUSH`, `VOID`, or `UNGRADEABLE`; prediction tiers,
+odds, stake, profit, ROI, CLV, analytics, reporting, and active-slot behavior
+remain outside this sprint. The pre-existing wager-settlement record remains
+isolated as legacy compatibility data and is not used by this grading service.
+New moneyline snapshots retain their display selection and also serialize an
+immutable `selection_side` (`HOME` or `AWAY`) derived from the matchup so
+grading can compare it to provider-independent `GameResult.winner_side`.
+`grading_version` records the canonical algorithm version but is not a second
+grade identity: each snapshot/result revision has exactly one grade. A future
+grading-rule upgrade must migrate or recompute that canonical record rather
+than create parallel versioned grades.
 
 The MLB full slate presents projected-winner ranking separately from betting
 value. Its compact cards display the canonical conviction and market-value
@@ -811,10 +827,10 @@ Sprint 55 research and Sprint 56 KBO confidence correctness are complete.
 SSRP v1 is implemented, and MLB recommendation output now separates model
 conviction from SSRP market value. Hammer is advisory only for MLB moneylines.
 
-Sprint 62 prediction persistence is awaiting review. Sprint 63 is now limited
-to objective outcome truth. Sprint 64 Recommendation Grading, Sprint 65 Model
-Health, Sprint 66 Market Observation, and Sprint 67+ line-movement research
-remain next in order. Keep all-snapshot, final-active-call, published,
+Sprint 62 prediction persistence is awaiting review. Sprint 63 is limited to
+objective outcome truth, and Sprint 64 now evaluates those results against
+immutable snapshots. Sprint 65 Model Health, Sprint 66 Market Observation, and
+Sprint 67+ line-movement research remain next in order. Keep all-snapshot, final-active-call, published,
 placed-wager, model-accuracy, and profit/ROI reporting distinct.
 
 Do not select a new sprint without roadmap governance. Use small targeted

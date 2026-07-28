@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, Index, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
 from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from app.models.recommendation_grade import RecommendationGrade
 
 
 class GameResult(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -87,4 +90,9 @@ class GameResult(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
         default=dict,
         server_default="{}",
+    )
+
+    recommendation_grades: Mapped[list["RecommendationGrade"]] = relationship(
+        back_populates="game_result",
+        order_by="RecommendationGrade.graded_at",
     )

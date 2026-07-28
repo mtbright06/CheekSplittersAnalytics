@@ -7,6 +7,7 @@ Importing this package registers every ORM model with Base.metadata.
 from app.models.active_recommendation_slot import ActiveRecommendationSlot
 from app.models.game import Game
 from app.models.game_result import GameResult
+from app.models.legacy_recommendation_settlement import LegacyRecommendationSettlement
 from app.models.league import League
 from app.models.model_run import ModelRun
 from app.models.model_version import ModelVersion
@@ -20,6 +21,7 @@ __all__ = [
     "ActiveRecommendationSlot",
     "Game",
     "GameResult",
+    "LegacyRecommendationSettlement",
     "League",
     "ModelRun",
     "ModelVersion",

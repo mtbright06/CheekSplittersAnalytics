@@ -26,6 +26,7 @@ from app.models.mixins import CreatedAtMixin, UUIDPrimaryKeyMixin
 if TYPE_CHECKING:
     from app.models.game import Game
     from app.models.model_run import ModelRun
+    from app.models.legacy_recommendation_settlement import LegacyRecommendationSettlement
     from app.models.recommendation_grade import RecommendationGrade
     from app.models.model_version import ModelVersion
 
@@ -190,8 +191,13 @@ class Recommendation(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         back_populates="recommendations",
     )
 
-    grades: Mapped[list["RecommendationGrade"]] = relationship(
+    grades: Mapped[list["LegacyRecommendationSettlement"]] = relationship(
         back_populates="recommendation",
+        order_by="LegacyRecommendationSettlement.graded_at",
+    )
+
+    prediction_grades: Mapped[list["RecommendationGrade"]] = relationship(
+        back_populates="prediction_snapshot",
         order_by="RecommendationGrade.graded_at",
     )
 

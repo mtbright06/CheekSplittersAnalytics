@@ -17,7 +17,7 @@ from app.models import (
     ModelRun,
     ModelVersion,
     Recommendation,
-    RecommendationGrade,
+    LegacyRecommendationSettlement,
 )
 
 
@@ -299,17 +299,17 @@ class RecommendationHistoryService:
     ) -> Select[Any]:
         ranked_grades = (
             select(
-                RecommendationGrade.id.label("grade_id"),
-                RecommendationGrade.recommendation_id.label(
+                LegacyRecommendationSettlement.id.label("grade_id"),
+                LegacyRecommendationSettlement.recommendation_id.label(
                     "recommendation_id"
                 ),
                 func.row_number()
                 .over(
-                    partition_by=RecommendationGrade.recommendation_id,
+                    partition_by=LegacyRecommendationSettlement.recommendation_id,
                     order_by=(
-                        RecommendationGrade.graded_at.desc(),
-                        RecommendationGrade.created_at.desc(),
-                        RecommendationGrade.id.desc(),
+                        LegacyRecommendationSettlement.graded_at.desc(),
+                        LegacyRecommendationSettlement.created_at.desc(),
+                        LegacyRecommendationSettlement.id.desc(),
                     ),
                 )
                 .label("grade_rank"),
@@ -318,7 +318,7 @@ class RecommendationHistoryService:
         )
 
         latest_grade = aliased(
-            RecommendationGrade,
+                LegacyRecommendationSettlement,
             name="latest_recommendation_grade",
         )
 
@@ -488,7 +488,7 @@ class RecommendationHistoryService:
         league: League,
         model_version: ModelVersion,
         model_run: ModelRun | None,
-        latest_grade: RecommendationGrade | None,
+        latest_grade: LegacyRecommendationSettlement | None,
     ) -> RecommendationHistoryItem:
         components = dict(recommendation.components or {})
 

@@ -458,7 +458,7 @@ class PredictionSnapshot:
                 market=row.get("market"),
                 selection=row.get("selection"),
                 scheduled_start_at_prediction=_parse_timestamp(
-                    row.get("event_time")
+                    row.get("scheduled_start_at")
                 ),
                 selection_side=_selection_side_from_registry_row(row),
             ),

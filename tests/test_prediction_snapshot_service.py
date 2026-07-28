@@ -84,6 +84,7 @@ def test_registry_row_converts_to_immutable_snapshot_without_full_ledger():
         "selection": " Washington   Nationals ",
         "matchup": "Arizona Diamondbacks @ Washington Nationals",
         "event_time": "2026-07-27T14:00:00Z",
+        "scheduled_start_at": "2026-07-27T14:00:00Z",
         "model_probability": 0.599,
         "confidence": "HIGH",
         "recommendation": "STRONG PLAY",
@@ -115,6 +116,9 @@ def test_registry_row_converts_to_immutable_snapshot_without_full_ledger():
 
     assert snapshot.identity.selection == "WASHINGTON NATIONALS"
     assert snapshot.identity.selection_side == "HOME"
+    assert snapshot.identity.scheduled_start_at_prediction == datetime(
+        2026, 7, 27, 14, tzinfo=UTC
+    )
     assert payload["identity"]["selection_side"] == "HOME"
     assert snapshot.market.offered_odds is None
     assert snapshot.market.reference_price is None
@@ -153,6 +157,31 @@ def test_missing_optional_market_and_schedule_fields_remain_null():
     assert snapshot.identity.scheduled_start_at_prediction is None
     assert snapshot.market.offered_odds is None
     assert snapshot.market.reference_price is None
+
+
+def test_display_event_time_is_never_used_as_a_prediction_schedule_timestamp():
+    lifecycle = PredictionSnapshotLifecycle()
+    context = lifecycle.begin_run(
+        model=SnapshotModelIdentity("mlb_sharpstack", "1.0.0", "abc123"),
+        logical_build_id=LOGICAL_BUILD_ID,
+        artifact_fingerprint=ARTIFACT_FINGERPRINT,
+        started_at=NOW,
+        build_timestamp=NOW,
+        model_run_id=RUN_ID,
+    )
+    snapshot = PredictionSnapshot.from_registry_row(
+        {
+            "event_id": "824414",
+            "sport": "BASEBALL",
+            "league": "KBO",
+            "market": "moneyline",
+            "selection": "KIA Tigers",
+            "event_time": "6:30pm",
+        },
+        run=context,
+    )
+
+    assert snapshot.identity.scheduled_start_at_prediction is None
 
 
 def test_snapshot_rejects_mutable_resolution_data():

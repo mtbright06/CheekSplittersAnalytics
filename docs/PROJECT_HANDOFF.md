@@ -173,7 +173,11 @@ MLB `game_id` when building Registry records; historical totals with an opaque
 odds-provider event ID remain an unmatched-data risk. KBO snapshots persist,
 but this sprint adds only the MLB result adapter; KBO result ingestion and
 grading remain a visible follow-up rather than being silently claimed as
-complete.
+complete. Registry `event_time` is presentation-only and may be an ISO string,
+display time, or null; immutable snapshots populate
+`scheduled_start_at_prediction` only from the optional canonical
+`scheduled_start_at` Registry field. Absent canonical time remains null rather
+than being inferred from display text.
 
 The MLB full slate presents projected-winner ranking separately from betting
 value. Its compact cards display the canonical conviction and market-value

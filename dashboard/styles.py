@@ -2090,6 +2090,117 @@ div.stButton > button:hover {
     font-weight: 750;
 }
 
+.registry-card {
+    padding: 14px;
+    margin: 14px 0 8px 0;
+    border-color: rgba(160, 190, 230, 0.12);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.20);
+}
+
+.registry-card-top-row {
+    grid-template-columns: 52px minmax(0, 1fr) 124px;
+    gap: 12px;
+}
+
+.registry-card-main .decision-team {
+    margin-top: 1px;
+    font-size: 24px;
+    line-height: 1.08;
+}
+
+.registry-card-main .decision-matchup {
+    margin-top: 4px;
+    color: var(--ss-color-text-secondary, #b9c7dc);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.registry-card .registry-recommendation-row {
+    gap: 7px;
+    margin-top: 8px;
+    flex-wrap: nowrap;
+}
+
+.registry-card .registry-market-badge {
+    min-height: 24px;
+    padding: 4px 8px;
+    border-color: rgba(255, 255, 255, 0.10);
+    color: var(--ss-color-neutral, #aebbd0);
+    font-size: 11px;
+    font-weight: 760;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.registry-card .market-value-badge {
+    min-height: 24px;
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+.registry-supporting-meta {
+    margin-top: 6px;
+    color: #91a9cd;
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1.3;
+}
+
+.registry-card-score {
+    width: 124px;
+    padding: 8px 9px;
+    border-radius: 12px;
+    border-color: rgba(255, 255, 255, 0.065);
+    background: rgba(255, 255, 255, 0.030);
+}
+
+.registry-card-score span {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+}
+
+.registry-card-score strong {
+    font-size: 28px;
+    margin-top: 5px;
+}
+
+.registry-card-score small {
+    margin-top: 4px;
+}
+
+.registry-card-metrics {
+    gap: 7px;
+    margin-top: 12px;
+}
+
+.registry-card-metrics > div {
+    padding: 8px 9px;
+    border-color: rgba(255, 255, 255, 0.055);
+    background: rgba(255, 255, 255, 0.030);
+}
+
+.registry-reasons {
+    margin-top: 0.72rem;
+    padding-top: 0.62rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.registry-reasons-title {
+    margin-bottom: 0.32rem;
+    color: var(--ss-color-text-secondary, #b9c7dc);
+    font-size: 0.70rem;
+    font-weight: 760;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.registry-reasons ul {
+    margin: 0;
+    padding-left: 1.05rem;
+    color: var(--ss-color-text-secondary, #b9c7dc);
+    line-height: 1.38;
+    font-size: 0.86rem;
+}
+
 @media (max-width: 1100px) {
     .decision-metrics {
         grid-template-columns: repeat(3, 1fr);
@@ -2111,6 +2222,14 @@ div.stButton > button:hover {
 
     .decision-lower {
         grid-template-columns: 1fr;
+    }
+
+    .registry-card .registry-recommendation-row {
+        flex-wrap: wrap;
+    }
+
+    .registry-card-score {
+        width: auto;
     }
 }
 

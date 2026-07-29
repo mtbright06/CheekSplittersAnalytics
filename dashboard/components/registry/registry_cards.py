@@ -252,12 +252,12 @@ def render_registry_card(
         )
 
     html_block = f"""
-    <div class="decision-card decision-{recommendation_class}">
-        <div class="decision-top-row">
+    <div class="decision-card registry-card decision-{recommendation_class}">
+        <div class="decision-top-row registry-card-top-row">
            <div class="decision-rank decision-team-logo">
                 {logo_html}
             </div>
-            <div class="decision-main">
+            <div class="decision-main registry-card-main">
                 <div class="decision-team">
                     {esc(item.get("selection"))}
                 </div>
@@ -285,7 +285,7 @@ def render_registry_card(
                     )}
                 </div>
                 {(
-                    '<div class="decision-matchup">'
+                    '<div class="registry-supporting-meta">'
                     f'{esc(hammer_confirmation_label(hammer_tier))} · '
                     f'{esc(hammer_assessment)}'
                     '</div>'
@@ -294,7 +294,7 @@ def render_registry_card(
                 )}
             </div>
 
-            <div class="decision-score">
+            <div class="decision-score registry-card-score">
                 <span>Hammer Score</span>
                 <strong>
                     {number(item.get("hammer_score"))}
@@ -305,7 +305,7 @@ def render_registry_card(
             </div>
         </div>
 
-        <div class="decision-metrics">
+        <div class="decision-metrics registry-card-metrics">
             <div>
                 <span>Model Win</span>
                 <strong>
@@ -349,29 +349,12 @@ def render_registry_card(
             </div>
         </div>
 
-        <div style="
-            margin-top:0.85rem;
-            padding-top:0.75rem;
-            border-top:1px solid rgba(255,255,255,0.08);
-        ">
-            <div style="
-                margin-bottom:0.35rem;
-                font-size:0.72rem;
-                font-weight:800;
-                letter-spacing:0.10em;
-                text-transform:uppercase;
-                opacity:0.68;
-            ">
+        <div class="registry-reasons">
+            <div class="registry-reasons-title">
                 Why SharpStack Likes It
             </div>
 
-            <ul style="
-                margin:0;
-                padding-left:1.1rem;
-                line-height:1.42;
-                font-size:0.88rem;
-                opacity:0.86;
-            ">
+            <ul>
                 {reasons_html}
             </ul>
         </div>
@@ -476,10 +459,10 @@ def kbo_model_only_card_html(item: dict, rank: int) -> str:
     market = safe(item.get("market"), "moneyline").title()
 
     return f"""
-    <div class="decision-card decision-kbo-model-only">
-        <div class="decision-top-row">
+    <div class="decision-card registry-card decision-kbo-model-only">
+        <div class="decision-top-row registry-card-top-row">
             <div class="decision-rank decision-team-logo">{logo_html}</div>
-            <div class="decision-main">
+            <div class="decision-main registry-card-main">
                 <div class="decision-team">{esc(team_name)}</div>
                 <div class="decision-matchup">{esc(item.get("matchup"))}</div>
                 <div class="registry-recommendation-row">
@@ -488,7 +471,7 @@ def kbo_model_only_card_html(item: dict, rank: int) -> str:
                     {status_pill_html("MODEL ONLY")}
                 </div>
             </div>
-            <div class="decision-score">
+            <div class="decision-score registry-card-score">
                 <span>Model Strength</span>
                 <strong>{number(item.get("hammer_score"))}</strong>
                 <small>Rank {number(item.get("ranking_score"))}</small>

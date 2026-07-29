@@ -37,6 +37,9 @@ def test_kbo_best_bets_card_uses_dashboard_badges_in_the_required_order():
     html = kbo_model_only_card_html(kbo_item("🔥 STRONG PLAY"), 1)
 
     assert html.index("Doosan Bears") < html.index("Samsung Lions @ Doosan Bears")
+    assert "decision-card registry-card decision-kbo-model-only" in html
+    assert "registry-card-top-row" in html
+    assert "registry-card-score" in html
     assert "recommendation-badge recommendation-strong" in html
     assert html.index("🔥 STRONG PLAY") < html.index("KBO · Moneyline")
     assert html.index("KBO · Moneyline") < html.index("MODEL ONLY")
@@ -89,6 +92,10 @@ def test_mlb_moneyline_and_totals_use_the_shared_hero_badge_row(monkeypatch):
         )
 
     assert all("registry-recommendation-row" in html for html in rendered)
+    assert all("decision-card registry-card" in html for html in rendered)
+    assert all("registry-card-score" in html for html in rendered)
+    assert all("registry-card-metrics" in html for html in rendered)
+    assert all("registry-reasons" in html for html in rendered)
     assert all("registry-market-badge" in html for html in rendered)
     assert all("ss-status-pill--accent" in html for html in rendered)
     assert all("REAL MARKET" in html for html in rendered)
@@ -122,3 +129,20 @@ def test_mlb_moneyline_registry_card_shows_the_serialized_market_value_badge(mon
 
     assert "💎 ELITE VALUE" in rendered[0]
     assert "market-value-elite_value" in rendered[0]
+
+
+def test_registry_card_refinement_is_scoped_away_from_play_of_the_day():
+    styles = (DASHBOARD / "styles.py").read_text()
+    play_of_day = (
+        DASHBOARD
+        / "components"
+        / "registry"
+        / "play_of_day_card.py"
+    ).read_text()
+
+    assert ".registry-card-top-row" in styles
+    assert "grid-template-columns: 52px minmax(0, 1fr) 124px" in styles
+    assert ".registry-card-score" in styles
+    assert "width: 124px" in styles
+    assert "font-size: 28px" in styles
+    assert "registry-card" not in play_of_day

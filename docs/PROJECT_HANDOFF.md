@@ -268,6 +268,15 @@ Best Bets page header. Best Bets title/subtitle text, metric labels and
 values, tabs, cards, data loading, empty states, StatusPill behavior,
 routing, shell, and recommendation logic remain unchanged.
 
+**Sprint 68.7 — Recommendation Card Refinement:** implemented and awaiting
+manual screenshot review. Best Bets registry cards now use registry-scoped
+presentation classes to make the selection, matchup, recommendation row, and
+Hammer Score read with less boxed-in visual weight. The renderer remains
+data-compatible, StatusPill mappings are unchanged, and Play of the Day logic
+was not touched. No recommendation calculations, registry data, sorting,
+filtering, tabs, routing, page header, metrics, database code, sidebar, or
+shell behavior changed.
+
 **Immediate roadmap:** Sprint 69 Recommendation Explorer 2.0; Sprint 70 ROI
 analytics; Sprint 71 closing-line value; Sprint 72 calibration; Sprint 73
 recommendation attribution; Sprint 74 historical charts; Sprint 75 model

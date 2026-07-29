@@ -252,6 +252,22 @@ the Model Health table and replaced with Streamlit's modern
 `width="stretch"` API. No layout, styling, routing, shell, analytics,
 persistence, model, recommendation, or scoring behavior changed.
 
+**Sprint 68.5 — SharpStack Status Pills:** implemented and awaiting manual
+screenshot review. A reusable compact `StatusPill` component now provides
+escaped, inline semantic status HTML using existing design-token colors. The
+first migration is intentionally limited to the Best Bets registry card market
+status field (`REAL MARKET` / `MODEL ONLY`). No status calculations,
+recommendation logic, routing, card structure, database code, metrics, shell,
+or page headings changed.
+
+**Sprint 68.6 — Standard Page Header and Toolbar:** implemented and awaiting
+manual screenshot review. A reusable `render_page_header()` pattern now
+renders compact escaped page-title HTML with optional eyebrow, status, and
+native metric columns. The first migration is intentionally limited to the
+Best Bets page header. Best Bets title/subtitle text, metric labels and
+values, tabs, cards, data loading, empty states, StatusPill behavior,
+routing, shell, and recommendation logic remain unchanged.
+
 **Immediate roadmap:** Sprint 69 Recommendation Explorer 2.0; Sprint 70 ROI
 analytics; Sprint 71 closing-line value; Sprint 72 calibration; Sprint 73
 recommendation attribution; Sprint 74 historical charts; Sprint 75 model

@@ -3,7 +3,7 @@ from __future__ import annotations
 from components.registry.play_of_day_card import (
     render_play_of_day,
 )
-from components.page_header import render_compact_header
+from components.page_header import render_page_header
 
 import json
 from pathlib import Path
@@ -103,10 +103,10 @@ def render_best_bets():
     registry = load_registry()
 
     if not registry:
-        render_compact_header(
-            "🏆",
+        render_page_header(
             "Best Bets",
             "Official betting card from the SharpStack registry.",
+            eyebrow="Official Card",
         )
         st.warning(
             "No recommendation registry found. "
@@ -124,11 +124,11 @@ def render_best_bets():
         [],
     )
 
-    render_compact_header(
-        "🏆",
+    render_page_header(
         "Best Bets",
         "Official betting card from the SharpStack registry.",
-        [
+        eyebrow="Official Card",
+        metrics=[
             ("Actionable", summary.get("actionable", 0)),
             ("Exceptional", summary.get("hammers", 0)),
             ("Real Markets", summary.get("real_market", 0)),

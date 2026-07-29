@@ -106,25 +106,24 @@ Delivered:
 
 ## Sprint 62: Azure Prediction Persistence and Active Recommendation Lifecycle
 
-**Status:** Completion pending review.
+**Status:** Complete.
 
 Immutable PredictionSnapshots, deterministic idempotency, append-only
 activation events, and one active recommendation slot per game/league/market
-are implemented locally. The migration has not been applied to Azure, and no
-Registry, dashboard, Discord, Play of the Day, or grading consumer has been
-rewired yet.
+are operational in Azure. Immutable snapshots, results, and grades now provide
+the durable historical foundation for reporting and future analytics.
 
-# Approved Near-Term Outcomes and Learning Sequence
+# Completed Outcomes and Learning Foundation
 
 **Rationale:** persistence gives SharpStack durable prediction memory. Results
 ingestion provides objective outcome truth. Grading connects predictions to
-outcomes. Model Health turns graded outcomes into evidence. Market Observation
-captures market behavior. Only after those foundations exist should SharpStack
-evaluate line movement as a possible signal.
+outcomes. Model Health turns graded outcomes into evidence. The next priority
+is a permanent application shell so historical intelligence can plug into a
+stable interface.
 
 ## Sprint 63: Results Ingestion
 
-**Status:** Complete pending review.
+**Status:** Complete.
 
 Store objective provider game truth only: provider game identity, final status,
 away/home scores, derived final total, winner, completion timestamp,
@@ -137,7 +136,7 @@ metrics in this sprint.
 
 ## Sprint 64: Recommendation Grading
 
-**Status:** In progress.
+**Status:** Complete.
 
 Grade immutable PredictionSnapshots against authoritative results as `WIN`,
 `LOSS`, `PUSH`, `VOID`, `UNGRADEABLE`, or `PENDING` where appropriate. Preserve the
@@ -154,19 +153,18 @@ wager-settlement table remains separate and is not a Sprint 64 input or output.
 
 ## Sprint 65: Operational Persistence Wiring
 
-**Status:** In progress.
+**Status:** Complete.
 
 Wire the existing immutable PredictionSnapshot, GameResult, and
 RecommendationGrade services into the standard daily build. Persist the
 completed Registry idempotently, ingest authoritative provider results through
 the ingestion service, and grade matching snapshots by stable provider game
 identity. This sprint does not add analytics, ROI, CLV, or model-health
-reporting. Azure migration application remains an explicit operational action,
-not an automated build side effect.
+reporting.
 
 ## Sprint 66: Model Health
 
-**Status:** In progress.
+**Status:** Complete.
 
 Observe existing behavior through overall accuracy, recommendation-tier and
 confidence performance, probability calibration, Hammer and Market Value
@@ -176,24 +174,43 @@ final-active-call versus all-snapshot performance.
 Do not alter recommendation logic from early samples. Model changes require
 adequate sample size and documented evidence.
 
-## Sprint 67: Market Observation
+## Sprint 67: Model Health
 
-Persist timestamped sportsbook and consensus observations by provider game,
-league, market, selection, sportsbook, price/line, SSRP where applicable,
-timestamp, and source. Retain opening, latest, and closing observations where
-available.
+**Status:** Complete.
 
-Market movement is observational only in this sprint and must not change
-predictions or recommendations.
+Expose the read-only Model Health report through the SharpStack dashboard.
+The page groups latest immutable grades by league, market, and recommendation
+tier while excluding legacy rows by default.
 
-## Sprint 68+: Line Movement and Market Validation Research
+## Sprint 68: Application Shell Redesign
 
-Use SharpStack's own historical dataset to evaluate movement direction,
-magnitude, speed, timing, sportsbook leadership, disagreement, CLV, and
-interactions with confidence, Hammer, and Market Value. Do not assume line
-movement is useful; collect, measure, validate, then consider it as a signal.
+**Status:** Planning only.
 
-# Deferred Priorities After Sprint 68+
+Define SharpStack's permanent application shell before implementation:
+navigation architecture, visual tokens, reusable components, page templates,
+and a bounded implementation strategy. Do not mix feature work with navigation
+redesign, CSS refactoring, and typography experimentation.
+
+## Sprint 69: Recommendation Explorer 2.0
+
+Build the historical recommendation browser with filters for date, league,
+market, tier, grade, matchup, and selection. Each record should expose its
+immutable snapshot, market context, explanation, latest grade, revision, and
+model version.
+
+## Sprint 70: ROI Analytics
+
+## Sprint 71: Closing Line Value
+
+## Sprint 72: Calibration
+
+## Sprint 73: Recommendation Attribution
+
+## Sprint 74: Historical Charts
+
+## Sprint 75: Model Version Comparison
+
+# Deferred Priorities After Sprint 75
 
 ## Sprint 57: Provider Reliability
 
@@ -220,7 +237,7 @@ more expensive.
 
 **Status:** Not started
 
-These enhancements remain planned after the approved Sprint 63-68+ sequence:
+These enhancements remain planned after the approved Sprint 68-75 sequence:
 
 - Source Quality Confidence
 - Lineup-Aware Offense
@@ -229,7 +246,7 @@ These enhancements remain planned after the approved Sprint 63-68+ sequence:
 
 # Deferred Measurement Follow-On
 
-**Status:** Deferred behind Sprint 63-68+.
+**Status:** Deferred behind Sprint 68-75.
 
 Measurement reports what has already happened. It does not alter model
 weights, probabilities, Hammer, thresholds, or recommendations.
@@ -358,7 +375,7 @@ deferred until that queue completes.
 
 ## Market Intelligence
 
-Sprint 68+ research and later follow-ons:
+Post-Sprint 75 research and later follow-ons:
 
 - Closing Line Value
 - line movement
@@ -397,7 +414,7 @@ Epic 4 future work, after MLB reaches production quality:
 # Explicit Anti-Drift Rule
 
 Do not promote deferred provider work, Epic 2, calibration, or Epic 4 work
-ahead of the approved Sprint 63-68+ sequence. Deferred measurement and
+ahead of the approved Sprint 68-75 sequence. Deferred measurement and
 calibration work remain evidence-gated.
 Do not redesign scoring or confidence during Sprint 54, and do not integrate
 research metrics from Sprint 55 into production.

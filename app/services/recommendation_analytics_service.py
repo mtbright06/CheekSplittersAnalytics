@@ -114,6 +114,14 @@ class ModelHealthReport:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelHealthSummary:
+    recommendations: int
+    resolved: int
+    pending: int
+    overall_win_percentage: float | None
+
+
+@dataclass(frozen=True, slots=True)
 class _AnalyticsRecord:
     league: str | None
     market: str | None
@@ -253,6 +261,46 @@ def _aggregate(records: Iterable[_AnalyticsRecord]) -> tuple[ModelHealthBucket, 
     return tuple(buckets)
 
 
+def filter_model_health_buckets(
+    report: ModelHealthReport,
+    *,
+    leagues: Iterable[str] | None = None,
+    markets: Iterable[str] | None = None,
+) -> tuple[ModelHealthBucket, ...]:
+    """Filter an already-derived report without querying or recalculating data."""
+
+    league_filter = _normalized_filter(leagues)
+    market_filter = _normalized_filter(markets)
+    return tuple(
+        bucket
+        for bucket in report.buckets
+        if (not league_filter or bucket.league in league_filter)
+        and (not market_filter or bucket.market in market_filter)
+    )
+
+
+def summarize_model_health(
+    buckets: Iterable[ModelHealthBucket],
+) -> ModelHealthSummary:
+    """Summarize already-derived buckets for presentation consumers."""
+
+    rows = tuple(buckets)
+    recommendations = sum(row.sample_size for row in rows)
+    wins = sum(row.wins for row in rows)
+    losses = sum(row.losses for row in rows)
+    pending = sum(row.pending for row in rows)
+    resolved = recommendations - pending
+    win_loss_count = wins + losses
+    return ModelHealthSummary(
+        recommendations=recommendations,
+        resolved=resolved,
+        pending=pending,
+        overall_win_percentage=(wins / win_loss_count * 100)
+        if win_loss_count
+        else None,
+    )
+
+
 def _recommendation_tier(components: object) -> str | None:
     if not isinstance(components, dict):
         return None
@@ -288,6 +336,10 @@ def _grade_status(value: object) -> str:
 def _label(value: object, fallback: str) -> str:
     text = " ".join(str(value or "").upper().split())
     return text or fallback
+
+
+def _normalized_filter(values: Iterable[str] | None) -> frozenset[str]:
+    return frozenset(_label(value, "") for value in (values or ()) if _label(value, ""))
 
 
 def _as_utc(value: datetime) -> datetime:

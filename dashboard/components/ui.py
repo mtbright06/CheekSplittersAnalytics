@@ -83,8 +83,6 @@ Sports Analytics Platform
 
     st.markdown(html, unsafe_allow_html=True)
 
-    cols = st.columns(7)
-
     labels = [
         ("🏠 Dashboard", "Dashboard"),
         ("🏆Best Bets", "Best Bets"),
@@ -92,17 +90,19 @@ Sports Analytics Platform
         ("🇰🇷 KBO", "KBO"),
         ("💣 Bomb Lab", "Bomb Lab"),
         ("🔨 Decisions", "Decisions"),
+        ("📊 Model Health", "Model Health"),
         ("🎯 Props", "Props"),
         ("🎯 First 5", "First 5"),
         ("🏆 Hall", "Hall"),
         ("⚙ Settings", "Settings"),
     ]
 
-    for c, item in zip(cols, labels):
-        with c:
-            if st.button(item[0],
-                         width="stretch"):
-                st.session_state.page = item[1]
+    for start in range(0, len(labels), 7):
+        columns = st.columns(7)
+        for column, item in zip(columns, labels[start : start + 7]):
+            with column:
+                if st.button(item[0], width="stretch"):
+                    st.session_state.page = item[1]
 
 
 def render_placeholder(title, subtitle, body):

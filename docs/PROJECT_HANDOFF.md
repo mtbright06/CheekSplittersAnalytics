@@ -11,11 +11,28 @@
 **Primary branch:** `feature/recommendation-history`
 **Environment:** Windows 11 / PowerShell / Python 3.13+
 **Current milestone:** Epic 1 â€” Model Correctness
-**Current work item:** Sprint 66 Model Health Analytics Service
-**Working tree:** Sprint 66 analytics and documentation updates pending review; do not commit or push
-**Sprint 62 status:** Completion pending review
+**Current work item:** Sprint 68 Application Shell Redesign - design only
+**Working tree:** Model Health routing restoration pending review; do not commit or push
+**Sprint 62 status:** Complete
 
 SharpStack is stable and actively developed. The platform already has a functioning MLB recommendation pipeline, Recommendation Registry, Play of the Day, structured explanations, dashboard, Discord reporting, recommendation history, and an Azure PostgreSQL persistence foundation.
+
+**Current baseline:** Dashboard routing is stable and the Model Health page is
+reachable through the SharpStack shell. No work has been lost. The experimental
+UI redesign is preserved only on `backup/model-health-ui-wip` at `45f380a` and
+must be treated as a recovery/reference branch, not an implementation source.
+
+**Current database status:** Azure PostgreSQL is operational for
+`recommendations`, `game_results`, and `prediction_snapshot_grades`.
+`RecommendationAnalyticsService` remains the single, read-only source for
+historical reporting; no analytics tables are maintained.
+
+**Model Health routing:** the clean dashboard shell owns Model Health routing.
+Launch with `streamlit run dashboard/app.py`; the horizontal SharpStack
+navigation includes Model Health, while `.streamlit/config.toml` disables
+Streamlit's automatic file-based page explorer. The dashboard-only runtime
+bootstrap must run before importing `app.services` so `dashboard/app.py` cannot
+shadow the repository `app` package.
 
 The current phase is not feature expansion. It is improving the correctness, explainability, and reliability of the underlying baseball models.
 
@@ -102,8 +119,7 @@ evidence remains `UNKNOWN`. Role candidates add explanatory context only, and
 the new object remains unused by aggregation, scoring, totals, confidence, and
 recommendations.
 
-**Sprint 61 — Prediction Snapshot Architecture:** implemented as a
-persistence-neutral domain boundary and awaiting review. A typed immutable
+**Sprint 61 — Prediction Snapshot Architecture:** complete. A typed immutable
 `PredictionSnapshot` now converts canonical Registry rows into prediction-time
 identity, run, model, market, evidence-summary, component, and explanation
 data. Its prediction-time schedule field is explicitly
@@ -118,7 +134,7 @@ still creates `ModelRun` records and must be replaced by a future transactional
 Azure adapter after an idempotency-key schema migration is approved.
 
 **Sprint 62 — Azure Prediction Persistence and Active Recommendation
-Lifecycle:** implemented and awaiting review. Immutable snapshots now persist
+Lifecycle:** complete. Immutable snapshots now persist
 through `Recommendation` with deterministic idempotency and direct
 prediction-time identity fields. Append-only activation events record
 activation, supersession, withdrawal, and reinstatement; a unique mutable
@@ -130,8 +146,7 @@ incomplete run fails loudly, while a fully rolled-back attempt has no run row
 and can retry cleanly. Registry JSON, dashboard, Discord, Play of the Day, and grading behavior
 remain unchanged until a later approved consumer-integration patch.
 
-**Sprint 63 — Ground Truth (Game Results):** implementation complete pending
-review. `GameResult` is a
+**Sprint 63 — Ground Truth (Game Results):** complete. `GameResult` is a
 standalone mutable provider-outcome record keyed by provider, league, and
 provider game ID. It stores canonical game status, final scores, winner side,
 derived total score, completion/extra-innings context where supplied, source
@@ -141,7 +156,7 @@ scores and rejects an inconsistent supplied total. It performs idempotent
 identity lookup and correction-safe updates in one transaction. It does not read or write PredictionSnapshots,
 recommendations, grades, odds, ROI, CLV, Hammer, Market Value, or model logic.
 
-**Sprint 64 — Recommendation Grading:** in progress. A new immutable
+**Sprint 64 — Recommendation Grading:** complete. A new immutable
 `RecommendationGrade` evaluates one persisted PredictionSnapshot against one
 specific `GameResult` revision using a grading-rule version. It records only
 `PENDING`, `WIN`, `LOSS`, `PUSH`, `VOID`, or `UNGRADEABLE`; prediction tiers,
@@ -156,7 +171,7 @@ grade identity: each snapshot/result revision has exactly one grade. A future
 grading-rule upgrade must migrate or recompute that canonical record rather
 than create parallel versioned grades.
 
-**Sprint 65 — Operational Persistence Wiring:** in progress. The standard
+**Sprint 65 — Operational Persistence Wiring:** complete. The standard
 `build.py` workflow now invokes `tools_persist_daily_history.py` after the
 canonical Registry is built and before downstream Explorer and Discord output.
 The command persists immutable Registry snapshots via the existing lifecycle
@@ -164,22 +179,14 @@ service, normalizes recent MLB Stats API schedule results through
 `GameResultIngestionService`, then grades matching snapshots using stable MLB
 provider game IDs. It does not write directly to `game_results`, change model
 outputs, or alter Registry JSON. Azure is currently at Alembic revision
-`c0f6e12d9a41`; Sprint 62-64 tables are not present yet, so the migration must
-be reviewed and applied explicitly before the required persistence build step
-can succeed in production. The audit found three legacy `model_runs` and six
-legacy `recommendations`, but no activation events, active slots, game
-results, or immutable prediction grades. MLB totals now prefer the canonical
-MLB `game_id` when building Registry records; historical totals with an opaque
-odds-provider event ID remain an unmatched-data risk. KBO snapshots persist,
-but this sprint adds only the MLB result adapter; KBO result ingestion and
-grading remain a visible follow-up rather than being silently claimed as
-complete. Registry `event_time` is presentation-only and may be an ISO string,
-display time, or null; immutable snapshots populate
-`scheduled_start_at_prediction` only from the optional canonical
-`scheduled_start_at` Registry field. Absent canonical time remains null rather
-than being inferred from display text.
+`c0f6e12d9a41`; the reviewed immutable persistence lifecycle is operational in
+Azure. Recommendations now flow from engine output through immutable snapshot
+persistence, authoritative result ingestion, grading, and historical
+analytics without manual intervention. Registry `event_time` remains
+presentation-only; immutable snapshots populate `scheduled_start_at_prediction`
+only from canonical scheduled time, otherwise leaving it null.
 
-**Sprint 66 — Model Health Analytics Service:** in progress. The read-only
+**Sprint 66 — Model Health Analytics Service:** complete and stable. The read-only
 `RecommendationAnalyticsService` derives on-demand model-health buckets from
 persisted prediction snapshots and their latest immutable grade revision. It
 groups by league, market, and canonical recommendation tier and reports sample
@@ -193,25 +200,44 @@ as a moneyline tier. Historical totals stored with opaque odds-provider event
 IDs cannot safely match authoritative MLB game results and remain pending;
 the service does not infer a matchup-based link or alter grading rules.
 
+**Sprint 67 — Model Health:** complete. Model Health provides league, market,
+and recommendation-tier grouping with `ModelHealthReport` and
+`ModelHealthBucket`; it uses latest immutable grades and excludes legacy rows
+by default. The dashboard page is restored and reachable through the clean
+SharpStack shell.
+
 The MLB full slate presents projected-winner ranking separately from betting
 value. Its compact cards display the canonical conviction and market-value
 badges; diagnostics, including Hammer and Market vs Model, remain inside
 SharpStack Intelligence. Best Bets retains Registry-owned ranking.
 
-**Approved next sequence:** Sprint 63 Results Ingestion records objective game
-truth only; Sprint 64 grades immutable snapshots; Sprint 65 operationalizes
-their daily persistence flow; Sprint 66 measures model health; Sprint 67
-records market observations; Sprint 68+ researches whether
-line movement has independently demonstrated value. This order creates durable
-prediction memory, outcome truth, grading, evidence, and market history before
-any market-movement signal is considered. Provider reliability, Epic 2 model
-intelligence, historical presentation follow-ons, calibration, and platform
-work remain deferred behind this sequence, not canceled.
+**Sprint 68 — Application Shell Redesign:** highest priority, design only.
+Before implementation, define and approve permanent navigation, visual tokens,
+shared components, page templates, and an implementation strategy. Future UI
+work must not mix feature development, navigation changes, CSS refactoring,
+typography experiments, and spacing changes in one evolving patch.
+
+**Immediate roadmap:** Sprint 69 Recommendation Explorer 2.0; Sprint 70 ROI
+analytics; Sprint 71 closing-line value; Sprint 72 calibration; Sprint 73
+recommendation attribution; Sprint 74 historical charts; Sprint 75 model
+version comparison. These build on the immutable prediction, result, and
+grading foundation rather than altering it.
 
 Future reporting must keep separate: all historical snapshot performance,
 final active recommendation performance, published recommendation performance,
 wagers actually placed, model accuracy, and betting profit/ROI. They are not
 one record or one headline metric.
+
+**UI retrospective:** UI work is intentionally paused. The experimental branch
+mixed feature work, navigation redesign, CSS refactoring, typography, and
+spacing changes into one evolving implementation. Future UI work begins with
+shell architecture and design approval, not incremental CSS adjustment.
+
+**Next-chat objective:** do not code immediately. Design the permanent
+SharpStack application shell: navigation architecture, typography and spacing
+systems, reusable component hierarchy, design tokens, page template, and
+implementation strategy. Freeze that shell before Explorer, CLV, ROI, or
+future-sport UI work plugs into it.
 
 ---
 
@@ -240,8 +266,8 @@ This was a provider/data-correctness issue, and SharpStack's architecture requir
 The Sprint 54, Sprint 55, and Sprint 56 execution queue is complete. Do not
 select or implement new work without roadmap governance.
 
-Do not begin Sprint 63 until Sprint 62 is approved. After Sprint 62, follow the
-approved Sprint 63-68+ outcomes-and-learning sequence before returning to
+Sprints 61-67 are complete. Begin Sprint 68 with design only; after approval,
+follow the Sprint 68-75 sequence before returning to
 deferred provider, Epic 2, calibration, or future-sport work.
 
 ---
@@ -868,8 +894,9 @@ conviction from SSRP market value. Hammer is advisory only for MLB moneylines.
 Sprint 62 prediction persistence is awaiting review. Sprint 63 is limited to
 objective outcome truth, and Sprint 64 now evaluates those results against
 immutable snapshots. Sprint 65 wires those services into the daily build;
-Sprint 66 Model Health, Sprint 67 Market Observation, and Sprint 68+
-line-movement research remain next in order. Keep all-snapshot, final-active-call, published,
+Sprint 67 Model Health is complete. Sprint 68 Application Shell Redesign is
+design-only, followed by Sprint 69 Recommendation Explorer 2.0 through Sprint
+75 Model Version Comparison. Keep all-snapshot, final-active-call, published,
 placed-wager, model-accuracy, and profit/ROI reporting distinct.
 
 Do not select a new sprint without roadmap governance. Use small targeted

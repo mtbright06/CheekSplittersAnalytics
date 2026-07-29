@@ -1,3 +1,9 @@
+from components.runtime import ensure_project_root
+
+
+ensure_project_root()
+
+
 import streamlit as st
 from pages.best_bets_page import render_best_bets
 
@@ -12,6 +18,7 @@ from components.ui import (
 )
 from pages.dashboard_page import render_dashboard
 from pages.decision_page import render_decisions
+from pages.model_health_page import render_model_health_dashboard
 from pages.placeholder_pages import (
     render_bomb_lab,
     render_first5,
@@ -54,6 +61,9 @@ def render_page():
 
     elif page == "Decisions":
         render_decisions()
+
+    elif page == "Model Health":
+        render_model_health_dashboard()
 
     elif page == "MLB":
         mlb_card = load_sport_card("mlb")

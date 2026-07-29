@@ -24,8 +24,11 @@ from app.services.daily_persistence_service import (
 from app.services.recommendation_analytics_service import (
     ModelHealthBucket,
     ModelHealthReport,
+    ModelHealthSummary,
     RecommendationAnalyticsError,
     RecommendationAnalyticsService,
+    filter_model_health_buckets,
+    summarize_model_health,
 )
 from app.services.prediction_snapshot_service import (
     PredictionIdentity,
@@ -55,6 +58,7 @@ __all__ = [
     "GameResultInput",
     "ModelHealthBucket",
     "ModelHealthReport",
+    "ModelHealthSummary",
     "ModelIdentity",
     "PredictionIdentity",
     "PredictionRunContext",
@@ -72,4 +76,6 @@ __all__ = [
     "WithdrawalRequest",
     "SnapshotModelIdentity",
     "SavedPredictionSnapshotGrade",
+    "filter_model_health_buckets",
+    "summarize_model_health",
 ]

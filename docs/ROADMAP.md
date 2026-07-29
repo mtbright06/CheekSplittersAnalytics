@@ -201,6 +201,15 @@ sidebar navigation component. Canonical routes, session-state routing, and all
 page renderers remain unchanged; navigation groups are visible and expanded by
 default while retaining future collapse metadata.
 
+Sprint 68.3.1 tightened shell-token density but did not address Streamlit's
+generated wrapper cascade; it is superseded by Sprint 68.3.2. Route and page
+behavior remain unchanged.
+
+Sprint 68.3.2 corrects the Streamlit sidebar wrapper and radio-control cascade:
+sidebar element-container spacing and inline radio-group gaps are reset only
+inside the shell, active styling targets the actual radio root, and the engine
+status uses the shell's flex column. No routes or page behavior change.
+
 ## Sprint 69: Recommendation Explorer 2.0
 
 Build the historical recommendation browser with filters for date, league,

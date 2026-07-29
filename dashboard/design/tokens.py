@@ -42,7 +42,7 @@ DESIGN_TOKENS_CSS = """
 
     --ss-size-sidebar: 240px;
     --ss-size-topbar-min-height: 42px;
-    --ss-size-control-compact: 36px;
+    --ss-size-control-compact: 32px;
     --ss-size-control-default: 42px;
     --ss-size-table-row: 40px;
     --ss-size-metric-card-min-height: 108px;

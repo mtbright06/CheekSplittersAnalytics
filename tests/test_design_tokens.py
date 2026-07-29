@@ -32,3 +32,9 @@ def test_shell_styles_consume_shared_design_tokens():
         "var(--ss-font-caption)",
     ):
         assert token in source
+
+
+def test_compact_control_token_supports_dense_sidebar_navigation():
+    source = TOKENS.read_text()
+
+    assert "--ss-size-control-compact: 32px" in source

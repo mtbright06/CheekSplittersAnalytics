@@ -233,6 +233,19 @@ existing `st.session_state.page` route contract, keeps every group expanded by
 default, and exposes the active route with a clear accent indicator. No page
 renderer, route name, backend service, or URL-routing behavior changed.
 
+**Sprint 68.3.1 — Sidebar Density:** implemented, then superseded by the
+wrapper-cascade correction in Sprint 68.3.2. The compact-control token is 32px
+and shell-only padding/group spacing are reduced, but that change alone did not
+address Streamlit-generated layout gaps. No overflow is hidden and no route or
+page behavior changed.
+
+**Sprint 68.3.2 — Sidebar Viewport Layout:** implemented and awaiting visual
+review. The correction targets Streamlit's actual sidebar wrappers: the
+sidebar-content vertical block, element containers, and inline radio-group
+layout. The active rail now targets the checked radio root rather than its
+sibling label, and Engine Online is placed by the shell flex column. No hidden
+overflow, route, or page behavior changes were introduced.
+
 **Immediate roadmap:** Sprint 69 Recommendation Explorer 2.0; Sprint 70 ROI
 analytics; Sprint 71 closing-line value; Sprint 72 calibration; Sprint 73
 recommendation attribution; Sprint 74 historical charts; Sprint 75 model

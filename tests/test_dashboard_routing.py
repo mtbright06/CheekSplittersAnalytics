@@ -76,3 +76,15 @@ def test_sidebar_preserves_session_state_routing_without_url_navigation():
     assert "st.radio(" in source
     assert "index=None" in source
     assert "query_params" not in source
+
+
+def test_sidebar_styles_target_streamlit_wrapper_and_radio_structures():
+    source = (DASHBOARD / "shell" / "styles.py").read_text()
+
+    for selector in (
+        '[data-testid="stSidebarContent"] > [data-testid="stVerticalBlock"]',
+        '[data-testid="stElementContainer"]:last-child',
+        '[data-testid="stRadioGroup"]',
+        '[data-baseweb="radio"]:has(input:checked)',
+    ):
+        assert selector in source

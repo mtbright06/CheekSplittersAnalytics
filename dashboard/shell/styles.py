@@ -13,7 +13,25 @@ SHELL_CSS = """
 }
 
 [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
-    padding: var(--ss-space-3) var(--ss-space-3);
+    display: flex;
+    flex-direction: column;
+    padding: var(--ss-space-2) var(--ss-space-3);
+}
+
+[data-testid="stSidebar"] [data-testid="stSidebarContent"] > [data-testid="stVerticalBlock"] {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0 !important;
+    min-height: 100%;
+}
+
+[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] {
+    margin-bottom: 0 !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:last-child {
+    margin-top: auto;
 }
 
 .sharpstack-sidebar-brand {
@@ -26,7 +44,7 @@ SHELL_CSS = """
 .sharpstack-sidebar-subtitle {
     color: var(--ss-color-text-secondary);
     font-size: var(--ss-font-caption);
-    margin: 0 0 var(--ss-space-5);
+    margin: 0 0 var(--ss-space-3);
 }
 
 .sharpstack-nav-group-label {
@@ -34,37 +52,44 @@ SHELL_CSS = """
     font-size: var(--ss-font-caption);
     font-weight: 700;
     letter-spacing: 0.08em;
-    margin: var(--ss-space-4) 0 var(--ss-space-1);
+    margin: var(--ss-space-2) 0 var(--ss-space-1);
     text-transform: uppercase;
 }
 
-[data-testid="stSidebar"] [data-testid="stRadio"] > div {
-    gap: var(--ss-space-1);
+[data-testid="stSidebar"] [data-testid="stRadio"] {
+    margin: 0;
 }
 
-[data-testid="stSidebar"] [data-testid="stRadio"] label {
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] {
+    gap: var(--ss-space-1) !important;
+    min-height: 0 !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] [data-baseweb="radio"] {
     align-items: center;
     border-left: 3px solid transparent;
     border-radius: var(--ss-radius-md);
     color: var(--ss-color-text-secondary);
+    display: flex;
     min-height: var(--ss-size-control-compact);
     margin: 0;
     padding: 0 var(--ss-space-2);
 }
 
-[data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] [data-baseweb="radio"]:hover {
     background: color-mix(in srgb, var(--ss-color-accent) 10%, transparent);
     color: var(--ss-color-text-primary);
 }
 
-[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] [data-baseweb="radio"]:has(input:checked) {
     background: color-mix(in srgb, var(--ss-color-accent) 16%, transparent);
     border-left-color: var(--ss-color-accent);
     color: var(--ss-color-text-primary);
     font-weight: 700;
 }
 
-[data-testid="stSidebar"] [data-testid="stRadio"] input {
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] [data-baseweb="radio"] > div:first-child,
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] input {
     opacity: 0;
     position: absolute;
 }
@@ -73,7 +98,7 @@ SHELL_CSS = """
     border-top: 1px solid var(--ss-color-border);
     color: var(--ss-color-success);
     font-size: var(--ss-font-caption);
-    margin-top: var(--ss-space-5);
+    margin-top: var(--ss-space-4);
     padding-top: var(--ss-space-2);
 }
 

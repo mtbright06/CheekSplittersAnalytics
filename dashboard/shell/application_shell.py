@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import streamlit as st
 
+from design import render_design_tokens
+
 from .sidebar import render_shell_sidebar
 from .styles import render_shell_styles
 from .topbar import render_topbar
@@ -19,6 +21,7 @@ def initialize_shell() -> None:
 def render_application_shell() -> None:
     """Render only global chrome; pages retain their current internals."""
 
+    render_design_tokens()
     render_shell_styles()
     render_shell_sidebar()
     render_topbar()

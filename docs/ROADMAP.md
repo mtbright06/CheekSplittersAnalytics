@@ -192,6 +192,10 @@ including Model Health. Existing page renderers, styling, analytics, and model
 behavior remain unchanged. Component-library and page-redesign work remain out
 of scope.
 
+Sprint 68.2 adds the shared frontend token foundation only. It centralizes
+approved colors, spacing, typography, radius, shadows, and sizing definitions,
+then migrates shell chrome without redesigning page content.
+
 ## Sprint 69: Recommendation Explorer 2.0
 
 Build the historical recommendation browser with filters for date, league,

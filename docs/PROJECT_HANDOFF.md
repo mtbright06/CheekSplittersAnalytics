@@ -219,6 +219,13 @@ existing renderers, route names, analytics, persistence, grading, and model
 behavior are unchanged. Shell CSS is scoped to the sidebar and top bar, and
 the failed `backup/model-health-ui-wip` experiment was not merged.
 
+**Sprint 68.2 — Design Tokens:** implemented and awaiting review. Shared
+frontend colors, spacing, typography, radius, and sizing now live in
+`dashboard/design/tokens.py` as CSS custom properties. Only shell chrome
+consumes the new tokens in this sprint; existing page-specific CSS remains
+unchanged by design. `docs/DESIGN_SYSTEM.md` defines the approved token roles
+and guardrails for future shared components.
+
 **Immediate roadmap:** Sprint 69 Recommendation Explorer 2.0; Sprint 70 ROI
 analytics; Sprint 71 closing-line value; Sprint 72 calibration; Sprint 73
 recommendation attribution; Sprint 74 historical charts; Sprint 75 model

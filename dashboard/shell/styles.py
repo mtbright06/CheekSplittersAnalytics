@@ -8,23 +8,23 @@ import streamlit as st
 SHELL_CSS = """
 <style>
 [data-testid="stSidebar"][aria-expanded="true"] {
-    min-width: 240px;
-    max-width: 240px;
+    min-width: var(--ss-size-sidebar);
+    max-width: var(--ss-size-sidebar);
 }
 
 [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
-    padding: 0.75rem 0.65rem;
+    padding: var(--ss-space-3) var(--ss-space-3);
 }
 
 [data-testid="stSidebar"] div.stButton {
-    margin: 0 0 0.2rem;
+    margin: 0 0 var(--ss-space-1);
 }
 
 [data-testid="stSidebar"] div.stButton > button {
-    min-height: 36px;
-    border-radius: 7px;
+    min-height: var(--ss-size-control-compact);
+    border-radius: var(--ss-radius-lg);
     justify-content: flex-start;
-    padding: 0.35rem 0.65rem;
+    padding: var(--ss-space-1) var(--ss-space-3);
     text-align: left;
 }
 
@@ -32,12 +32,12 @@ SHELL_CSS = """
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 42px;
-    margin: 0 0 0.85rem;
-    padding: 0.25rem 0 0.5rem;
-    border-bottom: 1px solid rgba(160, 190, 230, 0.16);
-    color: #b9c7dc;
-    font-size: 0.8rem;
+    min-height: var(--ss-size-topbar-min-height);
+    margin: 0 0 var(--ss-space-3);
+    padding: var(--ss-space-1) 0 var(--ss-space-2);
+    border-bottom: 1px solid var(--ss-color-border);
+    color: var(--ss-color-text-secondary);
+    font-size: var(--ss-font-caption);
 }
 </style>
 """

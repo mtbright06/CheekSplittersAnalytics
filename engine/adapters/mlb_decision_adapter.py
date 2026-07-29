@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.core.pregame_eligibility import (
+    PregameEligibilityReason,
+)
 from engine.core import (
     MarketQuote,
     Recommendation,
@@ -119,7 +122,10 @@ def adapt_decision(
     row: dict,
     *,
     generated_at: str | None = None,
-) -> Recommendation:
+) -> Recommendation | None:
+    if row.get("pregame_eligible") is False or row.get("is_live"):
+        return None
+
     market_quote = build_market_quote(
         row
     )
@@ -149,6 +155,10 @@ def adapt_decision(
         matchup=row.get("matchup"),
         event_time=row.get(
             "commence_time"
+        ),
+        scheduled_start_at=(
+            row.get("scheduled_start_at")
+            or row.get("commence_time")
         ),
         market=normalize_market(row),
         selection=row.get(
@@ -220,6 +230,10 @@ def adapt_decision(
                 "consensus",
                 {},
             ),
+            "pregame_eligibility_reason": (
+                row.get("pregame_eligibility_reason")
+                or PregameEligibilityReason.ELIGIBLE.value
+            ),
          },
 
         tags=build_tags(row),
@@ -227,6 +241,15 @@ def adapt_decision(
             "live"
             if row.get("is_live")
             else "pregame"
+        ),
+        pregame_eligible=(
+            row.get("pregame_eligible")
+            if row.get("pregame_eligible") is not None
+            else True
+        ),
+        pregame_eligibility_reason=(
+            row.get("pregame_eligibility_reason")
+            or PregameEligibilityReason.ELIGIBLE.value
         ),
         generated_at=(
             generated_at
@@ -260,13 +283,16 @@ def adapt_mlb_decision_card(
         if not selection:
             continue
 
-        recommendations.append(
-            adapt_decision(
-                row,
-                generated_at=(
-                    generated_at
-                ),
-            )
+        recommendation = adapt_decision(
+            row,
+            generated_at=(
+                generated_at
+            ),
         )
+
+        if recommendation is not None:
+            recommendations.append(
+                recommendation
+            )
 
     return recommendations

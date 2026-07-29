@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.core.pregame_eligibility import (
+    PregameEligibilityReason,
+)
 from engine.core import MarketQuote, Recommendation
 
 
@@ -47,6 +50,15 @@ def adapt_mlb_totals_game(
     if not isinstance(totals, dict):
         return None
 
+    eligibility_reason = str(
+        game.get("pregame_eligibility_reason")
+        or totals.get("pregame_eligibility_reason")
+        or ""
+    )
+
+    if game.get("pregame_eligible") is False:
+        return None
+
     selection = _selection(totals)
 
     if not selection:
@@ -59,6 +71,9 @@ def adapt_mlb_totals_game(
     total_quote = odds.get("totals", {})
     if not isinstance(total_quote, dict):
         total_quote = {}
+
+    if total_quote.get("pregame_eligible") is False:
+        return None
 
     direction = str(totals.get("selection") or totals.get("direction") or "").upper()
     price_key = "over_odds" if direction == "OVER" else "under_odds"
@@ -84,6 +99,7 @@ def adapt_mlb_totals_game(
         event_id=str(_first_present(game.get("game_id"), total_quote.get("event_id"), odds.get("event_id")) or ""),
         matchup=_matchup_text(game),
         event_time=_first_present(total_quote.get("commence_time"), odds.get("commence_time"), game.get("commence_time")),
+        scheduled_start_at=game.get("scheduled_start_at") or game.get("commence_time"),
         market="totals",
         selection=selection,
         model_probability=None,
@@ -103,8 +119,21 @@ def adapt_mlb_totals_game(
             "totals_edge_runs": totals.get("edge"),
             "projected_total": totals.get("projected_total"),
             "market_total": totals.get("market_total"),
+            "pregame_eligibility_reason": (
+                eligibility_reason
+                or PregameEligibilityReason.ELIGIBLE.value
+            ),
         },
         tags=["mlb", "totals", "real_market" if real_market_loaded else "model_only"],
+        pregame_eligible=(
+            game.get("pregame_eligible")
+            if game.get("pregame_eligible") is not None
+            else True
+        ),
+        pregame_eligibility_reason=(
+            eligibility_reason
+            or PregameEligibilityReason.ELIGIBLE.value
+        ),
         generated_at=generated_at or game.get("generated_at"),
     )
 

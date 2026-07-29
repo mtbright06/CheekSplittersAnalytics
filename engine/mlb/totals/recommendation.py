@@ -242,6 +242,9 @@ def build_totals_recommendation(
         and market_payload.get("line") is not None
     )
 
+    if market_payload.get("pregame_eligible") is False:
+        market_available = False
+
     edge_component = score_edge(
         absolute_edge
     )

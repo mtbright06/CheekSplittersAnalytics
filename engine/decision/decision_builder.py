@@ -1189,6 +1189,15 @@ def build_decision_card() -> dict:
                 ),
                 "quote_identity": market.get("quote_identity"),
                 "quote_source": market.get("quote_source"),
+                "commence_time": mlb_game.get("commence_time"),
+                "scheduled_start_at": (
+                    mlb_game.get("scheduled_start_at")
+                    or mlb_game.get("commence_time")
+                ),
+                "pregame_eligible": mlb_game.get("pregame_eligible"),
+                "pregame_eligibility_reason": mlb_game.get(
+                    "pregame_eligibility_reason"
+                ),
                 "current_freshness_status": market.get(
                     "current_freshness_status"
                 ),

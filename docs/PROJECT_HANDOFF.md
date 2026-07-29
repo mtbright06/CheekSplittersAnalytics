@@ -285,6 +285,13 @@ Full Market Board. The table rows, column order, column labels, numeric
 values, native toolbar behavior, scrolling, tabs, calculations, routing, and
 all other tables remain unchanged.
 
+**Sprint 68.9 — Matchup Hero Refinement:** implemented and awaiting manual
+screenshot review. The existing Matchup Hero now presents away/home teams,
+the projected winner, recommendation, model win probability, and confidence
+with restrained analytical hierarchy using only existing game/model fields.
+No calculations, model output, routing, sidebar, headers, tables,
+recommendation cards, page layout, or Play Summary logic changed.
+
 **Immediate roadmap:** Sprint 69 Recommendation Explorer 2.0; Sprint 70 ROI
 analytics; Sprint 71 closing-line value; Sprint 72 calibration; Sprint 73
 recommendation attribution; Sprint 74 historical charts; Sprint 75 model
@@ -937,6 +944,17 @@ These ideas may be valuable. They are not blocking the active Epic 1 objective.
 - Odds history is append-only.
 - PASS is neutral, not support.
 - Do not interpret one slate as calibration evidence.
+- Critical live-line guard added: pregame recommendation eligibility is now a
+  shared domain object consumed by MLB market comparison, totals
+  recommendation construction, registry adapters, and daily persistence.
+  Missing/unverified game state or start time fails closed for new pregame
+  recommendation snapshots while preserving existing historical records for
+  grading and Model Health.
+- Sprint 69.1 hotfix: canonical `scheduled_start_at` must be a complete
+  timezone-aware ISO datetime or `None`. KBO display-only `start_time` values
+  such as `6:30pm` remain display fields only and now fail closed as
+  `GAME_STATE_UNVERIFIED`; daily persistence logs and skips malformed rows
+  instead of crashing the slate.
 
 ---
 

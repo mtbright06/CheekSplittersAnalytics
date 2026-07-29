@@ -77,6 +77,7 @@ class Recommendation:
     event_id: str | None = None
     matchup: str | None = None
     event_time: str | None = None
+    scheduled_start_at: str | None = None
 
     model_probability: float | None = None
     market_probability: float | None = None
@@ -119,6 +120,8 @@ class Recommendation:
     )
 
     status: str = "pregame"
+    pregame_eligible: bool | None = None
+    pregame_eligibility_reason: str | None = None
     generated_at: str = field(
         default_factory=lambda: (
             datetime.now().isoformat(
@@ -310,6 +313,7 @@ class Recommendation:
             "event_id": self.event_id,
             "matchup": self.matchup,
             "event_time": self.event_time,
+            "scheduled_start_at": self.scheduled_start_at,
             "market": self.market,
             "selection": self.selection,
             "model_probability": (
@@ -362,6 +366,10 @@ class Recommendation:
             ),
             "tags": self.tags,
             "status": self.status,
+            "pregame_eligible": self.pregame_eligible,
+            "pregame_eligibility_reason": (
+                self.pregame_eligibility_reason
+            ),
             "generated_at": self.generated_at,
             "actionable": self.actionable,
         }
@@ -381,6 +389,9 @@ class Recommendation:
             event_id=data.get("event_id"),
             matchup=data.get("matchup"),
             event_time=data.get("event_time"),
+            scheduled_start_at=data.get(
+                "scheduled_start_at"
+            ),
             market=data.get("market", ""),
             selection=data.get(
                 "selection",
@@ -451,6 +462,12 @@ class Recommendation:
             status=data.get(
                 "status",
                 "pregame",
+            ),
+            pregame_eligible=data.get(
+                "pregame_eligible"
+            ),
+            pregame_eligibility_reason=data.get(
+                "pregame_eligibility_reason"
             ),
             generated_at=data.get(
                 "generated_at",

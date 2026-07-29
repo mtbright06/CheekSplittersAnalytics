@@ -5,6 +5,12 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any, Callable
 
+from engine.core import (
+    ELIGIBLE_PREGAME,
+    PregameEligibility,
+    PregameEligibilityReason,
+    evaluate_pregame_eligibility,
+)
 from engine.mlb.offense import (
     fetch_team_batting_stats,
 )
@@ -302,6 +308,21 @@ def unavailable_total_dict() -> dict:
     }
 
 
+def ineligible_total_dict(
+    eligibility: PregameEligibility,
+) -> dict:
+    data = unavailable_total_dict()
+    data.update(
+        {
+            "freshness_reason": eligibility.reason.value,
+            "market_status": eligibility.reason.value,
+            "pregame_eligible": eligibility.eligible,
+            "pregame_eligibility_reason": eligibility.reason.value,
+        }
+    )
+    return data
+
+
 def unavailable_quote_dict() -> dict:
     return {
         "provider": None,
@@ -337,6 +358,23 @@ def unavailable_quote_dict() -> dict:
         "reference_policy_version": None,
         "totals": unavailable_total_dict(),
     }
+
+
+def ineligible_quote_dict(
+    eligibility: PregameEligibility,
+) -> dict:
+    data = unavailable_quote_dict()
+    data.update(
+        {
+            "freshness_status": "UNAVAILABLE",
+            "freshness_reason": eligibility.reason.value,
+            "market_status": eligibility.reason.value,
+            "pregame_eligible": eligibility.eligible,
+            "pregame_eligibility_reason": eligibility.reason.value,
+            "totals": ineligible_total_dict(eligibility),
+        }
+    )
+    return data
 
 
 def quote_to_dict(
@@ -434,6 +472,13 @@ def quote_to_dict(
         "freshness_reason": get_value(
             quote,
             "freshness_reason",
+        ),
+        "is_live": bool(
+            get_value(
+                quote,
+                "is_live",
+                False,
+            )
         ),
         "real_market_loaded": bool(
             get_value(
@@ -698,6 +743,13 @@ def build_total_lookup(
                     quote,
                     "last_updated",
                 ),
+                "is_live": bool(
+                    get_value(
+                        quote,
+                        "is_live",
+                        False,
+                    )
+                ),
                 "available": True,
                 "stale": False,
                 "real_market_loaded": True,
@@ -795,6 +847,18 @@ def quote_for_team(
         key,
         [],
     )
+
+    candidates = [
+        candidate
+        for candidate in candidates
+        if not bool(
+            get_value(
+                candidate,
+                "is_live",
+                False,
+            )
+        )
+    ]
 
     if not candidates:
         return None
@@ -929,7 +993,14 @@ def total_for_game(
     ],
     away: str,
     home: str,
+    *,
+    eligibility: PregameEligibility = ELIGIBLE_PREGAME,
 ) -> dict:
+    if not eligibility.eligible:
+        return ineligible_total_dict(
+            eligibility
+        )
+
     key = (
         clean(away),
         clean(home),
@@ -942,6 +1013,20 @@ def total_for_game(
 
     if not candidates:
         return unavailable_total_dict()
+
+    candidates = [
+        candidate
+        for candidate in candidates
+        if not candidate.get("is_live")
+    ]
+
+    if not candidates:
+        return ineligible_total_dict(
+            PregameEligibility(
+                False,
+                PregameEligibilityReason.LIVE_MARKET,
+            )
+        )
 
     complete_pairs = [
         candidate
@@ -1006,6 +1091,14 @@ def total_for_game(
             "available"
         )
     )
+
+    selected[
+        "pregame_eligible"
+    ] = eligibility.eligible
+
+    selected[
+        "pregame_eligibility_reason"
+    ] = eligibility.reason.value
 
     return selected
 
@@ -1088,6 +1181,20 @@ def build_mlb_card(
         if not away or not home:
             continue
 
+        status_payload = raw.get(
+            "status",
+            {},
+        )
+
+        scheduled_start_at = raw.get(
+            "gameDate"
+        )
+
+        pregame_eligibility = evaluate_pregame_eligibility(
+            game_status=status_payload,
+            scheduled_start=scheduled_start_at,
+        )
+
         away_pitcher = pitcher_from_team(
             away_blob,
             game_log_cache=game_log_cache,
@@ -1098,19 +1205,23 @@ def build_mlb_card(
             game_log_cache=game_log_cache,
         )
 
-        away_quote = quote_for_team(
-            moneyline_lookup,
-            away,
-            home,
-            away,
-        )
+        if pregame_eligibility.eligible:
+            away_quote = quote_for_team(
+                moneyline_lookup,
+                away,
+                home,
+                away,
+            )
 
-        home_quote = quote_for_team(
-            moneyline_lookup,
-            away,
-            home,
-            home,
-        )
+            home_quote = quote_for_team(
+                moneyline_lookup,
+                away,
+                home,
+                home,
+            )
+        else:
+            away_quote = None
+            home_quote = None
 
         away_reference = resolve_reference_quote(
             away_quote,
@@ -1145,10 +1256,15 @@ def build_mlb_card(
             else home_reference
         )
 
-        odds = quote_to_dict(
-            quote_object(selected_current.current_quote)
-        )
-        odds.update(selected_current.reference_fields)
+        if pregame_eligibility.eligible:
+            odds = quote_to_dict(
+                quote_object(selected_current.current_quote)
+            )
+            odds.update(selected_current.reference_fields)
+        else:
+            odds = ineligible_quote_dict(
+                pregame_eligibility
+            )
 
         odds[
             "totals"
@@ -1156,6 +1272,7 @@ def build_mlb_card(
             total_lookup,
             away,
             home,
+            eligibility=pregame_eligibility,
         )
 
         game = {
@@ -1172,6 +1289,9 @@ def build_mlb_card(
             "commence_time": raw.get(
                 "gameDate"
             ),
+            "scheduled_start_at": scheduled_start_at,
+            "pregame_eligible": pregame_eligibility.eligible,
+            "pregame_eligibility_reason": pregame_eligibility.reason.value,
             "venue": raw.get(
                 "venue",
                 {},

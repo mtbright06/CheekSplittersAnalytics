@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from engine.core.consensus import (
     ConsensusSignal,
     build_consensus,
@@ -11,6 +13,31 @@ from engine.core import (
     MarketQuote,
     Recommendation,
 )
+
+
+def _authoritative_scheduled_start(value: Any) -> str | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime):
+        if value.tzinfo is None or value.utcoffset() is None:
+            return None
+        return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+    if not isinstance(value, str):
+        return None
+
+    text = value.strip()
+    if not text:
+        return None
+
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+
+    return parsed.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 def canonical_kbo_row(row: dict) -> dict:
@@ -563,6 +590,10 @@ def adapt_kbo_row(
     generated_at: str | None = None,
 ) -> Recommendation | None:
     row = canonical_kbo_row(row)
+
+    if row.get("pregame_eligible") is False or row.get("is_live"):
+        return None
+
     selection = extract_selection(row)
 
     if not selection:
@@ -589,6 +620,24 @@ def adapt_kbo_row(
         row
     )
 
+    scheduled_start_at = _authoritative_scheduled_start(
+        row.get("scheduled_start_at")
+        or row.get("commence_time")
+    )
+    pregame_eligible = (
+        row.get("pregame_eligible")
+        if row.get("pregame_eligible") is not None
+        else scheduled_start_at is not None
+    )
+    pregame_eligibility_reason = (
+        row.get("pregame_eligibility_reason")
+        or (
+            "ELIGIBLE"
+            if pregame_eligible
+            else "GAME_STATE_UNVERIFIED"
+        )
+    )
+
     recommendation = Recommendation(
         sport="BASEBALL",
         league="KBO",
@@ -599,6 +648,7 @@ def adapt_kbo_row(
             or row.get("game_time")
             or row.get("start_time")
         ),
+        scheduled_start_at=scheduled_start_at,
         market=market,
         selection=selection,
         model_probability=(
@@ -675,6 +725,8 @@ def adapt_kbo_row(
             if row.get("is_live")
             else "pregame"
         ),
+        pregame_eligible=pregame_eligible,
+        pregame_eligibility_reason=pregame_eligibility_reason,
         generated_at=(
             generated_at
             or row.get("generated_at")

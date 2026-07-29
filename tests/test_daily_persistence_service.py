@@ -119,6 +119,7 @@ def _row(*, recommendation="PASS", selection="Washington Nationals", market="mon
         "selection": selection,
         "matchup": "Arizona Diamondbacks @ Washington Nationals",
         "event_time": "6:30pm",
+        "scheduled_start_at": "2026-07-28T18:30:00Z",
         "recommendation": recommendation,
         "components": {},
     }

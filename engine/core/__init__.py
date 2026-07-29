@@ -15,6 +15,12 @@ from engine.core.play_of_day import (
     PlayOfDayResult,
     select_play_of_day,
 )
+from engine.core.pregame_eligibility import (
+    ELIGIBLE_PREGAME,
+    PregameEligibility,
+    PregameEligibilityReason,
+    evaluate_pregame_eligibility,
+)
 from engine.core.ranking import (
     RankingWeights,
     calculate_ranking_score,
@@ -35,8 +41,11 @@ from engine.core.scoring import (
 __all__ = [
     "ConsensusResult",
     "ConsensusSignal",
+    "ELIGIBLE_PREGAME",
     "MarketQuote",
     "PlayOfDayResult",
+    "PregameEligibility",
+    "PregameEligibilityReason",
     "RankingWeights",
     "Recommendation",
     "RecommendationRegistry",
@@ -46,6 +55,7 @@ __all__ = [
     "calculate_ranking_score",
     "confidence_label",
     "expected_value",
+    "evaluate_pregame_eligibility",
     "implied_probability_to_american",
     "recommendation_label",
     "remove_two_way_vig",

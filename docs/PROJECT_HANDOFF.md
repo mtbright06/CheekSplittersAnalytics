@@ -246,6 +246,12 @@ layout. The active rail now targets the checked radio root rather than its
 sibling label, and Engine Online is placed by the shell flex column. No hidden
 overflow, route, or page behavior changes were introduced.
 
+**Sprint 68.3.3 — Streamlit API Cleanup:** implemented and awaiting review.
+The deprecated Streamlit container-width dataframe keyword was removed from
+the Model Health table and replaced with Streamlit's modern
+`width="stretch"` API. No layout, styling, routing, shell, analytics,
+persistence, model, recommendation, or scoring behavior changed.
+
 **Immediate roadmap:** Sprint 69 Recommendation Explorer 2.0; Sprint 70 ROI
 analytics; Sprint 71 closing-line value; Sprint 72 calibration; Sprint 73
 recommendation attribution; Sprint 74 historical charts; Sprint 75 model

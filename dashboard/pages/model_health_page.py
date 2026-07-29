@@ -63,7 +63,7 @@ def render_model_health_dashboard(
 
     st.dataframe(
         [_table_row(bucket) for bucket in buckets],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
     st.caption(f"As of {_timestamp(report.generated_at)}")

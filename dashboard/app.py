@@ -12,10 +12,6 @@ from card_loader import (
     load_sport_card,
 )
 from components.footer import render_footer
-from components.ui import (
-    render_header,
-    render_sidebar,
-)
 from pages.dashboard_page import render_dashboard
 from pages.decision_page import render_decisions
 from pages.model_health_page import render_model_health_dashboard
@@ -28,6 +24,7 @@ from pages.placeholder_pages import (
     render_props,
     render_settings,
 )
+from shell import initialize_shell, render_application_shell
 from styles import CSS
 
 
@@ -38,8 +35,7 @@ st.set_page_config(
 )
 
 
-if "page" not in st.session_state:
-    st.session_state.page = "Dashboard"
+initialize_shell()
 
 
 st.markdown(
@@ -99,8 +95,7 @@ def render_page():
 
 dashboard_card = combined_dashboard_card()
 
-render_header()
-render_sidebar(dashboard_card)
+render_application_shell()
 
 if not dashboard_card.get("games"):
     st.warning(

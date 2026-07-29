@@ -8,7 +8,7 @@ DASHBOARD = ROOT / "dashboard"
 
 
 def test_custom_navigation_includes_model_health_and_all_existing_routes():
-    source = (DASHBOARD / "components" / "ui.py").read_text()
+    source = (DASHBOARD / "shell" / "navigation.py").read_text()
 
     for page in (
         "Dashboard",
@@ -25,7 +25,7 @@ def test_custom_navigation_includes_model_health_and_all_existing_routes():
     ):
         assert page in source
 
-    assert "for start in range(0, len(labels), 7):" in source
+    assert "NAVIGATION_GROUPS" in source
 
 
 def test_streamlit_native_page_navigation_is_disabled():
@@ -40,5 +40,27 @@ def test_app_routes_model_health_through_the_sharpstack_shell():
     assert "from pages.model_health_page import render_model_health_dashboard" in source
     assert 'elif page == "Model Health":' in source
     assert "render_model_health_dashboard()" in source
-    assert "from components.ui import (" in source
-    assert "render_sidebar," in source
+    assert "from shell import initialize_shell, render_application_shell" in source
+    assert "initialize_shell()" in source
+    assert "render_application_shell()" in source
+
+
+def test_every_shell_route_remains_in_the_application_dispatcher():
+    app_source = (DASHBOARD / "app.py").read_text()
+    navigation_source = (DASHBOARD / "shell" / "navigation.py").read_text()
+
+    for page in (
+        "Dashboard",
+        "Best Bets",
+        "MLB",
+        "KBO",
+        "Bomb Lab",
+        "Props",
+        "First 5",
+        "Decisions",
+        "Model Health",
+        "Hall",
+        "Settings",
+    ):
+        assert page in navigation_source
+        assert f'page == "{page}"' in app_source or page == "Dashboard"

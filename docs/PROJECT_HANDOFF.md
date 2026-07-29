@@ -11,8 +11,8 @@
 **Primary branch:** `feature/recommendation-history`
 **Environment:** Windows 11 / PowerShell / Python 3.13+
 **Current milestone:** Epic 1 â€” Model Correctness
-**Current work item:** Sprint 68 Application Shell Redesign - design only
-**Working tree:** Model Health routing restoration pending review; do not commit or push
+**Current work item:** Sprint 68.1 Application Shell - awaiting review
+**Working tree:** Application-shell implementation pending review; do not commit or push
 **Sprint 62 status:** Complete
 
 SharpStack is stable and actively developed. The platform already has a functioning MLB recommendation pipeline, Recommendation Registry, Play of the Day, structured explanations, dashboard, Discord reporting, recommendation history, and an Azure PostgreSQL persistence foundation.
@@ -211,11 +211,13 @@ value. Its compact cards display the canonical conviction and market-value
 badges; diagnostics, including Hammer and Market vs Model, remain inside
 SharpStack Intelligence. Best Bets retains Registry-owned ranking.
 
-**Sprint 68 — Application Shell Redesign:** highest priority, design only.
-Before implementation, define and approve permanent navigation, visual tokens,
-shared components, page templates, and an implementation strategy. Future UI
-work must not mix feature development, navigation changes, CSS refactoring,
-typography experiments, and spacing changes in one evolving patch.
+**Sprint 68.1 — Application Shell:** implemented and awaiting review. The
+dashboard now has a dedicated `dashboard/shell/` boundary that owns one route
+configuration, compact sidebar navigation, slim top bar, and shell session
+initialization. `dashboard/app.py` continues to own only page dispatch; all
+existing renderers, route names, analytics, persistence, grading, and model
+behavior are unchanged. Shell CSS is scoped to the sidebar and top bar, and
+the failed `backup/model-health-ui-wip` experiment was not merged.
 
 **Immediate roadmap:** Sprint 69 Recommendation Explorer 2.0; Sprint 70 ROI
 analytics; Sprint 71 closing-line value; Sprint 72 calibration; Sprint 73
@@ -266,7 +268,7 @@ This was a provider/data-correctness issue, and SharpStack's architecture requir
 The Sprint 54, Sprint 55, and Sprint 56 execution queue is complete. Do not
 select or implement new work without roadmap governance.
 
-Sprints 61-67 are complete. Begin Sprint 68 with design only; after approval,
+Sprints 61-67 are complete. Sprint 68.1 is awaiting review; after approval,
 follow the Sprint 68-75 sequence before returning to
 deferred provider, Epic 2, calibration, or future-sport work.
 

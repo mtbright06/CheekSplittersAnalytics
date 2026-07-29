@@ -184,12 +184,13 @@ tier while excluding legacy rows by default.
 
 ## Sprint 68: Application Shell Redesign
 
-**Status:** Planning only.
+**Status:** Sprint 68.1 implemented; awaiting review.
 
-Define SharpStack's permanent application shell before implementation:
-navigation architecture, visual tokens, reusable components, page templates,
-and a bounded implementation strategy. Do not mix feature work with navigation
-redesign, CSS refactoring, and typography experimentation.
+Sprint 68.1 establishes the permanent shell only: a compact left sidebar, a
+slim top bar, and a single route configuration for all existing pages,
+including Model Health. Existing page renderers, styling, analytics, and model
+behavior remain unchanged. Component-library and page-redesign work remain out
+of scope.
 
 ## Sprint 69: Recommendation Explorer 2.0
 

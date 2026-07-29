@@ -40,6 +40,7 @@ def test_kbo_best_bets_card_uses_dashboard_badges_in_the_required_order():
     assert "recommendation-badge recommendation-strong" in html
     assert html.index("🔥 STRONG PLAY") < html.index("KBO · Moneyline")
     assert html.index("KBO · Moneyline") < html.index("MODEL ONLY")
+    assert "ss-status-pill ss-status-pill--compact ss-status-pill--neutral" in html
     assert "★★★★★" in html
     assert recommendation_badge_html("🔥 STRONG PLAY", model_only=True) in html
 
@@ -88,6 +89,9 @@ def test_mlb_moneyline_and_totals_use_the_shared_hero_badge_row(monkeypatch):
         )
 
     assert all("registry-recommendation-row" in html for html in rendered)
+    assert all("registry-market-badge" in html for html in rendered)
+    assert all("ss-status-pill--accent" in html for html in rendered)
+    assert all("REAL MARKET" in html for html in rendered)
     assert "recommendation-playable" in rendered[0]
     assert "★★★★" in rendered[0]
     assert "recommendation-lean" in rendered[1]

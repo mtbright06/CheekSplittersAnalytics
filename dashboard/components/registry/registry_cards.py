@@ -11,6 +11,7 @@ from components.badges import (
     market_value_badge_html,
     recommendation_badge_html,
 )
+from components.status_pill import status_pill_html
 
 
 def compact_html(value):
@@ -273,7 +274,7 @@ def render_registry_card(
                     <span class="registry-market-badge">
                         {esc(item.get("league"))} · {esc(item.get("market"))}
                     </span>
-                    <span class="registry-market-badge">{market_status}</span>
+                    {status_pill_html(market_status)}
                     {(
                         market_value_badge_html(
                             item.get("market_value_label"),
@@ -484,7 +485,7 @@ def kbo_model_only_card_html(item: dict, rank: int) -> str:
                 <div class="registry-recommendation-row">
                     {recommendation_badge_html(recommendation, model_only=True)}
                     <span class="registry-market-badge">KBO · {esc(market)}</span>
-                    <span class="registry-market-badge">MODEL ONLY</span>
+                    {status_pill_html("MODEL ONLY")}
                 </div>
             </div>
             <div class="decision-score">

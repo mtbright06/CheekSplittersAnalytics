@@ -277,6 +277,14 @@ was not touched. No recommendation calculations, registry data, sorting,
 filtering, tabs, routing, page header, metrics, database code, sidebar, or
 shell behavior changed.
 
+**Sprint 68.8 — Table Styling and Density:** implemented and awaiting manual
+screenshot review. A reusable `render_data_table()` wrapper now centralizes
+native Streamlit dataframe defaults and a scoped SharpStack table style hook.
+The first migration is intentionally limited to First 5 Lab's Market Edge tab
+Full Market Board. The table rows, column order, column labels, numeric
+values, native toolbar behavior, scrolling, tabs, calculations, routing, and
+all other tables remain unchanged.
+
 **Immediate roadmap:** Sprint 69 Recommendation Explorer 2.0; Sprint 70 ROI
 analytics; Sprint 71 closing-line value; Sprint 72 calibration; Sprint 73
 recommendation attribution; Sprint 74 historical charts; Sprint 75 model

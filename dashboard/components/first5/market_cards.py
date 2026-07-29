@@ -4,6 +4,8 @@ import html
 
 import streamlit as st
 
+from components.data_table import render_data_table
+
 
 def safe(value, default="N/A"):
     if value in [None, "", "None"]:
@@ -170,8 +172,7 @@ def render_market_table(games):
             }
         )
 
-    st.dataframe(
+    render_data_table(
         rows,
-        width="stretch",
-        hide_index=True,
+        css_class="ss-data-table ss-data-table--first5-market",
     )

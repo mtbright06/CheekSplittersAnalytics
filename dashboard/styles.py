@@ -1638,6 +1638,45 @@ div.stButton > button:hover {
     border-radius: 14px;
 }
 
+.ss-data-table {
+    margin-top: var(--ss-space-2, 8px);
+}
+
+.ss-data-table + [data-testid="stDataFrame"] {
+    --ss-table-border: rgba(160, 190, 230, 0.12);
+    --ss-table-grid: rgba(255, 255, 255, 0.055);
+}
+
+.ss-data-table + [data-testid="stDataFrame"] [role="grid"] {
+    border-color: var(--ss-table-border);
+    border-radius: var(--ss-radius-lg, 8px);
+    overflow: hidden;
+}
+
+.ss-data-table + [data-testid="stDataFrame"] [role="columnheader"] {
+    min-height: 32px;
+    background: rgba(16, 24, 39, 0.96);
+    color: var(--ss-color-text-secondary, #b9c7dc);
+    font-size: 12px;
+    font-weight: 760;
+}
+
+.ss-data-table + [data-testid="stDataFrame"] [role="row"] {
+    min-height: 34px;
+}
+
+.ss-data-table + [data-testid="stDataFrame"] [role="gridcell"] {
+    border-color: var(--ss-table-grid);
+    color: var(--ss-color-text-primary, #f5f7fb);
+    font-size: 12px;
+}
+
+.ss-data-table + [data-testid="stDataFrame"] [role="gridcell"]:empty::after {
+    color: var(--ss-color-neutral, #aebbd0);
+    content: "N/A";
+    opacity: 0.62;
+}
+
 .first5-confidence span,
 .first5-projections span,
 .first5-decisions span {

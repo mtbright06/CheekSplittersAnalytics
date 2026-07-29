@@ -2,36 +2,60 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class NavigationItem:
+    """A stable application route and its sidebar presentation metadata."""
+
+    page: str
+    label: str
+    icon: str
+
+
+@dataclass(frozen=True)
+class NavigationGroup:
+    """A visible navigation section; groups remain expanded by default."""
+
+    key: str
+    label: str
+    items: tuple[NavigationItem, ...]
+    collapsible: bool = True
+
 
 NAVIGATION_GROUPS = (
-    (
-        "Main",
-        (
-            ("Dashboard", "Dashboard"),
-            ("Best Bets", "Best Bets"),
+    NavigationGroup(
+        key="main",
+        label="Main",
+        items=(
+            NavigationItem("Dashboard", "Dashboard", "⌂"),
+            NavigationItem("Best Bets", "Best Bets", "★"),
         ),
     ),
-    (
-        "Sports",
-        (
-            ("MLB", "MLB"),
-            ("KBO", "KBO"),
-            ("Bomb Lab", "Bomb Lab"),
-            ("Props", "Props"),
-            ("First 5", "First 5"),
+    NavigationGroup(
+        key="sports",
+        label="Sports",
+        items=(
+            NavigationItem("MLB", "MLB", "◉"),
+            NavigationItem("KBO", "KBO", "◌"),
+            NavigationItem("Bomb Lab", "Bomb Lab", "●"),
+            NavigationItem("Props", "Props", "◎"),
+            NavigationItem("First 5", "First 5", "◷"),
         ),
     ),
-    (
-        "Analytics",
-        (
-            ("Decisions", "Decisions"),
-            ("Model Health", "Model Health"),
-            ("Hall", "Hall"),
+    NavigationGroup(
+        key="analytics",
+        label="Analytics",
+        items=(
+            NavigationItem("Decisions", "Decisions", "◆"),
+            NavigationItem("Model Health", "Model Health", "▥"),
+            NavigationItem("Hall", "Hall", "♜"),
         ),
     ),
-    (
-        "System",
-        (("Settings", "Settings"),),
+    NavigationGroup(
+        key="system",
+        label="System",
+        items=(NavigationItem("Settings", "Settings", "⚙"),),
     ),
 )
 
@@ -40,7 +64,19 @@ def navigation_pages() -> tuple[str, ...]:
     """Return every page exposed by the SharpStack application shell."""
 
     return tuple(
-        page
-        for _, entries in NAVIGATION_GROUPS
-        for _, page in entries
+        item.page
+        for group in NAVIGATION_GROUPS
+        for item in group.items
     )
+
+
+def navigation_item_label(
+    page: str | None,
+    items: tuple[NavigationItem, ...],
+) -> str:
+    """Return a safe display label while a sidebar group resynchronizes."""
+
+    for item in items:
+        if item.page == page:
+            return f"{item.icon} {item.label}"
+    return ""

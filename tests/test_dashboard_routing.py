@@ -26,6 +26,9 @@ def test_custom_navigation_includes_model_health_and_all_existing_routes():
         assert page in source
 
     assert "NAVIGATION_GROUPS" in source
+    assert "NavigationItem" in source
+    assert "NavigationGroup" in source
+    assert "navigation_item_label" in source
 
 
 def test_streamlit_native_page_navigation_is_disabled():
@@ -64,3 +67,12 @@ def test_every_shell_route_remains_in_the_application_dispatcher():
     ):
         assert page in navigation_source
         assert f'page == "{page}"' in app_source or page == "Dashboard"
+
+
+def test_sidebar_preserves_session_state_routing_without_url_navigation():
+    source = (DASHBOARD / "shell" / "sidebar.py").read_text()
+
+    assert "st.session_state.page = selected_page" in source
+    assert "st.radio(" in source
+    assert "index=None" in source
+    assert "query_params" not in source

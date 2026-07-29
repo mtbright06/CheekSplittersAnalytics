@@ -196,6 +196,11 @@ Sprint 68.2 adds the shared frontend token foundation only. It centralizes
 approved colors, spacing, typography, radius, shadows, and sizing definitions,
 then migrates shell chrome without redesigning page content.
 
+Sprint 68.3 replaces the shell's button loop with a reusable, token-based
+sidebar navigation component. Canonical routes, session-state routing, and all
+page renderers remain unchanged; navigation groups are visible and expanded by
+default while retaining future collapse metadata.
+
 ## Sprint 69: Recommendation Explorer 2.0
 
 Build the historical recommendation browser with filters for date, league,

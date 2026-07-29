@@ -226,6 +226,13 @@ consumes the new tokens in this sprint; existing page-specific CSS remains
 unchanged by design. `docs/DESIGN_SYSTEM.md` defines the approved token roles
 and guardrails for future shared components.
 
+**Sprint 68.3 — Sidebar Component:** implemented and awaiting review. The
+shell sidebar now renders canonical grouped navigation through compact,
+token-based navigation rows rather than Streamlit buttons. It preserves the
+existing `st.session_state.page` route contract, keeps every group expanded by
+default, and exposes the active route with a clear accent indicator. No page
+renderer, route name, backend service, or URL-routing behavior changed.
+
 **Immediate roadmap:** Sprint 69 Recommendation Explorer 2.0; Sprint 70 ROI
 analytics; Sprint 71 closing-line value; Sprint 72 calibration; Sprint 73
 recommendation attribution; Sprint 74 historical charts; Sprint 75 model

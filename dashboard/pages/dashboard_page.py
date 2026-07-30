@@ -12,6 +12,7 @@ from components.dashboard_metrics import (
 )
 from components.page_header import render_compact_header
 from components.pipeline_status import render_pipeline_status
+from components.mlb.workstation import render_mlb_workstation_header
 from components.registry.registry_cards import (
     render_registry_card,
 )
@@ -240,6 +241,11 @@ def render_single_sport_header(
     league: str,
 ):
     league_upper = league.upper()
+
+    if league_upper == "MLB":
+        render_mlb_workstation_header(card)
+
+        return
 
     league_icons = {
         "MLB": "⚾",
@@ -563,18 +569,19 @@ def render_single_sport_dashboard(
     )
 
     def render_ranked_slate():
-        st.markdown(
-            (
-                '<div style="'
-                'font-size:1.3rem;'
-                'font-weight:850;'
-                'margin:0.65rem 0 0.55rem 0;'
-                '">'
-                f'{league} Full Slate'
-                '</div>'
-            ),
-            unsafe_allow_html=True,
-        )
+        if league != "MLB":
+            st.markdown(
+                (
+                    '<div style="'
+                    'font-size:1.3rem;'
+                    'font-weight:850;'
+                    'margin:0.65rem 0 0.55rem 0;'
+                    '">'
+                    f'{league} Full Slate'
+                    '</div>'
+                ),
+                unsafe_allow_html=True,
+            )
 
         for index, game in enumerate(
             ranked_games

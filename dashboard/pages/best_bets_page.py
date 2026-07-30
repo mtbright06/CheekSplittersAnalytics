@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from components.registry.play_of_day_card import (
-    render_play_of_day,
-)
 from components.page_header import render_page_header
+from components.best_bets_workstation import render_best_bets_workstation
 
 import json
 from pathlib import Path
@@ -124,43 +122,22 @@ def render_best_bets():
         [],
     )
 
-    render_page_header(
-        "Best Bets",
-        "Official betting card from the SharpStack registry.",
-        eyebrow="Official Card",
-        metrics=[
-            ("Actionable", summary.get("actionable", 0)),
-            ("Exceptional", summary.get("hammers", 0)),
-            ("Real Markets", summary.get("real_market", 0)),
-            ("Recommendations", summary.get("recommendations", 0)),
-        ],
-    )
-
-    play_of_day = load_play_of_day()
-    if play_of_day:
-        render_play_of_day(play_of_day)
-        st.markdown("---")
-
     if not recommendations:
+        render_page_header(
+            "Best Bets",
+            "Official betting card from the SharpStack registry.",
+            eyebrow="Official Card",
+            metrics=[
+                ("Actionable", summary.get("actionable", 0)),
+                ("Exceptional", summary.get("hammers", 0)),
+                ("Real Markets", summary.get("real_market", 0)),
+                ("Recommendations", summary.get("recommendations", 0)),
+            ],
+        )
         st.info(
             "No recommendations are available. "
             "This is expected during an empty slate."
         )
         return
 
-    moneyline_tab, totals_tab, kbo_tab = st.tabs(
-        [
-            "MLB Moneyline",
-            "MLB Totals",
-            "KBO Moneyline",
-        ]
-    )
-
-    with moneyline_tab:
-        render_market_card(recommendations, "MLB", "moneyline")
-
-    with totals_tab:
-        render_market_card(recommendations, "MLB", "totals")
-
-    with kbo_tab:
-        render_market_card(recommendations, "KBO", "moneyline")
+    render_best_bets_workstation(registry, recommendations, load_play_of_day())

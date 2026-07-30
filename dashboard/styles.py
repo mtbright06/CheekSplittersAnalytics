@@ -2746,5 +2746,738 @@ button[data-baseweb="tab"][aria-selected="true"] {
     align-items: center;
 }
 
+/* Sprint 72.1 Best Bets workstation */
+
+.best-bets-hero {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 8px;
+    padding: 12px 14px;
+    border: 1px solid rgba(116, 143, 177, 0.20);
+    border-radius: 8px;
+    background: rgba(8, 15, 24, 0.88);
+}
+
+.best-bets-hero > span {
+    color: #b9c7dc;
+    font-size: 10px;
+    font-weight: 860;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.best-bets-hero-stats {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0;
+    border: 1px solid rgba(116, 143, 177, 0.14);
+    border-radius: 7px;
+    overflow: hidden;
+}
+
+.best-bets-hero-stats div {
+    min-width: 0;
+    padding: 8px 10px;
+    border-left: 1px solid rgba(116, 143, 177, 0.14);
+    background: rgba(116, 143, 177, 0.05);
+}
+
+.best-bets-hero-stats div:first-child {
+    border-left: none;
+}
+
+.best-bets-hero-stats span {
+    display: block;
+    color: #9fb0c6;
+    font-size: 10px;
+    font-weight: 820;
+    letter-spacing: 0.10em;
+    line-height: 1.15;
+    text-transform: uppercase;
+}
+
+.best-bets-hero-stats strong {
+    display: block;
+    margin-top: 4px;
+    overflow: hidden;
+    color: #f5f7fb;
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.best-bets-filters {
+    margin: 0 0 8px;
+}
+
+.best-bets-top-play {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(116, 143, 177, 0.18);
+    background: rgba(8, 15, 24, 0.58);
+}
+
+.best-bets-top-play span {
+    color: #f7c752;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.best-bets-top-play strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #f5f7fb;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.best-bets-top-play em {
+    color: #748399;
+    font-style: normal;
+}
+
+.best-bets-top-play small {
+    color: #b9c7dc;
+    font-size: 12px;
+    font-weight: 780;
+    white-space: nowrap;
+}
+
+.best-bets-top-play--empty {
+    grid-template-columns: auto minmax(0, 1fr);
+}
+
+.best-bets-filters [data-testid="stRadio"] {
+    padding: 8px 12px;
+    border: 1px solid rgba(116, 143, 177, 0.18);
+    border-radius: 8px;
+    background: rgba(8, 15, 24, 0.72);
+}
+
+.best-bets-filters [data-testid="stRadio"] > label {
+    color: #b9c7dc;
+    font-size: 10px;
+    font-weight: 860;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.best-bets-list {
+    display: grid;
+    gap: 8px;
+}
+
+.best-bets-row {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1.2fr) minmax(300px, 0.9fr) minmax(260px, 0.8fr);
+    align-items: stretch;
+    gap: 0;
+    border: 1px solid rgba(116, 143, 177, 0.20);
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(8, 15, 24, 0.86);
+}
+
+.best-bets-rank {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid rgba(116, 143, 177, 0.14);
+    color: #9fb0c6;
+    font-size: 11px;
+    font-weight: 860;
+}
+
+.best-bets-main {
+    min-width: 0;
+    padding: 10px 12px;
+    border-right: 1px solid rgba(116, 143, 177, 0.14);
+}
+
+.best-bets-title-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+}
+
+.best-bets-title-row strong {
+    display: block;
+    overflow: hidden;
+    color: #f5f7fb;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.08;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.best-bets-title-row > div > span {
+    display: block;
+    margin-top: 5px;
+    overflow: hidden;
+    color: #b9c7dc;
+    font-size: 12px;
+    font-weight: 680;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.best-bets-title-row .recommendation-badge {
+    min-height: 26px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.best-bets-meta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.best-bets-meta-row > span {
+    color: #b9c7dc;
+    font-size: 10px;
+    font-weight: 820;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+}
+
+.best-bets-values {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-right: 1px solid rgba(116, 143, 177, 0.14);
+}
+
+.best-bets-values div {
+    min-width: 0;
+    padding: 10px 12px;
+    border-left: 1px solid rgba(116, 143, 177, 0.12);
+}
+
+.best-bets-values div:first-child {
+    border-left: none;
+}
+
+.best-bets-values span {
+    display: block;
+    color: #9fb0c6;
+    font-size: 10px;
+    font-weight: 820;
+    letter-spacing: 0.10em;
+    line-height: 1.15;
+    text-transform: uppercase;
+}
+
+.best-bets-values strong {
+    display: block;
+    margin-top: 5px;
+    overflow: hidden;
+    color: #f5f7fb;
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.best-bets-explanation {
+    display: -webkit-box;
+    min-width: 0;
+    padding: 10px 12px;
+    overflow: hidden;
+    border-left: 3px solid #34e68a;
+    background: rgba(116, 143, 177, 0.05);
+    color: #dbe7f7;
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+@media (max-width: 1100px) {
+    .best-bets-hero,
+    .best-bets-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .best-bets-hero-stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .best-bets-rank,
+    .best-bets-main,
+    .best-bets-values {
+        border-right: none;
+        border-bottom: 1px solid rgba(116, 143, 177, 0.14);
+    }
+
+    .best-bets-rank {
+        min-height: 26px;
+    }
+}
+
+/* Sprint 70.1 MLB workstation top half */
+
+.mlb-workstation-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 28px;
+    margin: 0 0 3px;
+    color: #d8e3f5;
+}
+
+.mlb-workstation-toolbar strong {
+    color: #f5f7fb;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 0;
+}
+
+.mlb-workstation-toolbar span {
+    color: #b9c7dc;
+    font-size: 12px;
+    font-weight: 760;
+}
+
+.mlb-fresh-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #34e68a;
+}
+
+.mlb-workstation-card {
+    border: 1px solid rgba(116, 143, 177, 0.20);
+    background: rgba(8, 15, 24, 0.86);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.mlb-matchup-workstation {
+    margin-bottom: 6px;
+}
+
+.mlb-matchup-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 164px minmax(0, 1fr);
+    min-height: 112px;
+    background:
+        linear-gradient(90deg, rgba(16, 54, 102, 0.46), rgba(8, 15, 24, 0.76) 50%, rgba(88, 16, 34, 0.42));
+}
+
+.mlb-matchup-team {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 11px 22px;
+    min-width: 0;
+}
+
+.mlb-matchup-team--right {
+    justify-content: flex-end;
+    text-align: right;
+}
+
+.mlb-team-logo .team-logo,
+.mlb-team-logo .team-logo-placeholder {
+    width: 72px;
+    height: 72px;
+    min-width: 72px;
+    min-height: 72px;
+    object-fit: contain;
+}
+
+.mlb-team-copy {
+    min-width: 0;
+}
+
+.mlb-team-copy span {
+    display: block;
+    color: #b9c7dc;
+    font-size: 10px;
+    font-weight: 820;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.mlb-team-copy strong {
+    display: block;
+    margin-top: 4px;
+    color: #f5f7fb;
+    font-size: 28px;
+    font-weight: 920;
+    line-height: 1.02;
+    letter-spacing: 0;
+}
+
+.mlb-matchup-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: rgba(4, 10, 17, 0.18);
+}
+
+.mlb-matchup-at {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid rgba(160, 190, 230, 0.22);
+    color: #f5f7fb;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.mlb-matchup-time {
+    color: #f5f7fb;
+    font-size: 13px;
+    font-weight: 860;
+}
+
+.mlb-matchup-venue {
+    color: #b9c7dc;
+    font-size: 11px;
+    font-weight: 720;
+}
+
+.mlb-decision-summary {
+    border-top: 1px solid rgba(116, 143, 177, 0.18);
+    background: rgba(6, 12, 20, 0.78);
+    padding: 8px 20px 9px;
+    text-align: center;
+}
+
+.mlb-decision-kicker {
+    margin-bottom: 4px;
+    color: #b9c7dc;
+    font-size: 10px;
+    font-weight: 860;
+    letter-spacing: 0.16em;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+
+.mlb-decision-object {
+    display: inline-grid;
+    grid-template-columns: minmax(220px, auto);
+    align-items: center;
+    justify-content: center;
+    column-gap: 14px;
+    row-gap: 4px;
+    max-width: min(720px, 100%);
+}
+
+.mlb-decision-pick {
+    min-width: 0;
+    overflow: hidden;
+    color: #f5f7fb;
+    font-size: 23px;
+    font-weight: 920;
+    line-height: 1.05;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mlb-decision-strength {
+    display: inline-grid;
+    grid-template-columns: repeat(2, auto);
+    justify-content: center;
+    gap: 0;
+    justify-self: center;
+    border-top: 1px solid rgba(116, 143, 177, 0.14);
+    padding-top: 5px;
+}
+
+.mlb-decision-item span {
+    display: block;
+    color: #9fb0c6;
+    font-size: 10px;
+    font-weight: 820;
+    letter-spacing: 0.12em;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+
+.mlb-decision-item strong {
+    display: block;
+    min-width: 0;
+    margin-top: 3px;
+    overflow: hidden;
+    color: #f5f7fb;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mlb-decision-strength .mlb-decision-item {
+    padding: 0 18px;
+    border-left: 1px solid rgba(116, 143, 177, 0.16);
+}
+
+.mlb-decision-strength .mlb-decision-item:first-child {
+    border-left: none;
+}
+
+.mlb-decision-item--positive strong {
+    color: #34e68a;
+}
+
+.mlb-market-heading .recommendation-badge {
+    min-height: 26px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.mlb-market-panel {
+    min-height: 0;
+}
+
+.mlb-market-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(116, 143, 177, 0.18);
+}
+
+.mlb-market-heading h3 {
+    margin: 0;
+    color: #dbe7f7;
+    font-size: 14px;
+    font-weight: 880;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.mlb-market-primary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 12px;
+    padding: 9px 12px 8px;
+    border-bottom: 1px solid rgba(116, 143, 177, 0.14);
+}
+
+.mlb-market-primary strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #f5f7fb;
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mlb-market-primary span {
+    color: #f5f7fb;
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.mlb-probability-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-bottom: 1px solid rgba(116, 143, 177, 0.14);
+}
+
+.mlb-probability-pair div {
+    min-width: 0;
+    padding: 7px 12px;
+}
+
+.mlb-probability-pair div:first-child {
+    border-right: 1px solid rgba(116, 143, 177, 0.14);
+}
+
+.mlb-probability-pair span,
+.mlb-summary-row span {
+    display: block;
+    color: #b9c7dc;
+    font-size: 10px;
+    font-weight: 820;
+    letter-spacing: 0.10em;
+    line-height: 1.15;
+    text-transform: uppercase;
+}
+
+.mlb-probability-pair strong {
+    display: block;
+    margin-top: 4px;
+    color: #f5f7fb;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.1;
+}
+
+.mlb-market-summary {
+    display: grid;
+}
+
+.mlb-summary-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 24px;
+    padding: 4px 12px;
+    border-bottom: 1px solid rgba(116, 143, 177, 0.12);
+}
+
+.mlb-summary-row strong {
+    color: #f5f7fb;
+    font-size: 12px;
+    font-weight: 820;
+    line-height: 1.1;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.mlb-market-explanation {
+    margin: 6px 10px 9px;
+    padding: 7px 10px;
+    border-left: 3px solid #34e68a;
+    background: rgba(116, 143, 177, 0.08);
+    color: #dbe7f7;
+    font-size: 12px;
+    font-weight: 640;
+    line-height: 1.35;
+}
+
+.mlb-explanation-accent {
+    color: #34e68a;
+}
+
+.mlb-market-panel--totals .mlb-market-explanation {
+    border-left-color: #a675ff;
+}
+
+.mlb-market-panel--totals .mlb-explanation-accent {
+    color: #c69cff;
+}
+
+.mlb-analytics-controls {
+    margin-top: 8px;
+}
+
+.mlb-analytics-controls [data-testid="stHorizontalBlock"] {
+    gap: 8px;
+}
+
+.mlb-analytics-controls [data-testid="stButton"] button {
+    min-height: 36px;
+    border: 1px solid rgba(116, 143, 177, 0.18);
+    border-radius: 8px;
+    background: rgba(13, 22, 34, 0.74);
+    color: #cbd6e6;
+    font-size: 11px;
+    font-weight: 820;
+    padding: 6px 10px;
+    white-space: nowrap;
+}
+
+.mlb-analytics-controls [data-testid="stButton"] button[kind="primary"] {
+    border-color: rgba(52, 230, 138, 0.42);
+    background: rgba(29, 210, 124, 0.14);
+    color: #35f38b;
+}
+
+.mlb-analytics-workspace {
+    margin-top: 6px;
+    padding: 10px 14px 14px;
+}
+
+.mlb-analytics-workspace h4 {
+    margin: 0 0 10px;
+    color: #f5f7fb;
+    font-size: 14px;
+    font-weight: 860;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.mlb-analytics-empty {
+    padding: 12px 14px;
+    border: 1px solid rgba(116, 143, 177, 0.16);
+    border-radius: 6px;
+    background: rgba(116, 143, 177, 0.05);
+    color: #b9c7dc;
+    font-size: 13px;
+    font-weight: 680;
+}
+
+@media (max-width: 900px) {
+    .mlb-matchup-row,
+    .mlb-analytics-nav {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .mlb-decision-object {
+        grid-template-columns: minmax(0, 1fr);
+        justify-items: center;
+    }
+
+    .mlb-decision-pick {
+        text-align: center;
+        white-space: normal;
+    }
+
+    .mlb-matchup-team--right {
+        justify-content: flex-start;
+        text-align: left;
+    }
+
+    .mlb-matchup-center {
+        min-height: 82px;
+        border-top: 1px solid rgba(116, 143, 177, 0.16);
+        border-bottom: 1px solid rgba(116, 143, 177, 0.16);
+    }
+
+    .mlb-decision-strength {
+        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+    }
+
+    .mlb-decision-strength .mlb-decision-item {
+        padding: 8px 0;
+        border-left: none;
+        border-top: 1px solid rgba(116, 143, 177, 0.14);
+    }
+}
+
 </style>
 """

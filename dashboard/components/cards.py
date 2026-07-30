@@ -3,7 +3,7 @@ from components.explorer import render_recommendation_explorer
 from components.badges import play_badge_class, play_grade
 from components.commentary import splitter_commentary
 from components.matchup_hero import render_matchup_hero
-from components.mlb.mlb_card import render_mlb_totals_card
+from components.mlb.workstation import render_mlb_workstation_game
 from components.pitcher_grade import (
     grade_pitcher,
     grade_icon,
@@ -279,24 +279,12 @@ def render_game(
     matchup = game["matchup"]
     sport = game.get("sport", "kbo").lower()
 
-    render_matchup_hero(matchup, sport=sport)
-
     if sport == "mlb":
-        summary_col, totals_col = st.columns(
-            [1, 1],
-            gap="medium",
-        )
-
-        with summary_col:
-            render_play_summary(
-                game,
-                hammer_score=hammer_score,
-            )
-
-        with totals_col:
-            render_mlb_totals_card(game)
+        render_mlb_workstation_game(game)
+        return
 
     else:
+        render_matchup_hero(matchup, sport=sport)
         render_play_summary(game)
 
     st.markdown(

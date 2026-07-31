@@ -76,12 +76,7 @@ def render_kbo():
 
 
 def render_bomb_lab():
-    from components.bomb_lab.bomb_lab_cards import render_bomb_pitcher_card
-    from components.bomb_lab.decision_board import (
-        render_bomb_lab_header,
-        render_decision_board,
-        render_game_explorer,
-    )
+    from components.bomb_lab.workstation import render_bomb_lab_workstation
 
     root = Path(__file__).resolve().parents[2]
     path = root / "output" / "cards" / "bomb_lab_card.json"
@@ -102,85 +97,11 @@ def render_bomb_lab():
     pitchers = card.get("pitchers", [])
     table = card.get("table", [])
 
-    render_bomb_lab_header(summary)
-
     if not pitchers:
         st.info(card.get("message", "No Bomb Lab pitchers available."))
         return
 
-    tabs = st.tabs(
-        [
-            "Decision Board",
-            "Game Explorer",
-            "Pitcher Explorer",
-            "Metrics Lab",
-        ]
-    )
-
-    with tabs[0]:
-        render_decision_board(pitchers)
-
-    with tabs[1]:
-        options = {
-            f"{p.get('opponent')} attacking {p.get('pitcher')} ({p.get('pitching_team')})": i
-            for i, p in enumerate(pitchers[:20])
-        }
-
-        selected_label = st.selectbox(
-            "Choose an offense to inspect",
-            list(options.keys()),
-            index=0,
-        )
-
-        selected_index = options[selected_label]
-        render_game_explorer(pitchers[selected_index])
-
-    with tabs[2]:
-        st.markdown("### Pitcher Explorer")
-
-        for item in pitchers[:20]:
-            render_bomb_pitcher_card(item)
-
-    with tabs[3]:
-        st.markdown("### Metrics Lab")
-
-        if not table:
-            st.info("No metrics table available.")
-            return
-
-        df = pd.DataFrame(table)
-
-        df = df.rename(
-            columns={
-                "tier": "Tier",
-                "bomb_score": "Bomb",
-                "confidence": "Conf",
-                "pitcher": "Pitcher",
-                "pitching_team": "Pitcher Team",
-                "target_offense": "Target Offense",
-                "game": "Game",
-                "attack_side": "Side",
-                "pitcher_risk": "Risk",
-                "barrel_pct": "Barrel%",
-                "hard_hit_pct": "HH%",
-                "hr_per_bbe": "HR/BBE",
-                "park": "Park",
-                "bbe": "BBE",
-            }
-        )
-
-        for col in ["Barrel%", "HH%", "HR/BBE"]:
-            if col in df.columns:
-                df[col] = (
-                    pd.to_numeric(df[col], errors="coerce")
-                    * 100
-                ).round(1).astype(str) + "%"
-
-        st.dataframe(
-            df,
-            width="stretch",
-            hide_index=True,
-        )
+    render_bomb_lab_workstation(summary, pitchers, table)
 
 def render_first5():
     from components.first5.first5_cards import (

@@ -3,6 +3,7 @@ from components.explorer import render_recommendation_explorer
 from components.badges import play_badge_class, play_grade
 from components.commentary import splitter_commentary
 from components.matchup_hero import render_matchup_hero
+from components.kbo.workstation import render_kbo_workstation
 from components.mlb.workstation import render_mlb_workstation_game
 from components.pitcher_grade import (
     grade_pitcher,
@@ -284,8 +285,8 @@ def render_game(
         return
 
     else:
-        render_matchup_hero(matchup, sport=sport)
-        render_play_summary(game)
+        render_kbo_workstation(game)
+        return
 
     st.markdown(
         f"<div class='splitter-comment'>{splitter_commentary(game)}</div>",

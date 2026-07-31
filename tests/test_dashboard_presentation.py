@@ -11,6 +11,11 @@ from components.pipeline_status import latest_artifact_timestamp
 from components.dashboard_metrics import dashboard_metric_values
 from components.play_summary import play_summary_state
 import components.play_summary as play_summary
+import components.cards as cards
+from components.kbo.workstation import kbo_workstation_html
+from components.bomb_lab.workstation import bomb_workstation_card_html
+import components.bomb_lab.workstation as bomb_workstation
+import pages.placeholder_pages as placeholder_pages
 from pages.best_bets_page import (
     top_market_plays,
 )
@@ -164,6 +169,265 @@ def test_kbo_main_card_matches_the_mlb_recommendation_hierarchy(monkeypatch):
     assert "Model Strength" in rendered[0]
     assert "No bet recommended" not in rendered[0]
     assert rendered[1] == "Model Strength:100.0"
+
+
+def test_kbo_workstation_renderer_uses_existing_payload_without_legacy_stack():
+    html = kbo_workstation_html(
+        {
+            "sport": "kbo",
+            "start_time": "6:30pm",
+            "venue": "Suwon",
+            "matchup": {
+                "away": "Hanwha Eagles",
+                "home": "KT Wiz",
+            },
+            "model": {
+                "play": "Hanwha Eagles",
+                "market": "Moneyline",
+                "recommendation": "✅ PLAYABLE",
+                "model_probability": 57.6,
+                "confidence": 88.4,
+                "edge": None,
+                "signals": [
+                    {"name": "Starting Pitching", "value": 0.7},
+                    {"name": "Offense", "value": 0.25},
+                ],
+                "reasons": [
+                    "Starting Pitching +2",
+                    "Hanwha Eagles scores more runs per game.",
+                ],
+            },
+            "odds": {
+                "sportsbook": "Unavailable",
+                "moneyline": None,
+                "real_market_loaded": False,
+            },
+            "pitching": {
+                "away": {
+                    "name": "Ryu Hyun-jin",
+                    "record": "8-2",
+                    "era": 3.22,
+                    "whip": 1.15,
+                    "throws": "L",
+                },
+                "home": {
+                    "name": "So Hyeong-jun",
+                    "record": "6-0",
+                    "era": 2.95,
+                    "whip": 1.30,
+                    "throws": "R",
+                },
+            },
+        }
+    )
+
+    assert "kbo-workstation-card" in html
+    assert "Hanwha Eagles" in html
+    assert "KT Wiz" in html
+    assert "6:30pm" in html
+    assert "Suwon" in html
+    assert "✅ PLAYABLE" in html
+    assert "MODEL ONLY" in html
+    assert "Model Strength" in html
+    assert "88.4" in html
+    assert "Model Snapshot" in html
+    assert "SharpStack Recommendation · Hanwha Eagles" in html
+    assert "Source" in html
+    assert "Model-only" in html
+    assert "Basis" in html
+    assert "Contribution" in html
+    assert "Pitching Snapshot" in html
+    assert "Ryu Hyun-jin" in html
+    assert "So Hyeong-jun" in html
+    assert "Starting Pitching +2" in html
+    assert "kbo-workstation-pick" not in html
+    assert "progress-wrap" not in html
+    assert "SharpStack Intelligence" not in html
+
+
+def test_kbo_workstation_quiets_missing_market_values():
+    html = kbo_workstation_html(
+        {
+            "sport": "kbo",
+            "matchup": {
+                "away": "Samsung Lions",
+                "home": "Lotte Giants",
+            },
+            "model": {
+                "play": "Samsung Lions",
+                "market": "Moneyline",
+                "recommendation": "🔥 STRONG PLAY",
+                "model_probability": 59.6,
+                "confidence": 100.0,
+                "edge": None,
+                "signals": [],
+                "reasons": [],
+            },
+            "odds": {
+                "real_market_loaded": False,
+                "moneyline": None,
+                "sportsbook": "Unavailable",
+            },
+            "pitching": {
+                "away": {},
+                "home": {},
+            },
+        }
+    )
+
+    assert "Market Data</span><strong>Unavailable</strong>" in html
+    assert "Odds</span>" not in html
+    assert "Edge</span>" not in html
+    assert "kbo-workstation-metric--quiet" in html
+    assert "Confidence</span>" not in html
+
+
+def test_kbo_render_game_swaps_to_workstation_only(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        cards,
+        "render_kbo_workstation",
+        lambda game: calls.append(("workstation", game)),
+    )
+    monkeypatch.setattr(
+        cards,
+        "render_matchup_hero",
+        lambda *args, **kwargs: calls.append(("hero", args)),
+    )
+    monkeypatch.setattr(
+        cards,
+        "render_play_summary",
+        lambda *args, **kwargs: calls.append(("summary", args)),
+    )
+    monkeypatch.setattr(
+        cards,
+        "render_recommendation_explorer",
+        lambda *args, **kwargs: calls.append(("explorer", args)),
+    )
+
+    game = {
+        "sport": "kbo",
+        "matchup": {"away": "Samsung Lions", "home": "Lotte Giants"},
+        "model": {},
+        "odds": {},
+    }
+
+    cards.render_game(game)
+
+    assert calls == [("workstation", game)]
+
+
+def test_bomb_lab_workstation_uses_existing_payload_without_legacy_tabs():
+    html = bomb_workstation_card_html(
+        {
+            "bomb_score": 84.2,
+            "commence_time": "2026-08-01T00:40:00Z",
+            "environment": "ELITE",
+            "game": "Kansas City Royals @ Colorado Rockies",
+            "opponent": "Colorado Rockies",
+            "park_factor": 1.25,
+            "park_score": 95.0,
+            "pitcher": "Michael Wacha",
+            "pitcher_risk": 28.2,
+            "pitching_team": "Kansas City Royals",
+            "recent_barrel_pct": 0.175,
+            "recent_batted_balls": 63,
+            "recent_hard_hit_pct": 0.27,
+            "recent_hr_per_bbe": 0.079,
+            "sample_confidence": 95,
+            "target_side": "R",
+            "tier": "PLAYABLE",
+            "top_hitters": [
+                {
+                    "name": "Hunter Goodman",
+                    "position": "C",
+                    "bat_side": "R",
+                    "team": "Colorado Rockies",
+                    "target_score": 83.0,
+                    "hr": 30,
+                    "barrel_pct": 0.054,
+                    "hard_hit_pct": 0.086,
+                    "stars": "★★★★☆",
+                },
+                {
+                    "name": "Mickey Moniak",
+                    "position": "LF",
+                    "bat_side": "L",
+                    "team": "Colorado Rockies",
+                    "target_score": 77.0,
+                    "hr": 17,
+                    "stars": "★★★★",
+                }
+            ],
+            "venue": "Coors Field",
+            "why": [
+                "Recent barrel rate allowed is dangerous.",
+                "Park environment boosts home run upside.",
+            ],
+        }
+    )
+
+    assert "bomb-workstation-card" in html
+    assert "Colorado Rockies" in html
+    assert "Kansas City Royals" in html
+    assert "Michael Wacha" in html
+    assert "8:40 PM ET" in html
+    assert "Coors Field" in html
+    assert "SharpStack Bomb Recommendation" in html
+    assert "PLAYABLE" in html
+    assert "MODEL ONLY" in html
+    assert "Bomb Score" in html
+    assert "84.2" in html
+    assert "HR Confidence" in html
+    assert "Hunter Goodman" in html
+    assert "RHB · Target Score: 83.0 · Season HR: 30" in html
+    assert "Bomb Squad" in html
+    assert "bomb-squad-card--active" in html
+    assert "Mickey Moniak" in html
+    assert "LHB · Target 77 · 17 HR" in html
+    assert "Supporting Metrics" in html
+    assert "Why We Like Him" in html
+    assert "Recent barrel rate allowed is dangerous." in html
+    assert "Open" not in html
+    assert "Decision Board" not in html
+    assert "Metrics Lab" not in html
+
+
+def test_bomb_lab_live_page_swaps_to_workstation(monkeypatch, tmp_path):
+    calls = []
+    card_path = tmp_path / "output" / "cards"
+    card_path.mkdir(parents=True)
+    (card_path / "bomb_lab_card.json").write_text(
+        """
+{
+  "summary": {"pitchers_loaded": 1},
+  "pitchers": [{"opponent": "Colorado Rockies", "pitching_team": "Kansas City Royals"}],
+  "table": [{"row": 1}]
+}
+""",
+        encoding="utf-8",
+    )
+
+    page_file = tmp_path / "dashboard" / "pages" / "placeholder_pages.py"
+    page_file.parent.mkdir(parents=True)
+    page_file.touch()
+    monkeypatch.setattr(placeholder_pages, "Path", lambda _value: page_file)
+    monkeypatch.setattr(
+        bomb_workstation,
+        "render_bomb_lab_workstation",
+        lambda summary, pitchers, table: calls.append((summary, pitchers, table)),
+    )
+
+    placeholder_pages.render_bomb_lab()
+
+    assert calls == [
+        (
+            {"pitchers_loaded": 1},
+            [{"opponent": "Colorado Rockies", "pitching_team": "Kansas City Royals"}],
+            [{"row": 1}],
+        )
+    ]
 
 
 def test_mlb_and_kbo_hero_cards_use_the_same_recommendation_badge_mapping(monkeypatch):

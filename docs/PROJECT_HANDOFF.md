@@ -211,6 +211,15 @@ value. Its compact cards display the canonical conviction and market-value
 badges; diagnostics, including Hammer and Market vs Model, remain inside
 SharpStack Intelligence. Best Bets retains Registry-owned ranking.
 
+Sprint 76.1 replaced the live KBO per-game presentation renderer only. The
+`KBO` route, card loading, generated JSON, odds enrichment, registry adapter,
+persistence, history, grading, and KBO recommendation logic remain unchanged.
+KBO games now render through a compact workstation-style card that consumes the
+existing `kbo_card.json` payload directly and presents matchup, selected side,
+recommendation tier, model strength, market status, model snapshot, pitching
+snapshot, and existing reasons without the legacy stacked summary/progress/
+intelligence-expander presentation.
+
 **Sprint 68.1 — Application Shell:** implemented and awaiting review. The
 dashboard now has a dedicated `dashboard/shell/` boundary that owns one route
 configuration, compact sidebar navigation, slim top bar, and shell session
@@ -955,6 +964,16 @@ These ideas may be valuable. They are not blocking the active Epic 1 objective.
   such as `6:30pm` remain display fields only and now fail closed as
   `GAME_STATE_UNVERIFIED`; daily persistence logs and skips malformed rows
   instead of crashing the slate.
+- Sprint 77.0 replaced the live Bomb Lab tabbed presentation with a
+  presentation-only workstation renderer. The Bomb model, HR calculations,
+  generated JSON contract, registry, persistence, odds, routing, and build
+  pipeline remain unchanged; the page now consumes the existing
+  `bomb_lab_card.json` payload directly for matchup, Bomb recommendation,
+  batter snapshot, supporting factors, and supporting metrics.
+- Sprint 77.0 polish restored the multi-hitter Bomb Squad workflow inside
+  each Bomb Lab workstation card: the existing top hitter remains featured,
+  alternate hitters are immediately selectable from compact cards, and the
+  supporting reasons are presented as `Why We Like Him`.
 
 ---
 

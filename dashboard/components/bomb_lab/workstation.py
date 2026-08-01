@@ -256,7 +256,7 @@ def _selected_hitter_for(card_key: str) -> int:
 def _bomb_squad(item: dict, selected_index: int, card_key: str) -> str:
     del card_key
 
-    hitters = (item.get("top_hitters") or [])[:8]
+    hitters = (item.get("top_hitters") or [])[:4]
 
     if not hitters:
         return "<div class='bomb-workstation-muted'>No Bomb Squad hitters loaded.</div>"
@@ -301,6 +301,11 @@ def render_bomb_lab_workstation(
 ) -> None:
     del table
 
+    render_bomb_lab_workstation_header(summary)
+    render_bomb_lab_workstation_cards(pitchers)
+
+
+def render_bomb_lab_workstation_header(summary: dict) -> None:
     st.markdown(
         "<div class='bomb-workstation-header'>"
         "<div>"
@@ -318,6 +323,8 @@ def render_bomb_lab_workstation(
         unsafe_allow_html=True,
     )
 
+
+def render_bomb_lab_workstation_cards(pitchers: list[dict]) -> None:
     for index, item in enumerate(pitchers[:20]):
         card_key = f"bomb-{index}"
 

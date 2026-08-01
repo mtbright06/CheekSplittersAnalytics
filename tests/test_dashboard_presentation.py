@@ -394,7 +394,7 @@ def test_bomb_lab_workstation_uses_existing_payload_without_legacy_tabs():
     assert "Metrics Lab" not in html
 
 
-def test_bomb_lab_live_page_swaps_to_workstation(monkeypatch, tmp_path):
+def test_bomb_lab_live_page_defaults_to_workstation_view(monkeypatch, tmp_path):
     calls = []
     card_path = tmp_path / "output" / "cards"
     card_path.mkdir(parents=True)
@@ -415,19 +415,179 @@ def test_bomb_lab_live_page_swaps_to_workstation(monkeypatch, tmp_path):
     monkeypatch.setattr(placeholder_pages, "Path", lambda _value: page_file)
     monkeypatch.setattr(
         bomb_workstation,
-        "render_bomb_lab_workstation",
-        lambda summary, pitchers, table: calls.append((summary, pitchers, table)),
+        "render_bomb_lab_workstation_header",
+        lambda summary: calls.append(("header", summary)),
+    )
+    monkeypatch.setattr(
+        bomb_workstation,
+        "render_bomb_lab_workstation_cards",
+        lambda pitchers: calls.append(("cards", pitchers)),
+    )
+    monkeypatch.setattr(
+        placeholder_pages,
+        "_render_bomb_lab_view_selector",
+        lambda: "Bomb Lab",
     )
 
     placeholder_pages.render_bomb_lab()
 
     assert calls == [
+        ("header", {"pitchers_loaded": 1}),
         (
-            {"pitchers_loaded": 1},
+            "cards",
             [{"opponent": "Colorado Rockies", "pitching_team": "Kansas City Royals"}],
-            [{"row": 1}],
-        )
+        ),
     ]
+
+
+def test_bomb_lab_research_views_use_legacy_renderers(monkeypatch, tmp_path):
+    calls = []
+    card_path = tmp_path / "output" / "cards"
+    card_path.mkdir(parents=True)
+    (card_path / "bomb_lab_card.json").write_text(
+        """
+{
+  "summary": {"pitchers_loaded": 1},
+  "pitchers": [{"opponent": "Colorado Rockies", "pitcher": "Michael Wacha", "pitching_team": "Kansas City Royals"}],
+  "table": [{"tier": "PASS", "bomb_score": 46.9, "barrel_pct": 0.175}]
+}
+""",
+        encoding="utf-8",
+    )
+
+    page_file = tmp_path / "dashboard" / "pages" / "placeholder_pages.py"
+    page_file.parent.mkdir(parents=True)
+    page_file.touch()
+    monkeypatch.setattr(placeholder_pages, "Path", lambda _value: page_file)
+    monkeypatch.setattr(
+        bomb_workstation,
+        "render_bomb_lab_workstation_header",
+        lambda summary: calls.append(("header", summary)),
+    )
+
+    for selected_view, expected in [
+        ("Decision Board", "decision"),
+        ("Game Explorer", "game"),
+        ("Pitcher Explorer", "pitcher"),
+        ("Metrics Lab", "metrics"),
+    ]:
+        calls.clear()
+        monkeypatch.setattr(
+            placeholder_pages,
+            "_render_bomb_lab_view_selector",
+            lambda selected_view=selected_view: selected_view,
+        )
+        monkeypatch.setattr(
+            placeholder_pages,
+            "_render_bomb_game_explorer",
+            lambda pitchers, renderer: calls.append(("game", pitchers, renderer)),
+        )
+        monkeypatch.setattr(
+            placeholder_pages,
+            "_render_bomb_pitcher_explorer",
+            lambda pitchers, renderer: calls.append(("pitcher", pitchers, renderer)),
+        )
+        monkeypatch.setattr(
+            placeholder_pages,
+            "_render_bomb_metrics_lab",
+            lambda table: calls.append(("metrics", table)),
+        )
+
+        import components.bomb_lab.decision_board as decision_board
+
+        monkeypatch.setattr(
+            decision_board,
+            "render_decision_board",
+            lambda pitchers: calls.append(("decision", pitchers)),
+        )
+
+        placeholder_pages.render_bomb_lab()
+
+        assert calls[0] == ("header", {"pitchers_loaded": 1})
+        assert calls[1][0] == expected
+
+
+def test_bomb_metrics_lab_preserves_sortable_dataframe(monkeypatch):
+    rendered = []
+
+    monkeypatch.setattr(
+        placeholder_pages.st,
+        "markdown",
+        lambda *args, **kwargs: rendered.append(("markdown", args, kwargs)),
+    )
+    monkeypatch.setattr(
+        placeholder_pages.st,
+        "dataframe",
+        lambda df, **kwargs: rendered.append(("dataframe", df, kwargs)),
+    )
+
+    placeholder_pages._render_bomb_metrics_lab(
+        [
+            {
+                "tier": "PASS",
+                "bomb_score": 46.9,
+                "pitcher": "Michael Wacha",
+                "barrel_pct": 0.175,
+                "hard_hit_pct": 0.27,
+                "hr_per_bbe": 0.079,
+            }
+        ]
+    )
+
+    dataframe_call = [call for call in rendered if call[0] == "dataframe"][0]
+    df = dataframe_call[1]
+    kwargs = dataframe_call[2]
+
+    assert list(df.columns) == [
+        "Tier",
+        "Bomb",
+        "Pitcher",
+        "Barrel%",
+        "HH%",
+        "HR/BBE",
+    ]
+    assert df.iloc[0]["Barrel%"] == "17.5%"
+    assert kwargs == {
+        "width": "stretch",
+        "hide_index": True,
+    }
+
+
+def test_bomb_lab_view_selector_uses_stable_session_state(monkeypatch):
+    clicked = []
+
+    class Column:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(placeholder_pages.st, "markdown", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        placeholder_pages.st,
+        "columns",
+        lambda count, **kwargs: [Column() for _ in range(count)],
+    )
+    monkeypatch.setattr(
+        placeholder_pages.st,
+        "button",
+        lambda label, **kwargs: clicked.append((label, kwargs)) and label == "Metrics Lab",
+    )
+
+    placeholder_pages.st.session_state.pop("bomb_lab_selected_view", None)
+
+    assert placeholder_pages._render_bomb_lab_view_selector() == "Metrics Lab"
+    assert placeholder_pages.st.session_state["bomb_lab_selected_view"] == "Metrics Lab"
+    assert [label for label, _kwargs in clicked] == [
+        "Bomb Lab",
+        "Decision Board",
+        "Game Explorer",
+        "Pitcher Explorer",
+        "Metrics Lab",
+    ]
+    assert clicked[0][1]["key"] == "bomb_lab_view_bomb_lab"
+    assert clicked[-1][1]["key"] == "bomb_lab_view_metrics_lab"
 
 
 def test_mlb_and_kbo_hero_cards_use_the_same_recommendation_badge_mapping(monkeypatch):

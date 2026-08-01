@@ -76,7 +76,15 @@ def render_kbo():
 
 
 def render_bomb_lab():
-    from components.bomb_lab.workstation import render_bomb_lab_workstation
+    from components.bomb_lab.bomb_lab_cards import render_bomb_pitcher_card
+    from components.bomb_lab.decision_board import (
+        render_decision_board,
+        render_game_explorer,
+    )
+    from components.bomb_lab.workstation import (
+        render_bomb_lab_workstation_cards,
+        render_bomb_lab_workstation_header,
+    )
 
     root = Path(__file__).resolve().parents[2]
     path = root / "output" / "cards" / "bomb_lab_card.json"
@@ -101,7 +109,113 @@ def render_bomb_lab():
         st.info(card.get("message", "No Bomb Lab pitchers available."))
         return
 
-    render_bomb_lab_workstation(summary, pitchers, table)
+    render_bomb_lab_workstation_header(summary)
+    selected_view = _render_bomb_lab_view_selector()
+
+    if selected_view == "Bomb Lab":
+        render_bomb_lab_workstation_cards(pitchers)
+    elif selected_view == "Decision Board":
+        render_decision_board(pitchers)
+    elif selected_view == "Game Explorer":
+        _render_bomb_game_explorer(pitchers, render_game_explorer)
+    elif selected_view == "Pitcher Explorer":
+        _render_bomb_pitcher_explorer(pitchers, render_bomb_pitcher_card)
+    elif selected_view == "Metrics Lab":
+        _render_bomb_metrics_lab(table)
+
+
+def _render_bomb_lab_view_selector() -> str:
+    key = "bomb_lab_selected_view"
+    views = [
+        "Bomb Lab",
+        "Decision Board",
+        "Game Explorer",
+        "Pitcher Explorer",
+        "Metrics Lab",
+    ]
+
+    if st.session_state.get(key) not in views:
+        st.session_state[key] = "Bomb Lab"
+
+    st.markdown("<div class='mlb-analytics-controls bomb-lab-view-selector'>", unsafe_allow_html=True)
+    columns = st.columns(len(views), gap="small")
+    for column, view in zip(columns, views):
+        with column:
+            if st.button(
+                view,
+                key=f"bomb_lab_view_{view.lower().replace(' ', '_')}",
+                width="stretch",
+                type="primary" if st.session_state[key] == view else "secondary",
+            ):
+                st.session_state[key] = view
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    return st.session_state[key]
+
+
+def _render_bomb_game_explorer(pitchers, render_game_explorer):
+    options = {
+        f"{p.get('opponent')} attacking {p.get('pitcher')} ({p.get('pitching_team')})": i
+        for i, p in enumerate(pitchers[:20])
+    }
+
+    selected_label = st.selectbox(
+        "Choose an offense to inspect",
+        list(options.keys()),
+        index=0,
+        key="bomb_lab_game_explorer_selection",
+    )
+
+    render_game_explorer(pitchers[options[selected_label]])
+
+
+def _render_bomb_pitcher_explorer(pitchers, render_bomb_pitcher_card):
+    st.markdown("### Pitcher Explorer")
+
+    for item in pitchers[:20]:
+        render_bomb_pitcher_card(item)
+
+
+def _render_bomb_metrics_lab(table):
+    st.markdown("### Metrics Lab")
+
+    if not table:
+        st.info("No metrics table available.")
+        return
+
+    df = pd.DataFrame(table)
+
+    df = df.rename(
+        columns={
+            "tier": "Tier",
+            "bomb_score": "Bomb",
+            "confidence": "Conf",
+            "pitcher": "Pitcher",
+            "pitching_team": "Pitcher Team",
+            "target_offense": "Target Offense",
+            "game": "Game",
+            "attack_side": "Side",
+            "pitcher_risk": "Risk",
+            "barrel_pct": "Barrel%",
+            "hard_hit_pct": "HH%",
+            "hr_per_bbe": "HR/BBE",
+            "park": "Park",
+            "bbe": "BBE",
+        }
+    )
+
+    for col in ["Barrel%", "HH%", "HR/BBE"]:
+        if col in df.columns:
+            df[col] = (
+                pd.to_numeric(df[col], errors="coerce")
+                * 100
+            ).round(1).astype(str) + "%"
+
+    st.dataframe(
+        df,
+        width="stretch",
+        hide_index=True,
+    )
 
 def render_first5():
     from components.first5.first5_cards import (

@@ -323,4 +323,5 @@ def _display_datetime(value: Any) -> str:
         return ""
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=EASTERN)
-    return parsed.astimezone(EASTERN).strftime("%-I:%M %p")
+    localized = parsed.astimezone(EASTERN)
+    return localized.strftime("%I:%M %p").lstrip("0")

@@ -1030,6 +1030,25 @@ These ideas may be valuable. They are not blocking the active Epic 1 objective.
   probability, Decision Builder no longer substitutes edge for missing model
   conviction, and shared/registry ranking now ties by deterministic schedule,
   league, market, event, and selection fields.
+- Sprint 78.2 completed the historical backtest and calibration audit in
+  `docs/MODEL_VALIDATION_REPORT.md`. The current Winner-First implementation
+  is conceptually aligned but empirically unvalidated: Azure contains 90
+  post-reset prediction snapshots, all still `PENDING`, with no post-reset KBO
+  snapshots. Do not tune weights or thresholds until resolved post-reset grades
+  populate the validation tables.
+- Sprint 79.0 completed the recommendation episode architecture audit in
+  `docs/RECOMMENDATION_EPISODE_ARCHITECTURE.md`. The design preserves every
+  immutable snapshot while introducing streams/episodes so primary analytics
+  count one canonical locked recommendation per game/market instead of every
+  model-run snapshot.
+- Sprint 79.1 added the recommendation episode schema foundation only:
+  `recommendation_streams`, `recommendation_episodes`, and
+  `canonical_recommendation_grades` ORM/migration definitions plus focused
+  schema tests. No consumers, grading behavior, Model Health, History,
+  Explorer, Dashboard, Best Bets, or persisted data were migrated.
+- Sprint 79.1 correction removed market line from episode identity. Market
+  line remains stored for audit/grading context, but episodes are identified by
+  stream, selection, selection side, and opened timestamp.
 - Sprint 77.0 replaced the live Bomb Lab tabbed presentation with a
   presentation-only workstation renderer. The Bomb model, HR calculations,
   generated JSON contract, registry, persistence, odds, routing, and build

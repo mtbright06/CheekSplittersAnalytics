@@ -1,6 +1,11 @@
 # SharpStack Model Technical Reference
 
-This document records the audited recommendation paths as of Sprint 78. It is descriptive only and does not introduce tuning.
+This document records the audited recommendation paths as of Sprint 78.2. It is descriptive only and does not introduce tuning.
+
+Empirical validation status is maintained in
+`docs/MODEL_VALIDATION_REPORT.md`. Current weights and thresholds should be
+treated as conceptually intentional but empirically unvalidated until resolved
+post-reset grades are available.
 
 ## Core Invariant
 
@@ -84,7 +89,7 @@ Audit classification:
 - Selection by model score: PASS.
 - Market value label from SSRP edge: Display-only.
 - `edge_pct` and EV fields: Display-only in shared ranking.
-- `odds.book_probability` inside `calculate_confidence`: DEFECT, because market availability can affect confidence and recommendation tier.
+- MLB confidence is market-independent after Sprint 78.1; it uses model/data quality inputs only.
 - `engine/model/recommendations.py::recommendation` and `grade_label`: LEGACY edge-based helpers.
 
 ## MLB Totals
@@ -161,8 +166,8 @@ Audit classification:
 
 - No-market KBO model-score recommendation: PASS.
 - Adapter preserves KBO row recommendation and stores market values as metadata: PASS/Display-only.
-- Real-market `finalize` path calls `EdgeCalculator` and `RecommendationEngine.get_recommendation`: DEFECT for winner-first invariant if this path publishes.
-- `engine/confidence.py::ConfidenceEngine.calculate` includes `market_available` in data quality: DEFECT/REVIEW when used by real-market KBO.
+- Real-market `finalize` keeps edge as display metadata but uses the same KBO model-score recommendation and confidence path as no-market finalization.
+- `engine/confidence.py::ConfidenceEngine.calculate` no longer includes market availability in data quality.
 - `components["market"]` in KBO adapter: Display-only if not ranked.
 
 ## Hammer Score
@@ -235,7 +240,7 @@ Audit classification:
 
 - No market-consensus vote: PASS.
 - Market metadata preserved for display: PASS.
-- `score_from_edge` fallback when MLB model probability is unavailable: DEFECT-risk legacy fallback because edge can feed Hammer through `mlb_model_score` if probability is missing.
+- Missing MLB model probability leaves the MLB model component unavailable; market edge is not used as Hammer fallback.
 
 ## Shared Ranking And Registry
 
@@ -250,14 +255,14 @@ Ranking priority:
 - model probability or outcome probability
 - model confidence
 - market-independent Hammer Score
-- recommendation ID tie-breaker
+- stable schedule, league, market, event, and selection tie-breaker
 
 Classification:
 
 - Edge/EV/odds/price removed from ranking formula: PASS.
 - Registry publication gate uses `is_verified_pregame_recommendation`: PASS.
 - Registry preserves edge/EV fields in serialized rows: Display-only.
-- UUID default tie-breaker from `Recommendation.recommendation_id`: REVIEW, because fully tied rows may not be stable across builds unless adapters supply deterministic IDs.
+- Stable deterministic tie-breaks do not use UUID, edge, EV, odds, or price.
 
 ## Play Of The Day
 

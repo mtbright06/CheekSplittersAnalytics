@@ -110,7 +110,7 @@ def test_top_play_banner_replaces_large_play_of_day_card():
                 market_quote={"odds": -122, "line": 6.5},
                 source_signals={"totals_edge_runs": 1.71},
                 pregame_eligible=True,
-                pregame_eligibility_reason="ELIGIBLE",
+                pregame_eligibility_reason="GAME_NOT_STARTED",
                 status="pregame",
             )
         }

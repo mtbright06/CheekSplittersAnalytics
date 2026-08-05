@@ -13,6 +13,7 @@ from engine.core import (
     MarketQuote,
     Recommendation,
 )
+from engine.core.pregame_eligibility import PregameEligibilityReason
 
 
 def _authoritative_scheduled_start(value: Any) -> str | None:
@@ -591,7 +592,30 @@ def adapt_kbo_row(
 ) -> Recommendation | None:
     row = canonical_kbo_row(row)
 
-    if row.get("pregame_eligible") is False or row.get("is_live"):
+    scheduled_start_at = _authoritative_scheduled_start(
+        row.get("scheduled_start_at")
+        or row.get("commence_time")
+    )
+    pregame_eligible = (
+        row.get("pregame_eligible")
+        if row.get("pregame_eligible") is not None
+        else scheduled_start_at is not None
+    )
+    pregame_eligibility_reason = (
+        row.get("pregame_eligibility_reason")
+        or (
+            PregameEligibilityReason.GAME_NOT_STARTED.value
+            if pregame_eligible
+            else PregameEligibilityReason.UNVERIFIED.value
+        )
+    )
+
+    if (
+        pregame_eligible is not True
+        or row.get("is_live")
+        or str(pregame_eligibility_reason)
+        != PregameEligibilityReason.GAME_NOT_STARTED.value
+    ):
         return None
 
     selection = extract_selection(row)
@@ -618,24 +642,6 @@ def adapt_kbo_row(
 
     consensus = build_kbo_consensus(
         row
-    )
-
-    scheduled_start_at = _authoritative_scheduled_start(
-        row.get("scheduled_start_at")
-        or row.get("commence_time")
-    )
-    pregame_eligible = (
-        row.get("pregame_eligible")
-        if row.get("pregame_eligible") is not None
-        else scheduled_start_at is not None
-    )
-    pregame_eligibility_reason = (
-        row.get("pregame_eligibility_reason")
-        or (
-            "ELIGIBLE"
-            if pregame_eligible
-            else "GAME_STATE_UNVERIFIED"
-        )
     )
 
     recommendation = Recommendation(

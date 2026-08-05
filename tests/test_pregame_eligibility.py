@@ -21,7 +21,7 @@ def test_future_pregame_game_is_eligible():
     )
 
     assert result.eligible is True
-    assert result.reason is PregameEligibilityReason.ELIGIBLE
+    assert result.reason is PregameEligibilityReason.GAME_NOT_STARTED
 
 
 def test_live_game_status_is_blocked():
@@ -66,7 +66,7 @@ def test_missing_status_fails_closed():
     )
 
     assert result.eligible is False
-    assert result.reason is PregameEligibilityReason.GAME_STATE_UNVERIFIED
+    assert result.reason is PregameEligibilityReason.UNVERIFIED
 
 
 def test_timezone_naive_start_fails_closed():
@@ -77,7 +77,7 @@ def test_timezone_naive_start_fails_closed():
     )
 
     assert result.eligible is False
-    assert result.reason is PregameEligibilityReason.INVALID_START_TIME
+    assert result.reason is PregameEligibilityReason.NO_START_TIME
 
 
 def test_postponed_game_with_future_start_is_not_assumed_pregame():
@@ -99,4 +99,4 @@ def test_completed_game_is_blocked():
     )
 
     assert result.eligible is False
-    assert result.reason is PregameEligibilityReason.COMPLETED_GAME
+    assert result.reason is PregameEligibilityReason.COMPLETED

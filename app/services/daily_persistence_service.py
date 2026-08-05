@@ -214,18 +214,41 @@ def _valid_registry_snapshots(
     for row in rows:
         if not isinstance(row, Mapping):
             continue
+        if not _row_has_verified_pregame_eligibility(row):
+            _log_refused_registry_row(
+                row,
+                str(
+                    row.get("pregame_eligibility_reason")
+                    or PregameEligibilityReason.UNVERIFIED.value
+                ),
+            )
+            continue
         try:
             snapshot = PredictionSnapshot.from_registry_row(row, run=run)
         except (PredictionSnapshotValidationError, ValueError) as exc:
-            _log_refused_registry_row(row, "GAME_STATE_UNVERIFIED", exc)
+            _log_refused_registry_row(row, PregameEligibilityReason.UNVERIFIED.value, exc)
             continue
 
         if not _eligible_for_pregame_persistence(snapshot):
-            _log_refused_registry_row(row, "GAME_STATE_UNVERIFIED")
+            _log_refused_registry_row(
+                row,
+                str(
+                    row.get("pregame_eligibility_reason")
+                    or PregameEligibilityReason.UNVERIFIED.value
+                ),
+            )
             continue
 
         snapshots.append(snapshot)
     return tuple(snapshots)
+
+
+def _row_has_verified_pregame_eligibility(row: Mapping[str, Any]) -> bool:
+    return (
+        row.get("pregame_eligible") is True
+        and row.get("pregame_eligibility_reason")
+        == PregameEligibilityReason.GAME_NOT_STARTED.value
+    )
 
 
 def _log_refused_registry_row(

@@ -23,6 +23,7 @@ PERSISTENCE_OUTPUT = OUTPUT_DIR / "recommendation_run_payload.json"
 
 MODEL_NAME = "sharpstack"
 MODEL_VERSION = "0.1.0"
+PREGAME_ELIGIBLE_REASON = "GAME_NOT_STARTED"
 
 CSV_FIELDS = [
     "rank",
@@ -137,6 +138,35 @@ def first_not_none(*values: Any) -> Any:
     return None
 
 
+def pregame_eligibility(game: dict[str, Any]) -> dict[str, Any]:
+    eligibility = game.get("pregame_eligibility")
+
+    if not isinstance(eligibility, dict):
+        eligibility = {}
+
+    eligible = first_not_none(
+        eligibility.get("eligible"),
+        game.get("pregame_eligible"),
+    )
+    reason = first_not_none(
+        eligibility.get("reason"),
+        game.get("pregame_eligibility_reason"),
+    )
+
+    return {
+        "eligible": eligible,
+        "reason": reason,
+    }
+
+
+def has_verified_pregame_eligibility(game: dict[str, Any]) -> bool:
+    eligibility = pregame_eligibility(game)
+    return (
+        eligibility.get("eligible") is True
+        and eligibility.get("reason") == PREGAME_ELIGIBLE_REASON
+    )
+
+
 def get_games(card: dict[str, Any], path: Path) -> list[dict[str, Any]]:
     if not card:
         return []
@@ -224,6 +254,7 @@ def base_record(
         "start_time": game_start_time(game),
         "status": game.get("status"),
         "source": source_name,
+        "pregame_eligibility": pregame_eligibility(game),
     }
 
     record.update(pitcher_context(game))
@@ -481,6 +512,9 @@ def load_recommendations(
     recommendations: list[dict[str, Any]] = []
 
     for game in games:
+        if not has_verified_pregame_eligibility(game):
+            continue
+
         recommendations.append(
             build_moneyline_record(game, source_name, run_key)
         )
@@ -570,6 +604,7 @@ def persistence_record(item: dict[str, Any]) -> dict[str, Any]:
             "home_pitcher_id": item.get("home_pitcher_id"),
             "status": item.get("status"),
             "run_key": item.get("run_key"),
+            "pregame_eligibility": item.get("pregame_eligibility"),
         },
     }
 

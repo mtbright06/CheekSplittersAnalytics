@@ -300,8 +300,11 @@ def _is_valid_top_play(recommendation: Any) -> bool:
     return (
         recommendation.get("actionable") is True
         and recommendation.get("pregame_eligible", True) is True
-        and str(recommendation.get("pregame_eligibility_reason") or "ELIGIBLE")
-        == "ELIGIBLE"
+        and str(
+            recommendation.get("pregame_eligibility_reason")
+            or "UNVERIFIED"
+        )
+        == "GAME_NOT_STARTED"
         and str(recommendation.get("status") or "pregame").lower() == "pregame"
     )
 

@@ -7,6 +7,7 @@ from typing import Iterable
 
 from engine.core.recommendation import (
     Recommendation,
+    is_verified_pregame_recommendation,
 )
 
 
@@ -36,6 +37,11 @@ class RecommendationRegistry:
                 "Registry only accepts "
                 "Recommendation objects."
             )
+
+        if not is_verified_pregame_recommendation(
+            recommendation
+        ):
+            return
 
         existing_index = self._find_index(
             recommendation

@@ -7,6 +7,9 @@ def test_adapter_accepts_nested_canonical_kbo_card():
         "games": [
             {
                 "game_id": "kbo-1",
+                "commence_time": "2026-07-30T09:30:00+00:00",
+                "pregame_eligible": True,
+                "pregame_eligibility_reason": "GAME_NOT_STARTED",
                 "matchup": {"away": "Away Club", "home": "Home Club"},
                 "teams": {
                     "away": {"name": "Away Club"},
@@ -63,12 +66,7 @@ def test_adapter_does_not_map_display_start_time_to_scheduled_start():
         ],
     }
 
-    recommendation = adapt_kbo_card(card)[0]
-
-    assert recommendation.event_time == "6:30pm"
-    assert recommendation.scheduled_start_at is None
-    assert recommendation.pregame_eligible is False
-    assert recommendation.pregame_eligibility_reason == "GAME_STATE_UNVERIFIED"
+    assert adapt_kbo_card(card) == []
 
 
 def test_adapter_preserves_authoritative_kbo_commence_time():
@@ -100,3 +98,4 @@ def test_adapter_preserves_authoritative_kbo_commence_time():
     assert recommendation.event_time == "2026-07-30T09:30:00+00:00"
     assert recommendation.scheduled_start_at == "2026-07-30T09:30:00Z"
     assert recommendation.pregame_eligible is True
+    assert recommendation.pregame_eligibility_reason == "GAME_NOT_STARTED"

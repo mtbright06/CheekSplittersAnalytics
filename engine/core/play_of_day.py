@@ -9,6 +9,7 @@ from engine.core.ranking import (
 )
 from engine.core.recommendation import (
     Recommendation,
+    is_verified_pregame_recommendation,
 )
 
 def safe_float(
@@ -116,6 +117,11 @@ def eligibility_result(
 
     if not recommendation.actionable:
         reasons.append("Not actionable.")
+
+    if not is_verified_pregame_recommendation(
+        recommendation
+    ):
+        reasons.append("Pregame eligibility required.")
 
     model_authoritative = (
         recommendation.league == "MLB"

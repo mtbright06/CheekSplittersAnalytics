@@ -56,7 +56,11 @@ def adapt_mlb_totals_game(
         or ""
     )
 
-    if game.get("pregame_eligible") is False:
+    if (
+        game.get("pregame_eligible") is not True
+        or eligibility_reason
+        != PregameEligibilityReason.GAME_NOT_STARTED.value
+    ):
         return None
 
     selection = _selection(totals)
@@ -121,18 +125,18 @@ def adapt_mlb_totals_game(
             "market_total": totals.get("market_total"),
             "pregame_eligibility_reason": (
                 eligibility_reason
-                or PregameEligibilityReason.ELIGIBLE.value
+                or PregameEligibilityReason.UNVERIFIED.value
             ),
         },
         tags=["mlb", "totals", "real_market" if real_market_loaded else "model_only"],
         pregame_eligible=(
             game.get("pregame_eligible")
             if game.get("pregame_eligible") is not None
-            else True
+            else False
         ),
         pregame_eligibility_reason=(
             eligibility_reason
-            or PregameEligibilityReason.ELIGIBLE.value
+            or PregameEligibilityReason.UNVERIFIED.value
         ),
         generated_at=generated_at or game.get("generated_at"),
     )

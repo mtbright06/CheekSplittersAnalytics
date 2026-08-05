@@ -11,6 +11,8 @@ from app.services.daily_persistence_service import DailyPersistenceService
 from app.services.prediction_snapshot_persistence_service import PersistedPredictionRun
 from engine.adapters.mlb_decision_adapter import adapt_decision
 from engine.adapters.mlb_totals_adapter import adapt_mlb_totals_game
+from engine.core import Recommendation, RecommendationRegistry
+from engine.mlb.totals.recommendation import build_totals_recommendation
 
 
 RUN_ID = UUID("11111111-1111-1111-1111-111111111111")
@@ -66,6 +68,28 @@ def test_mlb_totals_adapter_refuses_ineligible_game():
     assert adapt_mlb_totals_game(game) is None
 
 
+def test_totals_recommendation_refuses_non_pregame_market_edge():
+    result = build_totals_recommendation(
+        direction="OVER",
+        absolute_edge=2.0,
+        model_confidence=90,
+        data_quality="EXCELLENT",
+        bullpen_confidence=90,
+        market_payload={
+            "available": True,
+            "line": 8.5,
+            "real_market_loaded": True,
+            "stale": False,
+            "pregame_eligible": False,
+            "pregame_eligibility_reason": "GAME_STARTED",
+        },
+    )
+
+    assert result.recommendation == "PASS"
+    assert result.actionable is False
+    assert result.edge_score == 0.0
+
+
 def test_mlb_moneyline_adapter_refuses_live_row():
     row = {
         "game_pk": "824414",
@@ -79,6 +103,23 @@ def test_mlb_moneyline_adapter_refuses_live_row():
     assert adapt_decision(row) is None
 
 
+def test_registry_refuses_non_pregame_recommendation():
+    registry = RecommendationRegistry()
+    registry.add(
+        Recommendation(
+            sport="BASEBALL",
+            league="MLB",
+            market="moneyline",
+            selection="Home",
+            recommendation="BET",
+            pregame_eligible=False,
+            pregame_eligibility_reason="GAME_STARTED",
+        )
+    )
+
+    assert registry.all() == []
+
+
 def test_future_totals_row_publishes_scheduled_start():
     game = {
         "game_id": "824414",
@@ -86,7 +127,7 @@ def test_future_totals_row_publishes_scheduled_start():
         "commence_time": "2026-07-29T19:00:00Z",
         "scheduled_start_at": "2026-07-29T19:00:00Z",
         "pregame_eligible": True,
-        "pregame_eligibility_reason": "ELIGIBLE",
+        "pregame_eligibility_reason": "GAME_NOT_STARTED",
         "odds": {
             "totals": {
                 "line": 8.5,
@@ -176,6 +217,8 @@ def test_persistence_skips_time_only_start_and_persists_valid_row():
                             "recommendation": "BET",
                             "market_quote": {},
                             "components": {},
+                            "pregame_eligible": False,
+                            "pregame_eligibility_reason": "NO_START_TIME",
                         },
                         {
                             "event_id": "good-mlb",
@@ -188,6 +231,8 @@ def test_persistence_skips_time_only_start_and_persists_valid_row():
                             "recommendation": "BET",
                             "market_quote": {},
                             "components": {},
+                            "pregame_eligible": True,
+                            "pregame_eligibility_reason": "GAME_NOT_STARTED",
                         },
                     ],
                 }

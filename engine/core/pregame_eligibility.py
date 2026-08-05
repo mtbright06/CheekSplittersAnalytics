@@ -7,14 +7,19 @@ from typing import Any, Mapping
 
 
 class PregameEligibilityReason(StrEnum):
-    ELIGIBLE = "ELIGIBLE"
+    GAME_NOT_STARTED = "GAME_NOT_STARTED"
     GAME_STARTED = "GAME_STARTED"
     LIVE_MARKET = "LIVE_MARKET"
-    COMPLETED_GAME = "COMPLETED_GAME"
+    COMPLETED = "COMPLETED"
+    UNVERIFIED = "UNVERIFIED"
+    NO_START_TIME = "NO_START_TIME"
+
+    ELIGIBLE = "GAME_NOT_STARTED"
+    COMPLETED_GAME = "COMPLETED"
     POSTPONED_GAME = "POSTPONED_GAME"
     CANCELED_GAME = "CANCELED_GAME"
-    INVALID_START_TIME = "INVALID_START_TIME"
-    GAME_STATE_UNVERIFIED = "GAME_STATE_UNVERIFIED"
+    INVALID_START_TIME = "NO_START_TIME"
+    GAME_STATE_UNVERIFIED = "UNVERIFIED"
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,7 +34,10 @@ class PregameEligibility:
         }
 
 
-ELIGIBLE_PREGAME = PregameEligibility(True, PregameEligibilityReason.ELIGIBLE)
+ELIGIBLE_PREGAME = PregameEligibility(
+    True,
+    PregameEligibilityReason.GAME_NOT_STARTED,
+)
 
 _PREGAME_STATUSES = {
     "SCHEDULED",
@@ -80,10 +88,10 @@ def evaluate_pregame_eligibility(
         return PregameEligibility(False, PregameEligibilityReason.LIVE_MARKET)
 
     if status is None:
-        return PregameEligibility(False, PregameEligibilityReason.GAME_STATE_UNVERIFIED)
+        return PregameEligibility(False, PregameEligibilityReason.UNVERIFIED)
 
     if status in _COMPLETED_STATUSES:
-        return PregameEligibility(False, PregameEligibilityReason.COMPLETED_GAME)
+        return PregameEligibility(False, PregameEligibilityReason.COMPLETED)
 
     if status in _LIVE_STATUSES:
         return PregameEligibility(False, PregameEligibilityReason.GAME_STARTED)
@@ -92,7 +100,7 @@ def evaluate_pregame_eligibility(
         return PregameEligibility(False, PregameEligibilityReason.CANCELED_GAME)
 
     if start is None:
-        return PregameEligibility(False, PregameEligibilityReason.INVALID_START_TIME)
+        return PregameEligibility(False, PregameEligibilityReason.NO_START_TIME)
 
     if current >= start:
         return PregameEligibility(False, PregameEligibilityReason.GAME_STARTED)
@@ -101,7 +109,7 @@ def evaluate_pregame_eligibility(
         return PregameEligibility(False, PregameEligibilityReason.POSTPONED_GAME)
 
     if status not in _PREGAME_STATUSES:
-        return PregameEligibility(False, PregameEligibilityReason.GAME_STATE_UNVERIFIED)
+        return PregameEligibility(False, PregameEligibilityReason.UNVERIFIED)
 
     if _quote_is_live_or_after_start(market, start):
         return PregameEligibility(False, PregameEligibilityReason.LIVE_MARKET)

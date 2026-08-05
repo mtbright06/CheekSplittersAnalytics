@@ -123,7 +123,12 @@ def adapt_decision(
     *,
     generated_at: str | None = None,
 ) -> Recommendation | None:
-    if row.get("pregame_eligible") is False or row.get("is_live"):
+    if (
+        row.get("pregame_eligible") is not True
+        or row.get("is_live")
+        or str(row.get("pregame_eligibility_reason") or "")
+        != PregameEligibilityReason.GAME_NOT_STARTED.value
+    ):
         return None
 
     market_quote = build_market_quote(
@@ -232,7 +237,7 @@ def adapt_decision(
             ),
             "pregame_eligibility_reason": (
                 row.get("pregame_eligibility_reason")
-                or PregameEligibilityReason.ELIGIBLE.value
+                or PregameEligibilityReason.UNVERIFIED.value
             ),
          },
 
@@ -245,11 +250,11 @@ def adapt_decision(
         pregame_eligible=(
             row.get("pregame_eligible")
             if row.get("pregame_eligible") is not None
-            else True
+            else False
         ),
         pregame_eligibility_reason=(
             row.get("pregame_eligibility_reason")
-            or PregameEligibilityReason.ELIGIBLE.value
+            or PregameEligibilityReason.UNVERIFIED.value
         ),
         generated_at=(
             generated_at

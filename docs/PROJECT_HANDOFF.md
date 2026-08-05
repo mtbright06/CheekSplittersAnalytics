@@ -989,8 +989,15 @@ These ideas may be valuable. They are not blocking the active Epic 1 objective.
 - Sprint 69.1 hotfix: canonical `scheduled_start_at` must be a complete
   timezone-aware ISO datetime or `None`. KBO display-only `start_time` values
   such as `6:30pm` remain display fields only and now fail closed as
-  `GAME_STATE_UNVERIFIED`; daily persistence logs and skips malformed rows
+  `UNVERIFIED`; daily persistence logs and skips malformed rows
   instead of crashing the slate.
+- Sprint 77.0 Pregame Recommendation Integrity makes
+  `PregameEligibility(GAME_NOT_STARTED/GAME_STARTED/LIVE_MARKET/COMPLETED/
+  UNVERIFIED/NO_START_TIME)` the canonical pre-recommendation gate. Registry
+  adapters, Recommendation Registry publication, Best Bets top-play display,
+  and daily persistence now require explicit `pregame_eligible=True` with
+  `pregame_eligibility_reason=GAME_NOT_STARTED`; unverified or live rows are
+  skipped without mutating historical recommendations.
 - Sprint 77.0 replaced the live Bomb Lab tabbed presentation with a
   presentation-only workstation renderer. The Bomb model, HR calculations,
   generated JSON contract, registry, persistence, odds, routing, and build

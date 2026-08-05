@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
+from engine.core.pregame_eligibility import PregameEligibilityReason
 from engine.core.markets import (
     MarketQuote,
     expected_value,
@@ -64,6 +65,20 @@ def is_actionable_label(
             "STRONG PLAY",
             "CHEEK RIPPER",
         )
+    )
+
+
+def is_verified_pregame_recommendation(value: Any) -> bool:
+    eligible = getattr(value, "pregame_eligible", None)
+    reason = str(getattr(value, "pregame_eligibility_reason", "") or "")
+
+    return (
+        eligible is True
+        and reason
+        in {
+            PregameEligibilityReason.GAME_NOT_STARTED.value,
+            PregameEligibilityReason.ELIGIBLE.value,
+        }
     )
 
 
@@ -370,6 +385,10 @@ class Recommendation:
             "pregame_eligibility_reason": (
                 self.pregame_eligibility_reason
             ),
+            "pregame_eligibility": {
+                "eligible": self.pregame_eligible,
+                "reason": self.pregame_eligibility_reason,
+            },
             "generated_at": self.generated_at,
             "actionable": self.actionable,
         }

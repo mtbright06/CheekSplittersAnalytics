@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from engine.core.pregame_eligibility import PregameEligibilityReason
 from engine.mlb.totals.helpers import clamp
 
 
@@ -242,8 +243,18 @@ def build_totals_recommendation(
         and market_payload.get("line") is not None
     )
 
-    if market_payload.get("pregame_eligible") is False:
+    pregame_verified = (
+        market_payload.get("pregame_eligible") is True
+        and str(
+            market_payload.get("pregame_eligibility_reason")
+            or ""
+        )
+        == PregameEligibilityReason.GAME_NOT_STARTED.value
+    )
+
+    if not pregame_verified:
         market_available = False
+        absolute_edge = None
 
     edge_component = score_edge(
         absolute_edge

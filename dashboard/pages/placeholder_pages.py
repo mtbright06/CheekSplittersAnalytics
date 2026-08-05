@@ -78,7 +78,6 @@ def render_kbo():
 def render_bomb_lab():
     from components.bomb_lab.bomb_lab_cards import render_bomb_pitcher_card
     from components.bomb_lab.decision_board import (
-        render_decision_board,
         render_game_explorer,
     )
     from components.bomb_lab.workstation import (
@@ -114,8 +113,6 @@ def render_bomb_lab():
 
     if selected_view == "Bomb Lab":
         render_bomb_lab_workstation_cards(pitchers)
-    elif selected_view == "Decision Board":
-        render_decision_board(pitchers)
     elif selected_view == "Game Explorer":
         _render_bomb_game_explorer(pitchers, render_game_explorer)
     elif selected_view == "Pitcher Explorer":
@@ -128,7 +125,6 @@ def _render_bomb_lab_view_selector() -> str:
     key = "bomb_lab_selected_view"
     views = [
         "Bomb Lab",
-        "Decision Board",
         "Game Explorer",
         "Pitcher Explorer",
         "Metrics Lab",
@@ -170,52 +166,99 @@ def _render_bomb_game_explorer(pitchers, render_game_explorer):
 
 
 def _render_bomb_pitcher_explorer(pitchers, render_bomb_pitcher_card):
-    st.markdown("### Pitcher Explorer")
+    st.markdown(
+        "<div class='bomb-research-title'>Pitcher Explorer</div>",
+        unsafe_allow_html=True,
+    )
 
     for item in pitchers[:20]:
         render_bomb_pitcher_card(item)
 
 
 def _render_bomb_metrics_lab(table):
-    st.markdown("### Metrics Lab")
+    st.markdown(
+        "<div class='bomb-research-title'>Metrics Lab</div>",
+        unsafe_allow_html=True,
+    )
 
     if not table:
         st.info("No metrics table available.")
         return
 
     df = pd.DataFrame(table)
+    groups = [
+        (
+            "Pitcher Risk",
+            {
+                "pitcher": "Pitcher",
+                "pitching_team": "Pitching Team",
+                "target_offense": "Attack",
+                "bomb_score": "Bomb",
+                "pitcher_risk": "Pitcher Risk",
+                "confidence": "Confidence",
+            },
+        ),
+        (
+            "Recent Form",
+            {
+                "pitcher": "Pitcher",
+                "target_offense": "Attack",
+                "barrel_pct": "Barrel%",
+                "hard_hit_pct": "Hard Hit%",
+                "hr_per_bbe": "HR/BBE",
+                "bbe": "BBE",
+            },
+        ),
+        (
+            "Contact Quality",
+            {
+                "pitcher": "Pitcher",
+                "target_offense": "Attack",
+                "barrel_pct": "Barrel%",
+                "hard_hit_pct": "Hard Hit%",
+                "hr_per_bbe": "HR/BBE",
+            },
+        ),
+    ]
 
-    df = df.rename(
-        columns={
-            "tier": "Tier",
-            "bomb_score": "Bomb",
-            "confidence": "Conf",
-            "pitcher": "Pitcher",
-            "pitching_team": "Pitcher Team",
-            "target_offense": "Target Offense",
-            "game": "Game",
-            "attack_side": "Side",
-            "pitcher_risk": "Risk",
-            "barrel_pct": "Barrel%",
-            "hard_hit_pct": "HH%",
-            "hr_per_bbe": "HR/BBE",
-            "park": "Park",
-            "bbe": "BBE",
+    for title, columns in groups:
+        st.markdown(
+            f"<div class='bomb-metrics-group-title'>{title}</div>",
+            unsafe_allow_html=True,
+        )
+        available = {
+            source: label
+            for source, label in columns.items()
+            if source in df.columns
         }
-    )
+        if not available:
+            st.info(f"No {title.lower()} metrics available.")
+            continue
+        view = df[list(available.keys())].rename(columns=available).copy()
+        _format_bomb_metrics(view)
+        st.dataframe(
+            view,
+            width="stretch",
+            hide_index=True,
+        )
 
-    for col in ["Barrel%", "HH%", "HR/BBE"]:
+
+def _format_bomb_metrics(df):
+    for col in ["Barrel%", "Hard Hit%", "HR/BBE"]:
         if col in df.columns:
             df[col] = (
                 pd.to_numeric(df[col], errors="coerce")
-                * 100
-            ).round(1).astype(str) + "%"
-
-    st.dataframe(
-        df,
-        width="stretch",
-        hide_index=True,
-    )
+                .mul(100)
+                .round(1)
+                .map(lambda value: "N/A" if pd.isna(value) else f"{value:.1f}%")
+            )
+    for col in ["Bomb", "Pitcher Risk", "Confidence"]:
+        if col in df.columns:
+            df[col] = (
+                pd.to_numeric(df[col], errors="coerce")
+                .round(1)
+                .map(lambda value: "N/A" if pd.isna(value) else f"{value:.1f}")
+            )
 
 def render_first5():
     from components.first5.first5_cards import (

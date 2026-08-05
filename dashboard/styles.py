@@ -1426,6 +1426,266 @@ div.stButton > button:hover {
 
 /* Bomb Lab Pitcher Explorer */
 
+.bomb-research-title {
+    margin: 10px 0 8px;
+    color: #f5f7fb;
+    font-size: 15px;
+    font-weight: 880;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.bomb-research-title {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    padding: 8px 0;
+    background: rgba(4, 10, 17, 0.96);
+}
+
+.bomb-research-card {
+    display: grid;
+    gap: 0;
+    margin: 8px 0 30px;
+    border: 1px solid rgba(116, 143, 177, 0.18);
+    border-radius: 8px;
+    background: rgba(8, 15, 24, 0.86);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+}
+
+.bomb-research-main {
+    display: grid;
+    grid-template-columns: minmax(320px, 1fr) minmax(240px, 0.82fr);
+    gap: 0;
+}
+
+.bomb-research-identity {
+    display: grid;
+    align-content: start;
+    gap: 10px;
+    padding: 12px;
+    border-right: 1px solid rgba(116, 143, 177, 0.16);
+}
+
+.bomb-research-team {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.bomb-research-logo .team-logo,
+.bomb-research-logo .team-logo-placeholder {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    object-fit: contain;
+}
+
+.bomb-research-logo--small .team-logo,
+.bomb-research-logo--small .team-logo-placeholder {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+}
+
+.bomb-research-team span,
+.bomb-research-identity-grid span,
+.bomb-research-panel span,
+.bomb-metrics-group-title {
+    display: block;
+    color: #b9c7dc;
+    font-size: 10px;
+    font-weight: 820;
+    letter-spacing: 0.10em;
+    line-height: 1.15;
+    text-transform: uppercase;
+}
+
+.bomb-research-team strong,
+.bomb-research-identity-grid strong {
+    display: block;
+    min-width: 0;
+    margin-top: 3px;
+    overflow: hidden;
+    color: #f5f7fb;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bomb-research-team strong {
+    font-size: 17px;
+    font-weight: 940;
+}
+
+.bomb-research-team small,
+.bomb-research-identity-grid small {
+    display: block;
+    min-width: 0;
+    margin-top: 3px;
+    overflow: hidden;
+    color: #9fb0c6;
+    font-size: 11px;
+    font-weight: 660;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bomb-research-identity-grid {
+    display: grid;
+    gap: 8px;
+}
+
+.bomb-research-identity-grid > div {
+    padding: 7px 8px;
+    border: 1px solid rgba(116, 143, 177, 0.14);
+    border-radius: 6px;
+    background: rgba(116, 143, 177, 0.05);
+}
+
+.bomb-research-side-field {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 10px;
+    min-height: 30px;
+}
+
+.bomb-research-side-field strong {
+    margin-top: 0;
+    text-align: right;
+}
+
+.bomb-research-pitcher-field {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+}
+
+.bomb-research-pitcher-field strong {
+    font-size: 17px;
+    font-weight: 940;
+}
+
+.bomb-research-panel {
+    display: grid;
+    align-content: start;
+    gap: 4px;
+    padding: 9px 10px;
+}
+
+.bomb-research-panel > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 28px;
+    padding: 4px 8px;
+    border: 1px solid rgba(116, 143, 177, 0.12);
+    border-radius: 6px;
+    background: rgba(116, 143, 177, 0.05);
+}
+
+.bomb-research-panel strong {
+    color: #f5f7fb;
+    font-size: 13px;
+    font-weight: 880;
+    line-height: 1.1;
+    text-align: right;
+}
+
+.bomb-research-metric--primary {
+    min-height: 54px;
+}
+
+.bomb-research-metric--primary span {
+    color: #8fa2ba;
+    font-size: 9px;
+    font-weight: 760;
+}
+
+.bomb-research-metric--primary strong {
+    font-size: 36px;
+    font-weight: 960;
+    line-height: 1;
+}
+
+.bomb-research-metric--badge .recommendation-badge {
+    min-height: 24px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    line-height: 1;
+}
+
+.bomb-research-metric--elite strong {
+    color: #34e68a;
+}
+
+.bomb-research-metric--strong strong {
+    color: #7cb5ff;
+}
+
+.bomb-research-metric--watch strong {
+    color: #ffcf70;
+}
+
+.bomb-research-intel {
+    padding: 8px 9px;
+    border: 1px solid rgba(116, 143, 177, 0.14);
+    border-radius: 6px;
+    background: rgba(116, 143, 177, 0.05);
+}
+
+.bomb-research-intel span {
+    color: #b9c7dc;
+    font-size: 10px;
+    font-weight: 820;
+    letter-spacing: 0.10em;
+    line-height: 1.15;
+    text-transform: uppercase;
+}
+
+.bomb-research-intel ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    color: #dbe7f7;
+    font-size: 12px;
+    font-weight: 680;
+    line-height: 1.35;
+}
+
+.bomb-research-intel small {
+    display: block;
+    margin-top: 5px;
+    color: #9fb0c6;
+    font-size: 12px;
+    font-weight: 680;
+}
+
+.bomb-research-intel li + li {
+    margin-top: 3px;
+}
+
+.bomb-metrics-group-title {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    margin: 12px 0 6px;
+    padding: 8px 0;
+    background: rgba(4, 10, 17, 0.96);
+    color: #f5f7fb;
+}
+
 .bomb-card {
     background: rgba(14, 21, 32, 0.94);
     border: 1px solid rgba(255,255,255,0.10);
@@ -4173,6 +4433,205 @@ button[data-baseweb="tab"][aria-selected="true"] {
     .bomb-workstation-center {
         text-align: left;
     }
+}
+
+/* Sprint 76.3 Dashboard command center */
+
+.command-preview-card {
+    min-height: 206px;
+    padding: 12px;
+    border: 1px solid rgba(116, 143, 177, 0.20);
+    border-radius: 8px;
+    background: rgba(8, 15, 24, 0.86);
+}
+
+.command-preview-top {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+}
+
+.command-preview-logo .team-logo,
+.command-preview-logo .team-logo-placeholder,
+.command-preview-logo-empty {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    min-height: 52px;
+    object-fit: contain;
+}
+
+.command-preview-logo-empty {
+    border: 1px solid rgba(116, 143, 177, 0.20);
+    border-radius: 8px;
+    background: rgba(116, 143, 177, 0.06);
+}
+
+.command-preview-copy {
+    min-width: 0;
+}
+
+.command-preview-copy span,
+.command-preview-metric span {
+    display: block;
+    color: #b9c7dc;
+    font-size: 10px;
+    font-weight: 820;
+    letter-spacing: 0.10em;
+    line-height: 1.15;
+    text-transform: uppercase;
+}
+
+.command-preview-copy strong {
+    display: block;
+    min-width: 0;
+    margin-top: 3px;
+    overflow: hidden;
+    color: #f5f7fb;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.08;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.command-preview-copy small {
+    display: block;
+    min-width: 0;
+    margin-top: 5px;
+    overflow: hidden;
+    color: #9fb0c6;
+    font-size: 12px;
+    font-weight: 660;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.command-preview-badges {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 32px;
+    margin-top: 12px;
+}
+
+.command-preview-badges .recommendation-badge {
+    min-height: 24px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    line-height: 1;
+}
+
+.command-preview-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.command-preview-metric {
+    min-height: 52px;
+    padding: 8px;
+    border: 1px solid rgba(116, 143, 177, 0.14);
+    border-radius: 6px;
+    background: rgba(116, 143, 177, 0.05);
+}
+
+.command-preview-metric strong {
+    display: block;
+    min-width: 0;
+    margin-top: 4px;
+    overflow: hidden;
+    color: #f5f7fb;
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.command-parlay-card {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid rgba(116, 143, 177, 0.20);
+    border-radius: 8px;
+    background: rgba(8, 15, 24, 0.86);
+}
+
+.command-parlay-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.command-parlay-heading span,
+.command-parlay-row span {
+    display: block;
+    color: #b9c7dc;
+    font-size: 10px;
+    font-weight: 820;
+    letter-spacing: 0.10em;
+    line-height: 1.15;
+    text-transform: uppercase;
+}
+
+.command-parlay-heading strong {
+    display: block;
+    margin-top: 3px;
+    color: #f5f7fb;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.08;
+}
+
+.command-parlay-card p {
+    margin: 8px 0 10px;
+    color: #9fb0c6;
+    font-size: 12px;
+    font-weight: 660;
+    line-height: 1.25;
+}
+
+.command-parlay-grid {
+    display: grid;
+    gap: 7px;
+}
+
+.command-parlay-row {
+    display: grid;
+    grid-template-columns: minmax(160px, 1.4fr) minmax(120px, 1fr) 68px 92px 72px;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 8px 10px;
+    border: 1px solid rgba(116, 143, 177, 0.14);
+    border-radius: 6px;
+    background: rgba(116, 143, 177, 0.05);
+}
+
+.command-parlay-row strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #f5f7fb;
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.command-parlay-empty {
+    padding: 10px;
+    border: 1px solid rgba(116, 143, 177, 0.14);
+    border-radius: 6px;
+    color: #b9c7dc;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 </style>

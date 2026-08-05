@@ -220,6 +220,33 @@ recommendation tier, model strength, market status, model snapshot, pitching
 snapshot, and existing reasons without the legacy stacked summary/progress/
 intelligence-expander presentation.
 
+Sprint 76.3 updated the multi-sport Dashboard presentation only. The Dashboard
+now opens as a SharpStack Command Center with system metrics and compact
+workstation previews for MLB, totals, KBO, and Bomb Lab using existing page
+routes, badges, status pills, logos, and generated card/registry data.
+
+Sprint 76.4 polished Bomb Lab research presentation only. Pitcher Explorer now
+uses compact workstation rows with logos and vulnerability score styling,
+Metrics Lab groups existing fields into research sections, and Game Explorer
+reuses the Bomb Lab workstation card language. No Bomb Lab payloads, rankings,
+scores, models, or recommendation logic changed.
+
+Sprint 76.4 cleanup retired the standalone Park research section from Bomb Lab
+presentation while preserving park inputs inside existing Bomb Score display
+surfaces. Pitcher Explorer now includes an explicit Side column after Attack
+Team and keeps presentation-only risk coloring from existing payload values.
+
+Sprint 76.4b reshaped Pitcher Explorer into two-column workstation cards:
+attack identity on the left, vertical research metrics on the right, and
+existing Bomb Lab reasons as compact bullets beneath each card. The previous
+table-style header row and oversized reason banners were removed; rankings,
+scores, target selection, payloads, routing, filtering, and sorting remain
+unchanged.
+
+Pitcher Explorer final cleanup added the pitching-team logo beside the pitcher
+identity, compressed the Side and metric rows, renamed Tier to Attack Tier, and
+moved existing Bomb Lab reasons into a left-column Quick Intel section.
+
 **Sprint 68.1 — Application Shell:** implemented and awaiting review. The
 dashboard now has a dedicated `dashboard/shell/` boundary that owns one route
 configuration, compact sidebar navigation, slim top bar, and shell session

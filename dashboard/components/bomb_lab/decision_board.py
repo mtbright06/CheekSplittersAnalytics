@@ -1,6 +1,7 @@
 import streamlit as st
 
 from components.page_header import render_compact_header
+from components.bomb_lab.workstation import bomb_workstation_card_html
 
 
 def safe(value, default="N/A"):
@@ -186,36 +187,10 @@ def render_game_explorer(item):
         st.info("No game selected.")
         return
 
-    score = item.get("bomb_score") or 0
-    offense = safe(item.get("opponent"))
-    pitcher = safe(item.get("pitcher"))
-    pitcher_team = safe(item.get("pitching_team"))
-    attack_side = side_text(item.get("target_side"))
-    grade = grade_from_score(score)
-
-    html = f"""
-<div class="game-v2-card">
-  <div class="game-v2-header">
-    <div>
-      <div class="bomb-v2-kicker">OFFENSE TO TARGET</div>
-      <div class="game-v2-title">{offense}</div>
-      <div class="game-v2-subtitle">Attack {pitcher} ({pitcher_team})</div>
-    </div>
-    <div class="game-v2-score">
-      <span>Bomb Score</span>
-      <strong>{score}</strong>
-    </div>
-  </div>
-
-  <div class="game-v2-grid">
-    <div><span>Attack Side</span><strong>{attack_side}</strong></div>
-    <div><span>Confidence</span><strong>{grade}</strong></div>
-    <div><span>Environment</span><strong>{safe(item.get("environment"))}</strong></div>
-    <div><span>Pitcher Risk</span><strong>{safe(item.get("pitcher_risk"))}</strong></div>
-  </div>
-</div>
-"""
-    st.markdown(html, unsafe_allow_html=True)
+    st.markdown(
+        bomb_workstation_card_html(item, card_key="bomb-game-explorer"),
+        unsafe_allow_html=True,
+    )
 
     render_top_hitters(item)
     render_reasoning(item)

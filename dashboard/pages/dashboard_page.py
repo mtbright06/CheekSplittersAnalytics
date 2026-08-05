@@ -1,21 +1,21 @@
 from __future__ import annotations
 
+import html
 import json
 from pathlib import Path
 
 import streamlit as st
 
+from components.badges import recommendation_badge_html
 from components.cards import render_game
 from components.dashboard_metrics import (
     dashboard_metric_values,
-    render_dashboard_metrics,
 )
+from components.logos import team_logo_html
 from components.page_header import render_compact_header
 from components.pipeline_status import render_pipeline_status
 from components.mlb.workstation import render_mlb_workstation_header
-from components.registry.registry_cards import (
-    render_registry_card,
-)
+from components.status_pill import status_pill_html
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -32,6 +32,18 @@ DECISION_CARD_PATH = (
     / "output"
     / "cards"
     / "decision_card.json"
+)
+BOMB_LAB_CARD_PATH = (
+    ROOT
+    / "output"
+    / "cards"
+    / "bomb_lab_card.json"
+)
+FIRST5_CARD_PATH = (
+    ROOT
+    / "output"
+    / "cards"
+    / "first5_card.json"
 )
 
 def load_json(path: Path) -> dict:
@@ -83,156 +95,378 @@ def recommendation_matches_league(
     )
 
 
-def actionable_recommendations(
-    registry: dict,
-    league_filter: str | None = None,
-) -> list[dict]:
-    recommendations = registry.get(
-        "recommendations",
-        [],
-    )
+def render_multi_sport_dashboard(
+    card: dict,
+):
+    registry = load_registry()
+    render_command_center(card, registry)
 
-    return [
-        recommendation
-        for recommendation in recommendations
-        if (
-            recommendation.get(
-                "actionable",
-                recommendation.get("recommendation")
-                in {"HAMMER", "BET", "LEAN"},
-            )
-            and recommendation_matches_league(
-                recommendation,
-                league_filter,
-            )
-        )
+
+def render_command_center(card: dict, registry: dict):
+    summary = registry.get("summary", {})
+    bomb_card = load_json(BOMB_LAB_CARD_PATH)
+    first5_card = load_json(FIRST5_CARD_PATH)
+    metrics = [
+        ("MLB Games", _count_games(card, "MLB")),
+        ("Actionable Plays", summary.get("actionable", 0)),
+        ("KBO Plays", _count_kbo_plays(card, registry)),
+        ("Bomb Targets", _bomb_target_count(bomb_card)),
+        ("Engine Status", "Online" if card.get("generated_at") else "No Build"),
+        ("Last Build", _display_datetime(card.get("generated_at"))),
     ]
 
-
-def group_recommendations_by_market(
-    recommendations: list[dict],
-) -> dict[tuple[str, str], list[dict]]:
-    """Keep registry order while separating the Command Board by market."""
-    grouped: dict[tuple[str, str], list[dict]] = {}
-
-    for recommendation in recommendations:
-        league = str(
-            recommendation.get("league")
-            or recommendation.get("sport")
-            or "OTHER"
-        ).upper()
-        market = str(
-            recommendation.get("market")
-            or "OTHER"
-        ).lower()
-
-        grouped.setdefault(
-            (league, market),
-            [],
-        ).append(recommendation)
-
-    return grouped
-
-
-def market_board_title(
-    league: str,
-    market: str,
-) -> str:
-    return f"{league} {market.replace('_', ' ').title()}"
-
-
-def render_canonical_board(
-    registry: dict,
-    league_filter: str | None = None,
-):
-    recommendations = (
-        actionable_recommendations(
-            registry,
-            league_filter=league_filter,
-        )
+    render_compact_header(
+        "⌂",
+        "SharpStack Command Center",
+        "System summary and top workstation previews.",
+        metrics,
     )
 
-    if league_filter:
-        title = (
-            f"🍑 {league_filter.upper()} "
-            "Official Board"
-        )
-    else:
-        title = (
-            "🍑 SharpStack Command Board"
-        )
+    columns = st.columns(4, gap="small")
+    previews = [
+        _mlb_preview(card, registry),
+        _totals_preview(registry),
+        _kbo_preview(card, registry),
+        _first5_preview(first5_card),
+    ]
 
-    st.markdown(
-        f'<div class="section-title">'
-        f"{title}"
-        f"</div>",
-        unsafe_allow_html=True,
-    )
-
-    if not recommendations:
-        if league_filter:
-            st.info(
-                f"No official {league_filter.upper()} "
-                "HAMMER, BET, or LEAN "
-                "recommendations are available."
+    for index, (column, preview) in enumerate(zip(columns, previews)):
+        with column:
+            st.markdown(
+                _command_preview_html(preview),
+                unsafe_allow_html=True,
             )
-        else:
-            st.info(
-                "No official HAMMER, BET, or LEAN "
-                "recommendations are available."
-            )
+            if st.button(
+                "View →",
+                key=(
+                    "command_center_view_"
+                    f"{index}_{preview['title'].lower().replace(' ', '_')}"
+                ),
+                width="stretch",
+            ):
+                st.session_state.page = preview["route"]
+                st.rerun()
 
-        return
-
-    grouped = group_recommendations_by_market(
-        recommendations
-    )
-
-    for (league, market), market_rows in (
-        grouped.items()
-    ):
-        st.markdown(
-            f'<div class="sport-section-title">'
-            f"{market_board_title(league, market)} Play"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
-
-        render_registry_card(
-            market_rows[0],
-            1,
-        )
-
-
-def render_dashboard_header(
-    card: dict,
-    league_filter: str | None = None,
-):
-    render_dashboard_metrics(
-        card
-    )
-
-    registry = load_registry()
+    _render_bomb_parlay(bomb_card)
 
     with st.expander(
         "Data Pipeline",
         expanded=False,
     ):
-        render_pipeline_status(
-            card
-        )
+        render_pipeline_status(card)
 
-    render_canonical_board(
-        registry,
-        league_filter=league_filter,
+
+def _count_games(card: dict, league: str) -> int:
+    expected = league.upper()
+    return sum(
+        1
+        for game in card.get("games", [])
+        if str(game.get("sport") or "").upper() == expected
     )
 
-def render_multi_sport_dashboard(
-    card: dict,
-):
-    render_dashboard_header(
-        card,
-        league_filter=None,
+
+def _count_kbo_plays(card: dict, registry: dict) -> int:
+    registry_count = sum(
+        1
+        for item in registry.get("recommendations", [])
+        if recommendation_matches_league(item, "KBO")
+        and item.get("actionable", False)
+    )
+    if registry_count:
+        return registry_count
+    return sum(
+        1
+        for game in card.get("games", [])
+        if str(game.get("sport") or "").upper() == "KBO"
+        and str(game.get("model", {}).get("recommendation") or "").upper()
+        not in {"", "PASS"}
+    )
+
+
+def _bomb_target_count(bomb_card: dict) -> int:
+    table = bomb_card.get("table")
+    if isinstance(table, list):
+        return len(table)
+    pitchers = bomb_card.get("pitchers")
+    if isinstance(pitchers, list):
+        return len(pitchers)
+    return 0
+
+
+def _first5_preview(first5_card: dict) -> dict:
+    item = _top_first5_item(first5_card)
+    selection = _first5_selection(item)
+    return {
+        "title": "First 5",
+        "route": "First 5",
+        "primary": selection or "No First 5 recommendation",
+        "secondary": item.get("matchup") or "No First 5 matchup loaded",
+        "badge": recommendation_badge_html("LEAN" if selection else "PASS"),
+        "logo": (
+            team_logo_html(selection, "mlb")
+            if selection and not selection.startswith(("OVER", "UNDER"))
+            else ""
+        ),
+        "metrics": [
+            ("F5 Score", _number(item.get("decision_score"))),
+            ("Confidence", _number(item.get("confidence"))),
+        ],
+    }
+
+
+def _registry_top(
+    registry: dict,
+    *,
+    league: str,
+    market: str | None = None,
+) -> dict:
+    rows = [
+        item
+        for item in registry.get("recommendations", [])
+        if recommendation_matches_league(item, league)
+        and (market is None or str(item.get("market") or "").lower() == market)
+    ]
+    return rows[0] if rows else {}
+
+
+def _mlb_preview(card: dict, registry: dict) -> dict:
+    item = _registry_top(registry, league="MLB", market="moneyline")
+    game = _top_game(card, "MLB")
+    selection = item.get("selection") or _game_selection(game)
+    return {
+        "title": "MLB",
+        "route": "MLB",
+        "primary": selection or "No MLB recommendation",
+        "secondary": item.get("matchup") or _game_matchup(game),
+        "badge": recommendation_badge_html(
+            item.get("recommendation") or _game_recommendation(game)
+        ),
+        "logo": team_logo_html(selection, "mlb") if selection else "",
+        "metrics": [("Hammer", _number(item.get("hammer_score")))],
+    }
+
+
+def _totals_preview(registry: dict) -> dict:
+    item = _registry_top(registry, league="MLB", market="totals")
+    return {
+        "title": "Totals",
+        "route": "MLB",
+        "primary": item.get("selection") or "No totals recommendation",
+        "secondary": item.get("matchup") or "MLB Totals Board",
+        "badge": recommendation_badge_html(item.get("recommendation") or "PASS"),
+        "logo": "",
+        "metrics": [
+            ("Confidence", item.get("confidence") or "N/A"),
+            ("Hammer", _number(item.get("hammer_score"))),
+        ],
+    }
+
+
+def _kbo_preview(card: dict, registry: dict) -> dict:
+    item = _registry_top(registry, league="KBO")
+    game = _top_game(card, "KBO")
+    model = game.get("model", {}) if game else {}
+    odds = game.get("odds", {}) if game else {}
+    selection = item.get("selection") or model.get("play")
+    market_status = (
+        item.get("market_status")
+        or ("REAL MARKET" if item.get("real_market_loaded") else None)
+        or odds.get("market_status")
+        or ("MODEL ONLY" if game else "NO PLAY")
+    )
+    return {
+        "title": "KBO",
+        "route": "KBO",
+        "primary": selection or "No KBO recommendation",
+        "secondary": item.get("matchup") or _game_matchup(game),
+        "badge": recommendation_badge_html(
+            item.get("recommendation") or model.get("recommendation") or "PASS"
+        ),
+        "logo": team_logo_html(selection, "kbo") if selection else "",
+        "status": status_pill_html(market_status),
+        "metrics": [],
+    }
+
+
+def _top_game(card: dict, league: str) -> dict:
+    games = [
+        game
+        for game in card.get("games", [])
+        if str(game.get("sport") or "").upper() == league.upper()
+    ]
+    if not games:
+        return {}
+    if league.upper() == "MLB":
+        return rank_mlb_games_by_prediction(games)[0]
+    return rank_games_by_confidence(games)[0]
+
+
+def _top_first5_item(first5_card: dict) -> dict:
+    games = first5_card.get("games")
+    if not isinstance(games, list):
+        return {}
+    for game in games:
+        if _first5_selection(game):
+            return game
+    if games:
+        return games[0]
+    return {}
+
+
+def _first5_selection(item: dict) -> str:
+    moneyline = item.get("f5_ml", {}) if isinstance(item, dict) else {}
+    total = item.get("f5_total", {}) if isinstance(item, dict) else {}
+    if isinstance(moneyline, dict) and moneyline.get("lean"):
+        return str(moneyline.get("lean"))
+    if isinstance(total, dict) and total.get("lean"):
+        line = total.get("model_line")
+        if line is not None:
+            return f"{total.get('lean')} {line}"
+        return str(total.get("lean"))
+    return ""
+
+
+def _render_bomb_parlay(bomb_card: dict) -> None:
+    hitters = _bomb_parlay_hitters(bomb_card)
+    complete = len(hitters) == 3
+    st.markdown(
+        _bomb_parlay_html(hitters, complete),
+        unsafe_allow_html=True,
+    )
+    if st.button(
+        "View Bomb Lab →",
+        key="command_center_view_bomb_lab_parlay",
+        width="stretch",
+    ):
+        st.session_state.page = "Bomb Lab"
+        st.rerun()
+
+
+def _bomb_parlay_hitters(bomb_card: dict) -> list[dict]:
+    pitchers = bomb_card.get("pitchers")
+    if not isinstance(pitchers, list):
+        return []
+
+    selected = []
+    teams = set()
+    for pitcher in pitchers:
+        hitters = pitcher.get("top_hitters")
+        if not isinstance(hitters, list) or not hitters:
+            continue
+        hitter = hitters[0]
+        team = hitter.get("team") or pitcher.get("opponent")
+        if not team or team in teams:
+            continue
+        teams.add(team)
+        selected.append(
+            {
+                "name": hitter.get("name"),
+                "team": team,
+                "handedness": hitter.get("bat_side"),
+                "target_score": hitter.get("target_score"),
+                "hr": hitter.get("hr"),
+            }
+        )
+        if len(selected) == 3:
+            break
+    return selected
+
+
+def _bomb_parlay_html(hitters: list[dict], complete: bool) -> str:
+    message = (
+        "Top hitter from each of the top three distinct attacking teams."
+        if complete
+        else "Incomplete: fewer than three eligible attacking teams are available."
+    )
+    rows = "".join(_bomb_parlay_row_html(hitter) for hitter in hitters)
+    if not rows:
+        rows = "<div class='command-parlay-empty'>No Bomb Lab hitters available.</div>"
+    return (
+        "<section class='command-parlay-card'>"
+        "<div class='command-parlay-heading'>"
+        "<div><span>Bomb Lab</span><strong>💣 3-Man Bomb Parlay</strong></div>"
+        f"{status_pill_html('COMPLETE' if complete else 'INCOMPLETE')}"
+        "</div>"
+        f"<p>{html.escape(message)}</p>"
+        f"<div class='command-parlay-grid'>{rows}</div>"
+        "</section>"
+    )
+
+
+def _bomb_parlay_row_html(hitter: dict) -> str:
+    return (
+        "<div class='command-parlay-row'>"
+        f"<strong>{html.escape(str(hitter.get('name') or 'Unknown Hitter'))}</strong>"
+        f"<span>{html.escape(str(hitter.get('team') or 'N/A'))}</span>"
+        f"<span>{html.escape(str(hitter.get('handedness') or 'N/A'))}</span>"
+        f"<span>{html.escape(_number(hitter.get('target_score')))}</span>"
+        f"<span>{html.escape(str(hitter.get('hr') if hitter.get('hr') is not None else 'N/A'))}</span>"
+        "</div>"
+    )
+
+
+def _game_selection(game: dict) -> str:
+    return str(game.get("model", {}).get("play") or "")
+
+
+def _game_recommendation(game: dict) -> str:
+    return str(game.get("model", {}).get("recommendation") or "PASS")
+
+
+def _game_matchup(game: dict) -> str:
+    matchup = game.get("matchup", {}) if game else {}
+    away = matchup.get("away")
+    home = matchup.get("home")
+    if away and home:
+        return f"{away} @ {home}"
+    return "No matchup loaded"
+
+
+def _number(value, decimals: int = 1) -> str:
+    try:
+        return f"{float(value):.{decimals}f}"
+    except (TypeError, ValueError):
+        return "N/A"
+
+
+def _display_datetime(value) -> str:
+    if not value:
+        return "N/A"
+    return (
+        str(value)
+        .replace("T", " ")
+        .replace("+00:00", " UTC")
+        .replace("Z", " UTC")[:20]
+    )
+
+
+def _command_preview_html(preview: dict) -> str:
+    logo = preview.get("logo") or "<div class='command-preview-logo-empty'></div>"
+    status = preview.get("status") or ""
+    metrics = "".join(
+        (
+            "<div class='command-preview-metric'>"
+            f"<span>{html.escape(str(label))}</span>"
+            f"<strong>{html.escape(str(value))}</strong>"
+            "</div>"
+        )
+        for label, value in preview.get("metrics", [])
+    )
+    return (
+        "<section class='command-preview-card'>"
+        "<div class='command-preview-top'>"
+        f"<div class='command-preview-logo'>{logo}</div>"
+        "<div class='command-preview-copy'>"
+        f"<span>{html.escape(str(preview.get('title') or 'Preview'))}</span>"
+        f"<strong>{html.escape(str(preview.get('primary') or 'Unavailable'))}</strong>"
+        f"<small>{html.escape(str(preview.get('secondary') or ''))}</small>"
+        "</div>"
+        "</div>"
+        "<div class='command-preview-badges'>"
+        f"{preview.get('badge') or ''}{status}"
+        "</div>"
+        f"<div class='command-preview-metrics'>{metrics}</div>"
+        "</section>"
     )
 
 

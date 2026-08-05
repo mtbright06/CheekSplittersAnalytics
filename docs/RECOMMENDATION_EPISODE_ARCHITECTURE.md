@@ -9,6 +9,11 @@ Sprint 79.1 implementation note: the schema foundation now exists in ORM
 models and an Alembic migration. No consumers, grading services, analytics,
 history, Explorer, Dashboard, Best Bets, or persisted data were migrated.
 
+Sprint 79.2 implementation note: snapshot persistence now resolves streams
+and maintains episode lifecycle state in the same transaction as immutable
+snapshot insertion. Analytics, grading, Model Health, History, Explorer,
+Dashboard, and Best Bets are not migrated yet.
+
 ## Purpose
 
 SharpStack must preserve every prediction snapshot for auditability while
@@ -277,6 +282,10 @@ Implemented Sprint 79.1 fields:
 - `superseded_by_episode_id`
 - timestamps
 
+Implemented Sprint 79.2 snapshot attachment field:
+
+- `recommendations.recommendation_episode_id`
+
 Unique constraints:
 
 - only one `ACTIVE` episode per stream
@@ -372,9 +381,20 @@ An episode closes when:
 
 Tier/Hammer/confidence/market changes with same selection:
 
-- update `latest_snapshot_id`
-- append timeline evidence
+- attach the snapshot to the existing episode
+- leave canonical snapshot selection for locking
 - keep the same episode open
+
+Implemented Sprint 79.2 lifecycle behavior:
+
+- no active episode plus actionable snapshot creates `ACTIVE`
+- same selection/side attaches to the existing `ACTIVE` episode
+- totals line movement with the same `OVER`/`UNDER` side attaches
+- selection or totals side changes close active as `SUPERSEDED` and open a new `ACTIVE`
+- PASS/no-play closes active as `WITHDRAWN` and attaches the PASS snapshot to that episode
+- PASS/no-play without an active episode does not open an episode
+- actionable snapshots after withdrawal open a new `ACTIVE` episode
+- ineligible snapshots do not create or update streams or episodes
 
 ## Canonical Selection Rule
 

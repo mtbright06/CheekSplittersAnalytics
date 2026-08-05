@@ -24,6 +24,7 @@ from app.services.prediction_snapshot_service import (
     PredictionRunContext,
     PredictionSnapshot,
 )
+from app.services.recommendation_episode_service import RecommendationEpisodeService
 
 
 EVENT_ACTIVATED = "ACTIVATED"
@@ -90,8 +91,13 @@ def supersession_reason(
 class PredictionSnapshotPersistenceService:
     """Writes a complete slate atomically without changing Registry behavior."""
 
-    def __init__(self, session_factory: sessionmaker[Session] = SessionLocal) -> None:
+    def __init__(
+        self,
+        session_factory: sessionmaker[Session] = SessionLocal,
+        episode_service: RecommendationEpisodeService | None = None,
+    ) -> None:
         self._session_factory = session_factory
+        self._episode_service = episode_service or RecommendationEpisodeService()
 
     def persist_run(
         self,
@@ -132,6 +138,12 @@ class PredictionSnapshotPersistenceService:
                 for snapshot in snapshots:
                     recommendation, created = self._insert_snapshot(
                         session, model_run, model_version, snapshot
+                    )
+                    self._episode_service.process_snapshot(
+                        session=session,
+                        model_version=model_version,
+                        recommendation=recommendation,
+                        snapshot=snapshot,
                     )
                     recommendations.append(recommendation)
                     if created:

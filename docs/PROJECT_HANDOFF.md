@@ -1049,6 +1049,19 @@ These ideas may be valuable. They are not blocking the active Epic 1 objective.
 - Sprint 79.1 correction removed market line from episode identity. Market
   line remains stored for audit/grading context, but episodes are identified by
   stream, selection, selection side, and opened timestamp.
+- Sprint 79.2 added the recommendation episode lifecycle foundation. Immutable
+  snapshot persistence now resolves streams, attaches snapshots to episodes,
+  supersedes selection flips, withdraws PASS/no-play transitions, and leaves
+  ineligible snapshots unattached. Analytics and grading remain unmigrated.
+- Sprint 79.2 correction preserves the committed Sprint 79.1 migration
+  `a7c9e2f4b681_add_recommendation_episode_schema.py` unchanged. Snapshot-to-
+  episode attachment is isolated in follow-on revision `c3d9a4f7e2b1`, which
+  adds nullable `recommendations.recommendation_episode_id`, its foreign key to
+  `recommendation_episodes.id`, and the lookup index. Focused lifecycle tests
+  cover stable same-selection attachment, non-splitting metadata changes,
+  supersession, withdrawal evidence, ineligible unattached snapshots, PASS-to-
+  actionable creation, and rollback of snapshot persistence plus episode
+  attachment in one transaction.
 - Sprint 77.0 replaced the live Bomb Lab tabbed presentation with a
   presentation-only workstation renderer. The Bomb model, HR calculations,
   generated JSON contract, registry, persistence, odds, routing, and build

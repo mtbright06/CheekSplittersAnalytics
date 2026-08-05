@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from app.models.model_run import ModelRun
     from app.models.legacy_recommendation_settlement import LegacyRecommendationSettlement
     from app.models.recommendation_grade import RecommendationGrade
+    from app.models.recommendation_episode import RecommendationEpisode
     from app.models.model_version import ModelVersion
 
 
@@ -85,6 +86,16 @@ class Recommendation(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         PostgreSQLUUID(as_uuid=True),
         ForeignKey(
             "model_runs.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    recommendation_episode_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey(
+            "recommendation_episodes.id",
             ondelete="SET NULL",
         ),
         nullable=True,
@@ -189,6 +200,10 @@ class Recommendation(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
 
     model_run: Mapped["ModelRun | None"] = relationship(
         back_populates="recommendations",
+    )
+
+    recommendation_episode: Mapped["RecommendationEpisode | None"] = relationship(
+        foreign_keys=[recommendation_episode_id],
     )
 
     grades: Mapped[list["LegacyRecommendationSettlement"]] = relationship(

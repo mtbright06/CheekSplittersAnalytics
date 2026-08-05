@@ -382,7 +382,7 @@ def build_totals_projection(
 
     recommendation = build_totals_recommendation(
         direction=market_edge.direction,
-        absolute_edge=market_edge.absolute_edge,
+        model_separation=market_edge.absolute_edge,
         model_confidence=confidence,
         data_quality=quality,
         bullpen_confidence=(

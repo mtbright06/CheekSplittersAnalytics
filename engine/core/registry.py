@@ -9,6 +9,7 @@ from engine.core.recommendation import (
     Recommendation,
     is_verified_pregame_recommendation,
 )
+from engine.core.ranking import stable_ranking_identity
 
 
 class RecommendationRegistry:
@@ -216,7 +217,7 @@ class RecommendationRegistry:
             key=lambda item: (
                 item.ranking_score,
                 item.hammer_score,
-                item.recommendation_id,
+                stable_ranking_identity(item),
             ),
             reverse=True,
         )

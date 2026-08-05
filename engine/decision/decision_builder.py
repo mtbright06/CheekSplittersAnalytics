@@ -288,15 +288,6 @@ def extract_model_probability(
     return None
 
 
-def score_from_edge(edge: Any) -> float | None:
-    number = safe_float(edge)
-
-    if number is None:
-        return None
-
-    return clamp(50 + (number * 3.0))
-
-
 def extract_component_score(
     game: dict,
     team_name: str,
@@ -887,15 +878,7 @@ def build_decision_card() -> dict:
         mlb_model_score = (
             clamp(mlb_probability * 100)
             if mlb_probability is not None
-            else score_from_edge(
-                (
-                    mlb_game.get("model", {}).get("edge")
-                    if isinstance(mlb_game.get("model"), dict)
-                    else None
-                )
-                or mlb_game.get("edge")
-                or mlb_game.get("edge_pct")
-            )
+            else None
         )
 
         first5_score = first5_score_for_team(

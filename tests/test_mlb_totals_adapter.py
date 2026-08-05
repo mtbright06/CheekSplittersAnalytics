@@ -8,6 +8,8 @@ def test_actionable_totals_reaches_registry_contract():
             {
                 "game_id": "mlb-1",
                 "matchup": {"away": "Away Club", "home": "Home Club"},
+                "pregame_eligible": True,
+                "pregame_eligibility_reason": "GAME_NOT_STARTED",
                 "odds": {
                     "totals": {
                         "event_id": "event-1",

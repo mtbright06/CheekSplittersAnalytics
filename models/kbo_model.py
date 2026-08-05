@@ -1,5 +1,4 @@
 from engine.edge import EdgeCalculator
-from engine.recommendation import RecommendationEngine
 from engine.confidence import ConfidenceEngine
 
 from loaders.pitcher_loader import PitcherLoader
@@ -114,37 +113,19 @@ class KBOModel:
                         "reference_implied_probability",
                     ),
                 )
-                result.recommendation = (
-                    RecommendationEngine.get_recommendation(
-                        result.edge
-                    )
-                )
             else:
                 result.edge = None
-                result.recommendation = self._model_score_recommendation(
-                    result.model_probability
-                )
 
-            if market_available:
-                (
-                    result.confidence,
-                    result.confidence_breakdown,
-                ) = ConfidenceEngine.calculate(
-                    result.model_probability,
-                    game.away.pitcher,
-                    game.home.pitcher,
-                    game.away.offense,
-                    game.home.offense,
-                    market_available=True,
-                )
-            else:
-                result.confidence = self._model_strength_confidence(
-                    result.model_probability
-                )
-                result.confidence_breakdown = {
-                    "model_strength": result.confidence,
-                    "basis": "KBO ordinal model score",
-                }
+            result.recommendation = self._model_score_recommendation(
+                result.model_probability
+            )
+            result.confidence = self._model_strength_confidence(
+                result.model_probability
+            )
+            result.confidence_breakdown = {
+                "model_strength": result.confidence,
+                "basis": "KBO ordinal model score",
+            }
 
         return games
 

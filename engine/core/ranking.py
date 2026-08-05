@@ -199,6 +199,22 @@ def calculate_ranking_score(
     return round(score, 2)
 
 
+def stable_ranking_identity(
+    recommendation: Recommendation,
+) -> tuple[str, str, str, str, str]:
+    return (
+        str(
+            recommendation.scheduled_start_at
+            or recommendation.event_time
+            or ""
+        ),
+        str(recommendation.league or ""),
+        str(recommendation.market or ""),
+        str(recommendation.event_id or ""),
+        str(recommendation.selection or ""),
+    )
+
+
 def ranked_recommendations(
     recommendations: list[
         Recommendation
@@ -239,7 +255,7 @@ def ranked_recommendations(
             model_probability_score(row),
             model_confidence_score(row),
             row.hammer_score,
-            row.recommendation_id,
+            stable_ranking_identity(row),
         ),
         reverse=True,
     )

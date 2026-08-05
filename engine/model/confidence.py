@@ -43,7 +43,6 @@ def calculate_confidence(
         away_pitcher.get("whip"),
         home_pitcher.get("era"),
         home_pitcher.get("whip"),
-        odds.get("book_probability"),
         away_offense.get("ops"),
         home_offense.get("ops"),
     )

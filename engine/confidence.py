@@ -37,7 +37,6 @@ class ConfidenceEngine:
             is not None,
             ConfidenceEngine._value(home_offense, "runs_per_game")
             is not None,
-            bool(market_available),
         ]
         breakdown["data_quality"] = (
             sum(inputs) / len(inputs)

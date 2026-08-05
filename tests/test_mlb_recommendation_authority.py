@@ -1,5 +1,6 @@
 from engine.adapters.mlb_decision_adapter import adapt_mlb_decision_card
 from engine.core.play_of_day import eligibility_result
+from engine.model.confidence import calculate_confidence
 
 
 def test_mlb_model_recommendation_remains_authoritative_over_hammer():
@@ -66,3 +67,29 @@ def test_mlb_pass_remains_non_actionable_with_hammer_context():
 
     assert recommendation.recommendation == "PASS"
     assert recommendation.actionable is False
+
+
+def test_mlb_confidence_ignores_market_probability():
+    away_pitcher = {"name": "Away Starter", "era": 3.2, "whip": 1.1}
+    home_pitcher = {"name": "Home Starter", "era": 4.2, "whip": 1.3}
+    away_offense = {"ops": .760}
+    home_offense = {"ops": .720}
+
+    no_market = calculate_confidence(
+        8.0,
+        away_pitcher,
+        home_pitcher,
+        {},
+        away_offense,
+        home_offense,
+    )
+    with_market = calculate_confidence(
+        8.0,
+        away_pitcher,
+        home_pitcher,
+        {"book_probability": 0.64},
+        away_offense,
+        home_offense,
+    )
+
+    assert with_market == no_market

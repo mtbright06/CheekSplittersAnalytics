@@ -2,6 +2,7 @@ from pathlib import Path
 import sys
 
 from engine.core import MarketQuote, Recommendation, RecommendationRegistry
+from engine.core.ranking import ranked_recommendations
 from engine.core.play_of_day import eligibility_result, select_play_of_day
 from engine.decision.hammer_score import HammerInputs, calculate_hammer_score
 
@@ -216,3 +217,37 @@ def test_pregame_eligibility_still_blocks_live_registry_rows():
     )
 
     assert registry.ranked() == []
+
+
+def test_exact_ranking_ties_ignore_uuid_ids():
+    older = recommendation(
+        selection="Alpha",
+        event_id="game-1",
+        scheduled_start_at="2026-08-05T17:00:00Z",
+        recommendation_id="zzzz",
+    )
+    later = recommendation(
+        selection="Beta",
+        event_id="game-2",
+        scheduled_start_at="2026-08-05T18:00:00Z",
+        recommendation_id="aaaa",
+    )
+
+    first = ranked_recommendations([older, later])
+    second = ranked_recommendations([
+        recommendation(
+            selection="Alpha",
+            event_id="game-1",
+            scheduled_start_at="2026-08-05T17:00:00Z",
+            recommendation_id="1111",
+        ),
+        recommendation(
+            selection="Beta",
+            event_id="game-2",
+            scheduled_start_at="2026-08-05T18:00:00Z",
+            recommendation_id="9999",
+        ),
+    ])
+
+    assert [row.selection for row in first] == ["Beta", "Alpha"]
+    assert [row.selection for row in second] == ["Beta", "Alpha"]

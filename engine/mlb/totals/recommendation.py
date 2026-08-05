@@ -7,9 +7,9 @@ from engine.core.pregame_eligibility import PregameEligibilityReason
 from engine.mlb.totals.helpers import clamp
 
 
-LEAN_EDGE = 0.40
-BET_EDGE = 0.75
-STRONG_BET_EDGE = 1.25
+LEAN_SEPARATION = 0.40
+BET_SEPARATION = 0.75
+STRONG_BET_SEPARATION = 1.25
 
 
 DATA_QUALITY_SCORES = {
@@ -29,11 +29,10 @@ class TotalsRecommendation:
     stars: str
     actionable: bool
 
-    edge_score: float
+    model_separation_score: float
     model_confidence_score: float
     data_quality_score: float
     bullpen_confidence_score: float
-    market_quality_score: float
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -47,7 +46,10 @@ class TotalsRecommendation:
             "stars": self.stars,
             "actionable": self.actionable,
             "score_components": {
-                "edge": round(self.edge_score, 1),
+                "model_separation": round(
+                    self.model_separation_score,
+                    1,
+                ),
                 "model_confidence": round(
                     self.model_confidence_score,
                     1,
@@ -60,19 +62,15 @@ class TotalsRecommendation:
                     self.bullpen_confidence_score,
                     1,
                 ),
-                "market_quality": round(
-                    self.market_quality_score,
-                    1,
-                ),
             },
         }
 
 
-def score_edge(
-    absolute_edge: float | None,
+def score_model_separation(
+    model_separation: float | None,
 ) -> float:
     """
-    Translate run edge into a 0-100 score.
+    Translate model distance from the total line into a 0-100 score.
 
     Examples:
         0.40 runs -> 52
@@ -81,11 +79,11 @@ def score_edge(
         2.00 runs -> 100
     """
 
-    if absolute_edge is None:
+    if model_separation is None:
         return 0.0
 
     return clamp(
-        40.0 + (absolute_edge * 30.0),
+        40.0 + (model_separation * 30.0),
         0.0,
         100.0,
     )
@@ -97,37 +95,6 @@ def score_data_quality(
     return DATA_QUALITY_SCORES.get(
         str(data_quality or "").upper(),
         50.0,
-    )
-
-
-def score_market_quality(
-    *,
-    market_available: bool,
-    real_market_loaded: bool,
-    stale: bool,
-    over_odds: Any = None,
-    under_odds: Any = None,
-) -> float:
-    if not market_available:
-        return 0.0
-
-    score = 65.0
-
-    if real_market_loaded:
-        score += 20.0
-
-    if over_odds is not None and under_odds is not None:
-        score += 10.0
-
-    if stale:
-        score -= 25.0
-    else:
-        score += 5.0
-
-    return clamp(
-        score,
-        0.0,
-        100.0,
     )
 
 
@@ -173,13 +140,13 @@ def stars_from_score(
 def recommendation_label(
     *,
     direction: str,
-    absolute_edge: float | None,
+    model_separation: float | None,
     recommendation_score: float,
-    market_available: bool,
+    line_available: bool,
 ) -> tuple[str, str, bool]:
     if (
-        not market_available
-        or absolute_edge is None
+        not line_available
+        or model_separation is None
         or direction not in {"OVER", "UNDER"}
     ):
         return (
@@ -191,7 +158,7 @@ def recommendation_label(
     selection = direction
 
     if (
-        absolute_edge >= STRONG_BET_EDGE
+        model_separation >= STRONG_BET_SEPARATION
         and recommendation_score >= 82
     ):
         return (
@@ -201,7 +168,7 @@ def recommendation_label(
         )
 
     if (
-        absolute_edge >= BET_EDGE
+        model_separation >= BET_SEPARATION
         and recommendation_score >= 72
     ):
         return (
@@ -211,7 +178,7 @@ def recommendation_label(
         )
 
     if (
-        absolute_edge >= LEAN_EDGE
+        model_separation >= LEAN_SEPARATION
         and recommendation_score >= 64
     ):
         return (
@@ -230,15 +197,18 @@ def recommendation_label(
 def build_totals_recommendation(
     *,
     direction: str,
-    absolute_edge: float | None,
+    model_separation: float | None = None,
+    absolute_edge: float | None = None,
     model_confidence: float,
     data_quality: str,
     bullpen_confidence: float,
     market_payload: dict[str, Any] | None,
 ) -> TotalsRecommendation:
     market_payload = market_payload or {}
+    if model_separation is None:
+        model_separation = absolute_edge
 
-    market_available = bool(
+    line_available = bool(
         market_payload.get("available")
         and market_payload.get("line") is not None
     )
@@ -253,11 +223,11 @@ def build_totals_recommendation(
     )
 
     if not pregame_verified:
-        market_available = False
-        absolute_edge = None
+        line_available = False
+        model_separation = None
 
-    edge_component = score_edge(
-        absolute_edge
+    separation_component = score_model_separation(
+        model_separation
     )
 
     model_component = clamp(
@@ -276,27 +246,14 @@ def build_totals_recommendation(
         100.0,
     )
 
-    market_component = score_market_quality(
-        market_available=market_available,
-        real_market_loaded=bool(
-            market_payload.get("real_market_loaded")
-        ),
-        stale=bool(
-            market_payload.get("stale", True)
-        ),
-        over_odds=market_payload.get("over_odds"),
-        under_odds=market_payload.get("under_odds"),
-    )
-
-    if not market_available:
+    if not line_available:
         recommendation_score = 0.0
     else:
         recommendation_score = (
-            edge_component * 0.45
-            + model_component * 0.20
-            + data_component * 0.15
+            separation_component * 0.40
+            + model_component * 0.30
+            + data_component * 0.20
             + bullpen_component * 0.10
-            + market_component * 0.10
         )
 
     recommendation_score = clamp(
@@ -311,9 +268,9 @@ def build_totals_recommendation(
         actionable,
     ) = recommendation_label(
         direction=direction,
-        absolute_edge=absolute_edge,
+        model_separation=model_separation,
         recommendation_score=recommendation_score,
-        market_available=market_available,
+        line_available=line_available,
     )
 
     return TotalsRecommendation(
@@ -327,9 +284,8 @@ def build_totals_recommendation(
             recommendation_score
         ),
         actionable=actionable,
-        edge_score=edge_component,
+        model_separation_score=separation_component,
         model_confidence_score=model_component,
         data_quality_score=data_component,
         bullpen_confidence_score=bullpen_component,
-        market_quality_score=market_component,
     )

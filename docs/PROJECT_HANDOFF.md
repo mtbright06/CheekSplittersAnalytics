@@ -1006,6 +1006,30 @@ These ideas may be valuable. They are not blocking the active Epic 1 objective.
   probability, model confidence, market-independent Hammer Score, and stable
   recommendation identity. Market edge, EV, sportsbook, and price remain
   display/provenance metadata only.
+- Sprint 77.2B redesigns MLB totals recommendation conviction to be
+  winner-first. Totals still choose OVER/UNDER from the model projection
+  relative to the pregame line, but scoring and tier qualification now use
+  model separation from the line, model confidence, data quality, and bullpen
+  confidence only. Market edge, EV, price, sportsbook, stale status, and
+  market quality remain display/provenance metadata and do not affect totals
+  conviction.
+- Sprint 77.3 intentionally reset recommendation history following
+  implementation of the Winner-First recommendation engine. Historical
+  recommendation metrics before this point are not comparable and were
+  intentionally discarded; new recommendation-performance tracking begins
+  from the first post-reset build.
+- Sprint 78 completed a recommendation model audit and added durable model
+  documentation in `docs/MODEL_SPECIFICATION.md` and
+  `docs/MODEL_TECHNICAL_REFERENCE.md`. No production model tuning was made;
+  follow-up review items remain around MLB confidence market completeness,
+  KBO real-market edge finalization, Decision Builder edge fallback, and
+  deterministic ranking tie-breaks.
+- Sprint 78.1 closed the verified winner-first gaps: KBO real-market
+  finalization now keeps edge as display metadata while using KBO model-score
+  recommendation/confidence, MLB confidence no longer counts market
+  probability, Decision Builder no longer substitutes edge for missing model
+  conviction, and shared/registry ranking now ties by deterministic schedule,
+  league, market, event, and selection fields.
 - Sprint 77.0 replaced the live Bomb Lab tabbed presentation with a
   presentation-only workstation renderer. The Bomb model, HR calculations,
   generated JSON contract, registry, persistence, odds, routing, and build

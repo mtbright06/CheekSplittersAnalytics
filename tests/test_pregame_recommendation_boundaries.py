@@ -87,7 +87,7 @@ def test_totals_recommendation_refuses_non_pregame_market_edge():
 
     assert result.recommendation == "PASS"
     assert result.actionable is False
-    assert result.edge_score == 0.0
+    assert result.model_separation_score == 0.0
 
 
 def test_mlb_moneyline_adapter_refuses_live_row():

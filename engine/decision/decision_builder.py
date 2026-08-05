@@ -990,23 +990,6 @@ def build_decision_card() -> dict:
 
         bomb_vote = 1 if bomb else 0
 
-        market_vote = 0
-        market_recommendation = str(
-            market.get("recommendation", "")
-        ).upper()
-
-        if (
-            market
-            and (
-                "BET" in market_recommendation
-                or "LEAN" in market_recommendation
-            )
-        ):
-            market_vote = module_vote(
-                selected_team,
-                market.get("team"),
-            )
-
         consensus_signals = [
             consensus_signal_from_vote(
                 "MLB Model",
@@ -1053,22 +1036,6 @@ def build_decision_card() -> dict:
                     "module_team": bomb.get("opponent"),
                 },
             ),
-            consensus_signal_from_vote(
-                "Market",
-                market_vote,
-                reason=(
-                    f"Market signal supports {market.get('team')}."
-                    if market_vote != 0
-                    else "Actionable market signal unavailable."
-                ),
-                source="market",
-                metadata={
-                    "selected_team": selected_team,
-                    "module_team": market.get("team"),
-                    "recommendation": market_recommendation,
-                    "real_market_loaded": real_market_loaded,
-                },
-            ),
         ]
 
         consensus = build_consensus(
@@ -1089,8 +1056,6 @@ def build_decision_card() -> dict:
                 bullpen_score=bullpen_score,
                 park_score=park_score,
                 weather_score=weather_score,
-                market_edge_pct=market_edge,
-                expected_value_pct=expected_value_pct,
                 sample_confidence=sample_confidence,
                 module_agreement=agreement,
                 contradiction_count=contradictions,

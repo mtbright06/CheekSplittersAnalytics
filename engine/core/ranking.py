@@ -41,51 +41,10 @@ def clamp(
 
 @dataclass
 class RankingWeights:
-    hammer_score: float = 0.60
-    consensus_score: float = 0.18
-    edge_score: float = 0.10
-    expected_value_score: float = 0.07
-    market_quality: float = 0.05
-
-
-def edge_to_score(
-    edge_pct: Any,
-) -> float:
-    edge = safe_float(
-        edge_pct
-    )
-
-    return clamp(
-        50 + edge * 4
-    )
-
-
-def expected_value_to_score(
-    expected_value_pct: Any,
-) -> float:
-    ev = safe_float(
-        expected_value_pct
-    )
-
-    return clamp(
-        50 + ev * 3
-    )
-
-
-def market_quality_score(
-    recommendation: Recommendation,
-) -> float:
-    if (
-        recommendation.real_market_loaded
-        and recommendation.market_quote.odds
-        is not None
-    ):
-        return 100.0
-
-    if recommendation.market_probability is not None:
-        return 60.0
-
-    return 20.0
+    tier: float = 1000.0
+    model_probability: float = 100.0
+    model_confidence: float = 10.0
+    hammer_score: float = 1.0
 
 
 def extract_consensus_score(
@@ -118,6 +77,90 @@ def extract_consensus_score(
     )
 
 
+def recommendation_tier_score(
+    value: Any,
+) -> float:
+    label = str(value or "").upper()
+
+    if "HAMMER" in label or "CHEEK RIPPER" in label:
+        return 5.0
+
+    if "STRONG" in label or label == "BET":
+        return 4.0
+
+    if "PLAYABLE" in label:
+        return 3.0
+
+    if "LEAN" in label:
+        return 2.0
+
+    if label == "PASS" or "NO PLAY" in label:
+        return 0.0
+
+    return 1.0
+
+
+def model_probability_score(
+    recommendation: Recommendation,
+) -> float:
+    probability = recommendation.model_probability
+
+    if probability is None:
+        probability = recommendation.components.get(
+            "model_probability"
+        )
+
+    if probability is None:
+        probability = recommendation.components.get(
+            "outcome_probability"
+        )
+
+    number = safe_float(
+        probability,
+        0.0,
+    )
+
+    if number > 1:
+        number /= 100.0
+
+    return clamp(
+        number * 100.0
+    )
+
+
+def model_confidence_score(
+    recommendation: Recommendation,
+) -> float:
+    for value in (
+        recommendation.components.get("model_confidence"),
+        recommendation.components.get("confidence"),
+        recommendation.source_signals.get("model_confidence")
+        if isinstance(recommendation.source_signals, dict)
+        else None,
+    ):
+        score = safe_float(
+            value,
+            None,
+        )
+        if score is not None:
+            if score <= 1:
+                score *= 100.0
+            return clamp(score)
+
+    label_scores = {
+        "ELITE": 95.0,
+        "VERY HIGH": 88.0,
+        "HIGH": 80.0,
+        "MODERATE": 68.0,
+        "LOW": 56.0,
+        "PASS": 0.0,
+    }
+    return label_scores.get(
+        str(recommendation.confidence or "").upper(),
+        0.0,
+    )
+
+
 def calculate_ranking_score(
     recommendation: Recommendation,
     weights: RankingWeights | None = None,
@@ -128,49 +171,32 @@ def calculate_ranking_score(
     )
 
     score = (
+        recommendation_tier_score(
+            recommendation.recommendation
+        )
+        * active.tier
+    )
+
+    score += (
+        model_probability_score(
+            recommendation
+        )
+        * active.model_probability
+    )
+
+    score += (
+        model_confidence_score(
+            recommendation
+        )
+        * active.model_confidence
+    )
+
+    score += (
         recommendation.hammer_score
         * active.hammer_score
     )
 
-    score += (
-        extract_consensus_score(
-            recommendation
-        )
-        * active.consensus_score
-    )
-
-    score += (
-        edge_to_score(
-            recommendation.edge_pct
-        )
-        * active.edge_score
-    )
-
-    score += (
-        expected_value_to_score(
-            recommendation.expected_value_pct
-        )
-        * active.expected_value_score
-    )
-
-    score += (
-        market_quality_score(
-            recommendation
-        )
-        * active.market_quality
-    )
-
-    if recommendation.recommendation == "HAMMER":
-        score += 3.0
-    elif recommendation.recommendation == "BET":
-        score += 1.5
-    elif recommendation.recommendation == "PASS":
-        score -= 4.0
-
-    return round(
-        clamp(score),
-        2,
-    )
+    return round(score, 2)
 
 
 def ranked_recommendations(
@@ -207,10 +233,13 @@ def ranked_recommendations(
                 row,
                 weights,
             ),
+            recommendation_tier_score(
+                row.recommendation
+            ),
+            model_probability_score(row),
+            model_confidence_score(row),
             row.hammer_score,
-            row.edge_pct
-            if row.edge_pct is not None
-            else -999,
+            row.recommendation_id,
         ),
         reverse=True,
     )

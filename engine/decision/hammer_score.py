@@ -117,45 +117,25 @@ class HammerInputs:
     bullpen_score: float | None = None
     park_score: float | None = None
     weather_score: float | None = None
-    market_edge_pct: float | None = None
-    expected_value_pct: float | None = None
     sample_confidence: float | None = None
     module_agreement: int = 0
     contradiction_count: int = 0
     real_market_loaded: bool = False
 
 
+# Market value, price, and availability are intentionally absent. Hammer is a
+# model-conviction score only.
 DEFAULT_WEIGHTS = {
-    "mlb_model": 0.23,
-    "first5": 0.14,
-    "bomb": 0.10,
-    "starter": 0.13,
-    "offense": 0.10,
-    "bullpen": 0.07,
-    "park": 0.04,
-    "weather": 0.04,
-    "market_edge": 0.08,
-    "expected_value": 0.04,
-    "sample_confidence": 0.03,
+    "mlb_model": 0.27,
+    "first5": 0.17,
+    "bomb": 0.12,
+    "starter": 0.15,
+    "offense": 0.12,
+    "bullpen": 0.08,
+    "park": 0.05,
+    "weather": 0.05,
+    "sample_confidence": 0.04,
 }
-
-
-def market_edge_to_score(edge_pct: Any) -> float | None:
-    edge = safe_float(edge_pct)
-
-    if edge is None:
-        return None
-
-    return clamp(50 + (edge * 4.0))
-
-
-def expected_value_to_score(ev_pct: Any) -> float | None:
-    ev = safe_float(ev_pct)
-
-    if ev is None:
-        return None
-
-    return clamp(50 + (ev * 3.0))
 
 
 def probability_to_score(probability: Any) -> float | None:
@@ -189,10 +169,6 @@ def calculate_hammer_score(
         "bullpen": inputs.bullpen_score,
         "park": inputs.park_score,
         "weather": inputs.weather_score,
-        "market_edge": market_edge_to_score(inputs.market_edge_pct),
-        "expected_value": expected_value_to_score(
-            inputs.expected_value_pct
-        ),
         "sample_confidence": inputs.sample_confidence,
     }
 
@@ -234,22 +210,13 @@ def calculate_hammer_score(
     agreement_bonus = min(max(inputs.module_agreement - 1, 0) * 2.5, 10)
     contradiction_penalty = min(inputs.contradiction_count * 5.0, 20)
 
-    market_status_penalty = 0.0
-
-    if not inputs.real_market_loaded:
-        market_status_penalty = 2.0
-
     final_score = clamp(
         base_score
         + agreement_bonus
         - contradiction_penalty
-        - market_status_penalty
     )
 
     recommendation = recommendation_from_score(final_score)
-
-    if not inputs.real_market_loaded and recommendation == "HAMMER":
-        recommendation = "BET"
 
     return {
         "hammer_score": round(final_score, 1),
@@ -259,10 +226,7 @@ def calculate_hammer_score(
             contradiction_penalty,
             1,
         ),
-        "market_status_penalty": round(
-            market_status_penalty,
-            1,
-        ),
+        "market_status_penalty": 0.0,
         "recommendation": recommendation,
         "confidence": confidence_label(final_score),
         "stars": stars_from_score(final_score),

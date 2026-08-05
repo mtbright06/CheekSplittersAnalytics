@@ -998,6 +998,14 @@ These ideas may be valuable. They are not blocking the active Epic 1 objective.
   and daily persistence now require explicit `pregame_eligible=True` with
   `pregame_eligibility_reason=GAME_NOT_STARTED`; unverified or live rows are
   skipped without mutating historical recommendations.
+- Sprint 77.2A removes market value from shared conviction and ordering.
+  Hammer Score is now model-conviction only, with structural zero influence
+  from edge, expected value, odds, price, implied probability, or market
+  availability. Recommendation Registry, Best Bets, Dashboard previews, and
+  Play of Day inherit winner-first ranking by canonical tier, model/outcome
+  probability, model confidence, market-independent Hammer Score, and stable
+  recommendation identity. Market edge, EV, sportsbook, and price remain
+  display/provenance metadata only.
 - Sprint 77.0 replaced the live Bomb Lab tabbed presentation with a
   presentation-only workstation renderer. The Bomb model, HR calculations,
   generated JSON contract, registry, persistence, odds, routing, and build

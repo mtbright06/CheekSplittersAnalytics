@@ -216,9 +216,7 @@ class RecommendationRegistry:
             key=lambda item: (
                 item.ranking_score,
                 item.hammer_score,
-                item.edge_pct
-                if item.edge_pct is not None
-                else -999,
+                item.recommendation_id,
             ),
             reverse=True,
         )

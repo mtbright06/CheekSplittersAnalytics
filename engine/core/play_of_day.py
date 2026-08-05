@@ -145,14 +145,6 @@ def eligibility_result(
     ):
         reasons.append("Real market required.")
 
-    if (
-        recommendation.edge_pct is not None
-        and recommendation.edge_pct < -1
-    ):
-        reasons.append(
-            f"Negative edge ({recommendation.edge_pct:+.1f}%)."
-        )
-
     agreement_pct, _, oppose_count = consensus_values(
         recommendation
     )

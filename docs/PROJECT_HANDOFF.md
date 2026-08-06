@@ -276,6 +276,50 @@ using Hammer confidence, edge, EV, odds, price, or market quality as model
 confidence. No recommendation math, thresholds, Hammer math, ordering weights,
 grading, or historical data changed.
 
+Phase 3A completed the MLB moneyline statistical integrity audit in
+`docs/MLB_STATISTICAL_INTEGRITY_REPORT.md`. Closure recommendation is MLB
+STATISTICAL INTEGRITY UNVALIDATED: the canonical architecture is ready, but
+the current database has `0` canonical MLB moneyline episodes and `0`
+canonical graded MLB moneyline recommendations. Raw MLB moneyline snapshots
+exist (`86` from `2026-08-05`, with `165` raw snapshot-grade rows), but all
+raw grades are `PENDING` and repeated snapshots are not valid official
+calibration samples. No production tuning or model logic changed.
+
+Phase 2B completed the KBO moneyline model integrity audit in
+`docs/MODEL_SPECIFICATION_KBO.md`,
+`docs/MODEL_TECHNICAL_REFERENCE_KBO.md`, and
+`docs/KBO_MODEL_INTEGRITY_DECISION_LOG.md`. Closure recommendation is KBO
+MODEL INTEGRITY NOT CERTIFIED. KBO final recommendations are market-independent
+after enrichment and thresholds are monotonic, but the active model is not
+winner-first: selected side is assigned by game-row parity rather than model
+score direction. Bullpen and recent-form components are also row-index
+heuristics rather than measured baseball inputs, and KBO adapter Hammer is a
+compatibility mapping from model confidence, not an independent Hammer score.
+No production behavior was changed in the audit.
+
+Sprint 80.1 repaired the confirmed KBO winner-first correctness defects only.
+KBO selected team authority now derives from final weighted model-score
+direction under the existing calculator contract: positive selects away,
+negative selects home, and zero remains neutral/no play. The previous
+row-index bullpen and recent-form heuristics now return neutral `0.0` because
+no genuine KBO bullpen or recent-form statistic is already wired into the
+pipeline. KBO also emits `model_strength` and `model_confidence` compatibility
+aliases without changing numeric values. No weights, thresholds, confidence
+formula, recommendation tiers, market-edge display, starter logic, or offense
+logic were tuned. Updated closure recommendation: KBO MODEL INTEGRITY
+CERTIFIED WITH PHASE 3 VALIDATION ITEMS.
+
+Sprint 80.2 verification found active-weight normalization unsafe because it
+widened KBO's ordinal score range beyond the established confidence bounds and
+tier thresholds. The normalization implementation was reverted. KBO now keeps
+the configured formula `starter*.35 + offense*.25 + 0*.15 + 0*.10` while
+bullpen and recent form remain neutral reserved components. The practical
+starter/offense-only model-strength range is `42.4..57.6`; `LEAN` and
+`PLAYABLE` remain reachable, while `STRONG PLAY` reachability is a Phase 3
+validation item. No weights, thresholds, confidence formula, recommendation
+tiers, starter/offense calculations, market display, persistence, or grading
+were tuned.
+
 **Sprint 68.1 — Application Shell:** implemented and awaiting review. The
 dashboard now has a dedicated `dashboard/shell/` boundary that owns one route
 configuration, compact sidebar navigation, slim top bar, and shell session

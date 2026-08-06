@@ -72,7 +72,21 @@ def canonical_kbo_row(row: dict) -> dict:
         "away": away,
         "home": home,
         "selection": model.get("play"),
-        "model_probability": model.get("model_probability"),
+        "model_strength": (
+            model.get("model_strength")
+            if model.get("model_strength") is not None
+            else model.get("model_probability")
+        ),
+        "model_probability": (
+            model.get("model_probability")
+            if model.get("model_probability") is not None
+            else model.get("model_strength")
+        ),
+        "model_confidence": (
+            model.get("model_confidence")
+            if model.get("model_confidence") is not None
+            else model.get("confidence")
+        ),
         "hammer_score": model.get("confidence"),
         "confidence": model.get("confidence"),
         "recommendation_label": model.get("recommendation"),
@@ -403,7 +417,8 @@ def extract_model_probability(
     row: dict,
 ) -> float | None:
     direct = (
-        row.get("model_probability")
+        row.get("model_strength")
+        or row.get("model_probability")
         or row.get("model_win_probability")
         or row.get("model_win_pct")
         or row.get("win_probability")
@@ -660,6 +675,9 @@ def adapt_kbo_row(
         model_probability=(
             extract_model_probability(row)
         ),
+        model_win_strength=(
+            extract_model_probability(row)
+        ),
         market_probability=(
             row.get("market_probability")
         ),
@@ -680,6 +698,7 @@ def adapt_kbo_row(
         confidence=row.get(
             "confidence_label"
         ),
+        model_confidence=row.get("model_confidence"),
         stars=row.get("stars"),
         units=row.get("units"),
         market_quote=market_quote,
@@ -706,6 +725,8 @@ def adapt_kbo_row(
             "market": row.get(
                 "market_score"
             ),
+            "model_strength": row.get("model_strength"),
+            "model_confidence": row.get("model_confidence"),
         },
 
         source_signals={

@@ -45,11 +45,6 @@ class KBOModel:
 
             result.market = "Moneyline"
 
-            if i % 2 == 0:
-                result.play = game.away.name
-            else:
-                result.play = game.home.name
-
             weighted_score = 0
 
             for calculator in self.calculators:
@@ -74,6 +69,11 @@ class KBOModel:
             result.model_probability = round(
                 50 + (weighted_score * 8),
                 1
+            )
+            result.model_strength = result.model_probability
+            result.play = self._selection_from_score(
+                weighted_score,
+                game,
             )
 
             (
@@ -122,6 +122,7 @@ class KBOModel:
             result.confidence = self._model_strength_confidence(
                 result.model_probability
             )
+            result.model_confidence = result.confidence
             result.confidence_breakdown = {
                 "model_strength": result.confidence,
                 "basis": "KBO ordinal model score",
@@ -146,6 +147,19 @@ class KBOModel:
             return source.get(key)
 
         return getattr(source, key, None)
+
+    @staticmethod
+    def _selection_from_score(
+        weighted_score,
+        game,
+    ):
+        if weighted_score > 0:
+            return game.away.name
+
+        if weighted_score < 0:
+            return game.home.name
+
+        return None
 
     @staticmethod
     def _model_score_recommendation(model_score):

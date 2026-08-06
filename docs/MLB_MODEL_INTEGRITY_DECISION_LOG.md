@@ -76,3 +76,21 @@ historical records.
 5. Validate recommendation thresholds by tier, confidence, and decision rate.
 6. Decide whether API/display fields should rename `model_probability` and
    distinguish SharpScore confidence from Hammer confidence.
+
+## Phase 3A Statistical Integrity Audit
+
+Closure recommendation: **MLB STATISTICAL INTEGRITY UNVALIDATED**.
+
+Read-only PostgreSQL inventory found the canonical architecture present but no
+official MLB moneyline calibration sample:
+
+- `0` canonical MLB moneyline episodes.
+- `0` canonical graded MLB moneyline recommendations.
+- `86` raw MLB moneyline prediction snapshots from `2026-08-05`.
+- `165` raw snapshot-grade rows, all `PENDING`, across `15` distinct provider
+  games.
+
+Current decision: do not recalibrate, tune weights, alter thresholds, or change
+Hammer based on the current data. Model Win Strength remains a score, not a
+validated probability. Phase 3 statistical validation must wait for locked and
+graded canonical MLB moneyline episodes with chronological holdout samples.

@@ -8,8 +8,4 @@ class BullpenCalculator(BaseCalculator):
     WEIGHT = 0.15
 
     def score(self, game, index):
-
-        if index >= 1:
-            return 1
-
-        return 0
+        return 0.0

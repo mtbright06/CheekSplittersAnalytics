@@ -66,6 +66,34 @@ The `odds` parameter on `calculate_confidence` is a deprecated compatibility
 argument. The authoritative MLB moneyline confidence formula intentionally
 ignores it.
 
+## Phase 3A Statistical Integrity Status
+
+See `docs/MLB_STATISTICAL_INTEGRITY_REPORT.md`.
+
+Classification: **UNVALIDATED**.
+
+The canonical recommendation architecture is the correct source for
+calibration, but the current database inventory contains no canonical MLB
+moneyline episodes or canonical graded MLB moneyline recommendations. Raw
+snapshot data exists, but all matching raw snapshot-grade rows are `PENDING`
+and repeated snapshots would inflate one-game-per-decision statistics.
+
+Current inventory:
+
+| Source | Count / Status |
+|---|---:|
+| Canonical MLB moneyline episodes | `0` |
+| Canonical graded MLB moneyline recommendations | `0` |
+| Raw MLB moneyline prediction snapshots | `86` |
+| Raw distinct provider games in snapshot grades | `15` |
+| Raw snapshot-grade rows | `165 PENDING` |
+| Raw snapshot date range | `2026-08-05 13:32:03 UTC` to `2026-08-05 21:04:54 UTC` |
+
+No Brier score, log loss, reliability slope, Hammer incremental value, tier
+ordering, or weight-sensitivity conclusion is validated yet. Model Win
+Strength must remain described as a score until adequate chronological
+canonical outcomes prove calibration.
+
 ## Findings
 
 | ID | Classification | Finding |

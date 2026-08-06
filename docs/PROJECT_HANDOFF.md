@@ -247,6 +247,17 @@ Pitcher Explorer final cleanup added the pitching-team logo beside the pitcher
 identity, compressed the Side and metric rows, renamed Tier to Attack Tier, and
 moved existing Bomb Lab reasons into a left-column Quick Intel section.
 
+Phase 2A completed an audit-only MLB moneyline model integrity review in
+`docs/MODEL_SPECIFICATION_MLB.md` and
+`docs/MODEL_TECHNICAL_REFERENCE_MLB.md`. The current MLB moneyline model
+faithfully implements winner-first recommendation authority and separates
+market value from conviction, but remains a heuristic, uncalibrated scoring
+model. Reviews were documented for empirical weight support, overlapping
+offense/starter inputs, confidence semantics, probability calibration, Hammer
+double-counting risk, and the distinction between MLB model confidence and
+Hammer confidence. No objective mathematical defect was found and no model
+logic was changed.
+
 **Sprint 68.1 — Application Shell:** implemented and awaiting review. The
 dashboard now has a dedicated `dashboard/shell/` boundary that owns one route
 configuration, compact sidebar navigation, slim top bar, and shell session

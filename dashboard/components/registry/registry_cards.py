@@ -307,9 +307,9 @@ def render_registry_card(
 
         <div class="decision-metrics registry-card-metrics">
             <div>
-                <span>Model Win</span>
+                <span>Model Win Strength</span>
                 <strong>
-                    {percent(item.get("model_probability"))}
+                    {percent(item.get("model_win_strength") if item.get("model_win_strength") is not None else item.get("model_probability"))}
                 </strong>
             </div>
 
@@ -524,11 +524,14 @@ def render_registry_table(
                 "Ranking": item.get(
                     "ranking_score"
                 ),
-                "Model %": (
+                "Model Win Strength": (
                     round(
-                        item[
-                            "model_probability"
-                        ] * 100,
+                        (
+                            item.get("model_win_strength")
+                            if item.get("model_win_strength")
+                            is not None
+                            else item["model_probability"]
+                        ) * 100,
                         1,
                     )
                     if item.get(

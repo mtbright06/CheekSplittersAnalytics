@@ -166,6 +166,7 @@ def render_decision_details(decision: dict):
         "Hammer Assessment",
         safe(
             decision.get("hammer_assessment")
+            or decision.get("hammer_confidence")
             or decision.get("confidence"),
         ),
     )
@@ -293,15 +294,27 @@ def render_decision_table(decisions: list[dict]):
                     "recommendation"
                 ),
                 "Hammer": decision.get("hammer_score"),
-                "Confidence": decision.get("confidence"),
+                "Hammer Confidence": (
+                    decision.get("hammer_confidence")
+                    or decision.get("confidence")
+                ),
                 "Market": decision.get("market"),
-                "Model Win %": (
+                "Model Win Strength": (
                     round(
-                        decision["model_probability"] * 100,
+                        (
+                            decision.get("model_win_strength")
+                            if decision.get("model_win_strength")
+                            is not None
+                            else decision["model_probability"]
+                        ) * 100,
                         1,
                     )
-                    if decision.get("model_probability")
-                    is not None
+                    if (
+                        decision.get("model_win_strength")
+                        is not None
+                        or decision.get("model_probability")
+                        is not None
+                    )
                     else None
                 ),
                 "F5": decision.get("first5_score"),

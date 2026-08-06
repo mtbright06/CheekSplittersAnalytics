@@ -85,7 +85,11 @@ def test_sharpscore_serializes_conviction_and_market_value_separately():
         )
 
     model = result["model"]
+    assert model["model_win_strength"] == 59.0
     assert model["model_probability"] == 59.0
+    assert model["model_win_strength"] == model["model_probability"]
+    assert model["model_confidence"] == 85.0
+    assert model["confidence"] == model["model_confidence"]
     assert model["recommendation"] == "✅ STRONG PLAY"
     assert model["market_value_label"] == "HEAVY PREMIUM"
     assert result["market_edge"]["edge"] == -6.0
@@ -118,3 +122,56 @@ def test_sharpscore_keeps_strong_conviction_when_edge_is_missing():
 
     assert result["model"]["recommendation"] == "✅ STRONG PLAY"
     assert result["model"]["market_value_label"] == "VALUE UNAVAILABLE"
+
+
+def test_model_win_strength_and_confidence_ignore_odds_changes():
+    components = {"offense": 60, "starting_pitching": 60, "bullpen": 60, "home_field": 50}
+    away_quote = SimpleNamespace(
+        selection="Away Club",
+        market="Moneyline",
+        sportsbook="FanDuel",
+        american_odds=-110,
+        implied_probability=0.52,
+    )
+    alternate_quote = SimpleNamespace(
+        selection="Away Club",
+        market="Moneyline",
+        sportsbook="FanDuel",
+        american_odds=240,
+        implied_probability=0.29,
+    )
+
+    with patch(
+        "engine.model.sharpscore.calculate_team_score",
+        side_effect=[(62.0, components), (50.0, components)],
+    ):
+        baseline = build_sharpscore_decision(
+            "Away Club",
+            "Home Club",
+            {"offense": {"ops": .750}},
+            {"offense": {"ops": .700}},
+            {"name": "Away Starter", "era": 3.0, "whip": 1.1},
+            {"name": "Home Starter", "era": 4.0, "whip": 1.3},
+            away_quote,
+            None,
+        )
+
+    with patch(
+        "engine.model.sharpscore.calculate_team_score",
+        side_effect=[(62.0, components), (50.0, components)],
+    ):
+        changed_odds = build_sharpscore_decision(
+            "Away Club",
+            "Home Club",
+            {"offense": {"ops": .750}},
+            {"offense": {"ops": .700}},
+            {"name": "Away Starter", "era": 3.0, "whip": 1.1},
+            {"name": "Home Starter", "era": 4.0, "whip": 1.3},
+            alternate_quote,
+            None,
+        )
+
+    assert baseline["model"]["model_win_strength"] == changed_odds["model"]["model_win_strength"]
+    assert baseline["model"]["model_probability"] == changed_odds["model"]["model_probability"]
+    assert baseline["model"]["model_confidence"] == changed_odds["model"]["model_confidence"]
+    assert baseline["model"]["confidence"] == changed_odds["model"]["confidence"]

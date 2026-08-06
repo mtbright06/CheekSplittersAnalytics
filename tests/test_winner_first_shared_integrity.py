@@ -2,7 +2,7 @@ from pathlib import Path
 import sys
 
 from engine.core import MarketQuote, Recommendation, RecommendationRegistry
-from engine.core.ranking import ranked_recommendations
+from engine.core.ranking import model_confidence_score, ranked_recommendations
 from engine.core.play_of_day import eligibility_result, select_play_of_day
 from engine.decision.hammer_score import HammerInputs, calculate_hammer_score
 
@@ -122,6 +122,47 @@ def test_price_edge_and_ev_do_not_change_recommendation_ranking():
     assert registry.ranked()[0].selection == "Favorite"
     assert registry.to_dict()["recommendations"][0]["selection"] == "Favorite"
     assert registry.to_dict()["recommendations"][0]["edge_pct"] == -12.0
+
+
+def test_ranking_prefers_explicit_model_confidence_over_hammer_label():
+    row = recommendation(
+        model_probability=0.60,
+        model_win_strength=0.60,
+        model_confidence=71.0,
+        hammer_confidence="ELITE",
+        confidence="ELITE",
+        edge_pct=99.0,
+        expected_value_pct=99.0,
+        market_quote=MarketQuote(sportsbook="A", odds=400),
+    )
+
+    assert model_confidence_score(row) == 71.0
+
+
+def test_ranking_never_uses_edge_ev_or_price_as_confidence():
+    baseline = recommendation(
+        model_probability=0.60,
+        model_win_strength=0.60,
+        model_confidence=None,
+        hammer_confidence="ELITE",
+        confidence="ELITE",
+        edge_pct=-50.0,
+        expected_value_pct=-50.0,
+        market_quote=MarketQuote(sportsbook="A", odds=-500),
+    )
+    changed_market = recommendation(
+        model_probability=0.60,
+        model_win_strength=0.60,
+        model_confidence=None,
+        hammer_confidence="ELITE",
+        confidence="ELITE",
+        edge_pct=50.0,
+        expected_value_pct=50.0,
+        market_quote=MarketQuote(sportsbook="B", odds=500),
+    )
+
+    assert model_confidence_score(baseline) == 50.0
+    assert model_confidence_score(changed_market) == 50.0
 
 
 def test_registry_order_is_stable_when_only_market_values_change():

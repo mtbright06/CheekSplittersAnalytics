@@ -28,6 +28,11 @@ def calculate_confidence(
     away_offense,
     home_offense,
 ):
+    # Compatibility argument only. MLB moneyline confidence is model-derived
+    # from score separation, core data completeness, and starter certainty; it
+    # intentionally does not consume odds, edge, price, or market quality.
+    _ = odds
+
     breakdown = {
         "base": 45,
         "matchup_strength": 0,

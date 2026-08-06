@@ -247,9 +247,11 @@ def extract_model_probability(
     )
 
     model_probability = (
-        model.get("model_probability")
+        model.get("model_win_strength")
+        or model.get("model_probability")
         or model.get("model_win_probability")
         or model.get("model_win_pct")
+        or game.get("model_win_strength")
         or game.get("model_win_probability")
         or game.get("model_win_pct")
         or game.get("model_probability")
@@ -931,13 +933,23 @@ def build_decision_card() -> dict:
             mlb_game.get("weather_score")
         )
 
-        sample_confidence = safe_float(
-            bomb.get("sample_confidence")
+        model_confidence = safe_float(
+            (
+                mlb_game.get("model", {}).get("model_confidence")
+                if isinstance(mlb_game.get("model"), dict)
+                else None
+            )
             or (
                 mlb_game.get("model", {}).get("confidence")
                 if isinstance(mlb_game.get("model"), dict)
                 else None
             )
+            or mlb_game.get("model_confidence")
+        )
+
+        sample_confidence = safe_float(
+            bomb.get("sample_confidence")
+            or model_confidence
             or mlb_game.get("confidence")
         )
 
@@ -1112,6 +1124,15 @@ def build_decision_card() -> dict:
                         f"{hammer['confidence'].title()} confirmation"
                     )
                 ),
+                "model_win_strength": (
+                    round(mlb_probability, 4)
+                    if mlb_probability is not None
+                    else None
+                ),
+                "model_confidence": model_confidence,
+                "hammer_confidence": hammer["confidence"],
+                # Compatibility alias for older consumers; authoritative
+                # Hammer confidence is `hammer_confidence`.
                 "confidence": hammer["confidence"],
                 "stars": hammer["stars"],
                 "consensus": consensus.to_dict(),

@@ -77,7 +77,7 @@ def render_play_summary(
             f"<div class='muted'>{subtitle}</div>",
             "</div><div class='play-hero-metrics'>",
             (
-                f"<div><span>Model Win %</span><strong>{_model_probability_text(model.get('model_probability'))}</strong></div>"
+                f"<div><span>Model Win Strength</span><strong>{_model_probability_text(model.get('model_win_strength') if model.get('model_win_strength') is not None else model.get('model_probability'))}</strong></div>"
                 if sport == "mlb"
                 else f"<div><span>Edge</span><strong>{edge_text}</strong></div>"
             ),

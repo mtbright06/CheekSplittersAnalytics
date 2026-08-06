@@ -748,7 +748,7 @@ def test_mlb_hero_keeps_compact_conviction_and_value_badges_above_the_fold(monke
     )
 
     assert "Model Prediction · Projected Winner" in rendered[0]
-    assert "Model Win %</span><strong>58.0%" in rendered[0]
+    assert "Model Win Strength</span><strong>58.0%" in rendered[0]
     assert "Model Confidence</span><strong>76.7/100" in rendered[0]
     assert "Model Conviction" in rendered[0]
     assert "🟡 PLAYABLE" in rendered[0]

@@ -15,7 +15,10 @@ def test_mlb_model_recommendation_remains_authoritative_over_hammer():
                 "pregame_eligible": True,
                 "pregame_eligibility_reason": "GAME_NOT_STARTED",
                 "book_odds": 120,
+                "model_win_strength": 0.556,
                 "model_probability": 0.556,
+                "model_confidence": 82.0,
+                "hammer_confidence": "MODERATE",
                 "market_edge_pct": 10.76,
                 "hammer_score": 64.6,
                 "recommendation": "🔥 CHEEK RIPPER",
@@ -39,6 +42,12 @@ def test_mlb_model_recommendation_remains_authoritative_over_hammer():
     assert recommendation.market_value_tone == "market_premium"
     assert recommendation.recommendation_explanation["schema_version"] == "mlb_moneyline_v1"
     assert recommendation.hammer_tier == "WATCH"
+    assert recommendation.model_win_strength == recommendation.model_probability
+    assert recommendation.model_confidence == 82.0
+    assert recommendation.hammer_confidence == "MODERATE"
+    assert recommendation.confidence == "MODERATE"
+    assert recommendation.components["model_confidence"] == 82.0
+    assert recommendation.components["hammer_confidence"] == "MODERATE"
     assert recommendation.actionable is True
     assert recommendation.units is None
     assert eligibility_result(recommendation)[0] is True
@@ -93,3 +102,35 @@ def test_mlb_confidence_ignores_market_probability():
     )
 
     assert with_market == no_market
+
+
+def test_model_confidence_and_hammer_confidence_remain_distinct():
+    card = {
+        "decisions": [
+            {
+                "game_pk": 3,
+                "matchup": "Away Club @ Home Club",
+                "selected_team": "Home Club",
+                "market": "REAL MARKET",
+                "pregame_eligible": True,
+                "pregame_eligibility_reason": "GAME_NOT_STARTED",
+                "book_odds": -110,
+                "model_win_strength": 0.59,
+                "model_probability": 0.59,
+                "model_confidence": 78.0,
+                "hammer_confidence": "LOW",
+                "hammer_score": 58.0,
+                "recommendation": "✅ STRONG PLAY",
+                "model_recommendation": "✅ STRONG PLAY",
+            }
+        ]
+    }
+
+    recommendation = adapt_mlb_decision_card(card)[0]
+
+    assert recommendation.recommendation == "✅ STRONG PLAY"
+    assert recommendation.model_win_strength == 0.59
+    assert recommendation.model_probability == 0.59
+    assert recommendation.model_confidence == 78.0
+    assert recommendation.hammer_confidence == "LOW"
+    assert recommendation.confidence == "LOW"

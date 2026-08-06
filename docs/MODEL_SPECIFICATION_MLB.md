@@ -7,8 +7,8 @@ not approve tuning, weights, or future behavior.
 
 The current MLB moneyline implementation is winner-first and market-independent
 for the betting recommendation tier. It selects the team with the higher
-SharpScore, converts that score separation into a bounded displayed model
-probability, applies confidence thresholds, and classifies market value
+SharpScore, converts that score separation into bounded model win strength,
+applies model-confidence thresholds, and classifies market value
 separately from conviction.
 
 The model is mathematically coherent as a deterministic scoring system, but it
@@ -38,7 +38,7 @@ Implementation:
 
 - `engine/model/sharpscore.py::choose_side` selects the higher team score.
 - `engine/model/recommendations.py::mlb_moneyline_conviction_recommendation`
-  uses only model probability and model confidence.
+  uses only model win strength and model confidence.
 - `engine/model/recommendations.py::market_value_classification` separately
   labels SSRP edge.
 - `engine/decision/decision_builder.py::build_decision_card` preserves the MLB
@@ -69,8 +69,8 @@ engine/model/sharpscore.py
   +-- home_field_score
   +-- weighted team score
   +-- selected side
-  +-- displayed model probability
-  +-- confidence
+  +-- model win strength
+  +-- model confidence
   +-- recommendation tier
   +-- separate market-value label
 ```
@@ -188,22 +188,22 @@ weight, this contributes a 0.3 team-score edge to the home side.
 Audit classification: **REVIEW**. Coherent and bounded, but the constant is
 heuristic and not empirically justified in the repository.
 
-## Probability
+## Model Win Strength
 
 File: `engine/model/sharpscore.py::probability_from_scores`
 
 Formula:
 
 ```text
-model_probability = clamp(50 + (selected_score - opponent_score) * 0.75, 40, 70)
+model_win_strength = clamp(50 + (selected_score - opponent_score) * 0.75, 40, 70)
 ```
 
-The value is displayed as a probability percentage.
+The value is displayed as a model-strength percentage.
 
-Audit classification: **REVIEW**. This is a normalized score-to-percentage
-mapping, not a proven calibrated probability. The 0.75 multiplier and 40..70
-clamp are heuristic. Downstream consumers should treat it as model-implied win
-probability until calibration is established.
+Audit classification: **RENAME/CLARIFY**. This is a normalized
+score-to-percentage mapping, not a proven calibrated probability. The
+historical `model_probability` field remains a compatibility alias and must
+equal `model_win_strength` during the transition.
 
 ## Confidence
 
@@ -220,11 +220,14 @@ Confidence currently measures a blend of:
 
 Final confidence is clamped to `35..95`.
 
-Audit classification: **REVIEW**. Confidence is not a pure statistical
-uncertainty estimate. It mixes model separation, feature completeness, and
-starter certainty. It intentionally ignores market probability. The `odds`
-argument is unused, which is harmless for market independence but misleading
-as an API signal.
+Audit classification: **RENAME/CLARIFY**. The authoritative MLB field is
+`model_confidence`. The historical model-payload `confidence` field remains a
+compatibility alias for this same numeric value. Decision Builder separately
+exports `hammer_confidence` for the Hammer-derived label.
+
+The `odds` argument is retained as a deprecated compatibility argument in
+`calculate_confidence`; it is intentionally unused in the authoritative MLB
+moneyline path.
 
 ## Recommendation Thresholds
 
@@ -313,11 +316,14 @@ probability model or an empirically optimized betting model.
 
 ## Canonical Terminology
 
-| Current Field | Phase 2A.2 Interpretation | Notes |
+| Current Field | Phase 2A.3 Interpretation | Notes |
 |---|---|---|
-| `model_probability` | Model Win Strength / model-implied win probability | Bounded score transform; not calibrated. |
-| `confidence` in SharpScore model payload | Model conviction quality | Mixes separation, core data completeness, and starter certainty. |
-| `confidence` in Decision Builder row | Hammer confidence label | Label derived from Hammer score, distinct from SharpScore numeric confidence. |
+| `model_win_strength` | Model Win Strength | Authoritative bounded MLB model value. |
+| `model_probability` | Compatibility alias | Same numeric value as `model_win_strength`; planned retirement after downstream migration. |
+| `model_confidence` | Model Confidence | Authoritative MLB conviction quality. |
+| `confidence` in SharpScore model payload | Compatibility alias | Same numeric value as `model_confidence`; planned retirement after downstream migration. |
+| `hammer_confidence` | Hammer Confidence | Authoritative Hammer-derived label. |
+| `confidence` in Decision Builder row | Compatibility alias | Same label as `hammer_confidence`; planned retirement after downstream migration. |
 | Hammer Score | Advisory confirmation score | Partially duplicates SharpScore components; not independent proof. |
 | Market Value | SSRP price-value label | Separate from recommendation conviction. |
 
@@ -330,8 +336,8 @@ raw MLB provider fields
   -> weighted away/home team scores
   -> higher score selects side
   -> score gap maps to bounded model win strength
-  -> score gap + data completeness + starter certainty maps to confidence
-  -> model win strength + confidence maps to MLB moneyline tier
+  -> score gap + data completeness + starter certainty maps to model confidence
+  -> model win strength + model confidence maps to MLB moneyline tier
   -> Decision Builder preserves MLB tier as authority
   -> Hammer consumes model win strength plus First 5, Bomb, component,
      park, weather, sample-confidence, agreement, and contradiction inputs
@@ -358,10 +364,10 @@ raw MLB provider fields
 
 ## Probability Specification
 
-The displayed MLB moneyline value currently named `model_probability` is:
+The displayed MLB moneyline value currently named `model_win_strength` is:
 
 ```text
-clamp(50 + (selected_score - opponent_score) * 0.75, 40, 70)
+model_win_strength = clamp(50 + (selected_score - opponent_score) * 0.75, 40, 70)
 ```
 
 Because the selected team is chosen before this calculation, normal selected
@@ -372,7 +378,7 @@ strength on a probability-like display scale.
 
 ## Confidence Specification
 
-MLB confidence is:
+MLB `model_confidence` is:
 
 ```text
 45

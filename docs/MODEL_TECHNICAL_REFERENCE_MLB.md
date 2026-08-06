@@ -36,6 +36,36 @@ Certification is **PASS WITH REVIEWS**:
 - `engine/odds/market_edge.py`
 - focused MLB/winner-first tests
 
+## Phase 2A.3 Semantic Contract
+
+Authoritative MLB moneyline terminology:
+
+| Concept | Authoritative Field | Compatibility Alias | Retirement Status |
+|---|---|---|---|
+| Bounded model-strength value | `model_win_strength` | `model_probability` | Retain until downstream consumers finish migration. |
+| MLB model conviction quality | `model_confidence` | model-payload `confidence` | Retain until downstream consumers finish migration. |
+| Hammer-derived confidence label | `hammer_confidence` | Decision Builder row `confidence` | Retain until downstream consumers finish migration. |
+
+`model_win_strength` and `model_probability` are the same numeric value. The
+compatibility alias must not be recalculated separately.
+
+Ranking confidence fallback order is:
+
+1. explicit `Recommendation.model_confidence`
+2. explicit `components["model_confidence"]`
+3. explicit `source_signals["model_confidence"]`
+4. generic numeric `components["confidence"]` retained by older model
+   contracts
+5. non-Hammer compatibility label in `Recommendation.confidence`
+6. neutral fallback
+
+Ranking does not use `hammer_confidence`, edge, EV, odds, price, or market
+quality as model confidence.
+
+The `odds` parameter on `calculate_confidence` is a deprecated compatibility
+argument. The authoritative MLB moneyline confidence formula intentionally
+ignores it.
+
 ## Findings
 
 | ID | Classification | Finding |
@@ -49,13 +79,13 @@ Certification is **PASS WITH REVIEWS**:
 | MLB-007 | REVIEW | Offense score uses overlapping metrics and may double-count run creation |
 | MLB-008 | REVIEW | Starter score uses overlapping metrics and may double-count pitcher quality |
 | MLB-009 | REVIEW | Bullpen score is coarse and does not use full bullpen availability/role evidence |
-| MLB-010 | REVIEW | Displayed model probability is a bounded score transform, not proven calibrated probability |
-| MLB-011 | REVIEW | Confidence mixes separation, completeness, and starter certainty; it is not pure uncertainty |
-| MLB-012 | REVIEW | `calculate_confidence` accepts `odds` but intentionally does not use it; signature may mislead readers |
+| MLB-010 | RENAME/CLARIFY | Displayed `model_win_strength` is a bounded score transform, not proven calibrated probability; `model_probability` is a compatibility alias |
+| MLB-011 | RENAME/CLARIFY | `model_confidence` mixes separation, completeness, and starter certainty; it is not pure uncertainty |
+| MLB-012 | RENAME/CLARIFY | `calculate_confidence` accepts deprecated compatibility `odds` but intentionally does not use it |
 | MLB-013 | REVIEW | Recommendation thresholds are coherent but empirically unvalidated |
 | MLB-014 | REVIEW | Hammer may double-count MLB model information through model score plus component scores |
-| MLB-015 | REVIEW | Decision-card `confidence` field is Hammer confidence label, while MLB model numeric confidence remains inside the model payload before adaptation |
-| MLB-016 | REVIEW | Ranking uses `recommendation.confidence` label fallback when model confidence is not in components, which may rank by Hammer label for adapted MLB moneylines |
+| MLB-015 | RENAME/CLARIFY | Decision-card exports `model_confidence` and `hammer_confidence`; generic `confidence` remains a Hammer compatibility alias |
+| MLB-016 | RENAME/CLARIFY | Ranking fallback is model-first and treats explicit Hammer confidence as neutral for model-confidence scoring |
 
 No DEFECT was found that requires a code change under the user's audit-only
 instruction.

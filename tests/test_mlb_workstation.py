@@ -97,7 +97,7 @@ def test_mlb_workstation_renders_approved_top_half(monkeypatch):
     assert "-126" in html
     assert "Fair Price" in html
     assert "Book Probability" in html
-    assert "Model Win Probability" in html
+    assert "Model Win Strength" in html
     assert "Projected Total" in html
     assert "Market Total" in html
     hero_html = html.split("Moneyline", 1)[0]

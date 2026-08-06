@@ -83,8 +83,13 @@ def normalize_legacy_kbo_game(game, sport):
         "model": normalize_model({
             "market": get_value(result, "market") or "Moneyline",
             "play": get_value(result, "play") or home_name,
+            "model_win_strength": get_value(
+                result,
+                "model_win_strength",
+            ),
             "model_probability": get_value(result, "model_probability"),
             "edge": get_value(result, "edge"),
+            "model_confidence": get_value(result, "model_confidence"),
             "confidence": get_value(result, "confidence"),
             "confidence_breakdown": get_value(
                 result,
@@ -112,13 +117,26 @@ def normalize_team(team):
 
 
 def normalize_model(model):
+    model_win_strength = (
+        get_value(model, "model_win_strength")
+        if get_value(model, "model_win_strength") is not None
+        else get_value(model, "model_probability")
+    )
+    model_confidence = (
+        get_value(model, "model_confidence")
+        if get_value(model, "model_confidence") is not None
+        else get_value(model, "confidence")
+    )
+
     return {
         **to_dict(model),
         "market": get_value(model, "market") or "Moneyline",
         "play": get_value(model, "play") or "No Play",
-        "model_probability": get_value(model, "model_probability"),
+        "model_win_strength": model_win_strength,
+        "model_probability": model_win_strength,
         "edge": get_value(model, "edge"),
-        "confidence": get_value(model, "confidence"),
+        "model_confidence": model_confidence,
+        "confidence": model_confidence,
         "confidence_breakdown": get_value(
             model,
             "confidence_breakdown",

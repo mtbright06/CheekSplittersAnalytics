@@ -266,6 +266,16 @@ deterministic winner-first heuristic, while probability calibration, empirical
 weights, input independence, threshold validation, and Hammer incremental
 value remain Phase 3 research items. No production model logic was changed.
 
+Phase 2A.3 completed semantic cleanup only. MLB moneyline now treats
+`model_win_strength` as the authoritative bounded model-strength field, with
+`model_probability` retained as a compatibility alias. MLB model conviction is
+exported as `model_confidence`, Hammer's label as `hammer_confidence`, and the
+generic Decision Builder `confidence` field remains a temporary Hammer alias.
+Ranking now documents and enforces model-first confidence fallback without
+using Hammer confidence, edge, EV, odds, price, or market quality as model
+confidence. No recommendation math, thresholds, Hammer math, ordering weights,
+grading, or historical data changed.
+
 **Sprint 68.1 — Application Shell:** implemented and awaiting review. The
 dashboard now has a dedicated `dashboard/shell/` boundary that owns one route
 configuration, compact sidebar navigation, slim top bar, and shell session

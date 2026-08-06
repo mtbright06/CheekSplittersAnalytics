@@ -110,7 +110,7 @@ def build_sharpscore_decision(
         selected_pitcher = home_pitcher
         opponent_pitcher = away_pitcher
 
-    model_probability = probability_from_scores(
+    model_win_strength = probability_from_scores(
         selected_score,
         opponent_score,
     )
@@ -119,7 +119,7 @@ def build_sharpscore_decision(
     edge = None
 
     if quote:
-        calculated = calculate_market_edge(model_probability, quote)
+        calculated = calculate_market_edge(model_win_strength, quote)
         market_edge = market_edge_to_dict(calculated)
         edge = market_edge.get("edge")
 
@@ -134,7 +134,7 @@ def build_sharpscore_decision(
 
     model_recommendation = (
         mlb_moneyline_conviction_recommendation(
-            model_probability,
+            model_win_strength,
             confidence,
         )
     )
@@ -145,8 +145,13 @@ def build_sharpscore_decision(
     model = {
         "play": play,
         "market": "Moneyline",
-        "model_probability": model_probability,
+        "model_win_strength": model_win_strength,
+        # Compatibility alias for downstream consumers that still expect the
+        # historical probability-looking field. Do not calculate separately.
+        "model_probability": model_win_strength,
+        "model_confidence": confidence,
         "edge": edge,
+        # Compatibility alias for the MLB model's numeric confidence.
         "confidence": confidence,
         "confidence_breakdown": confidence_breakdown,
         "recommendation": model_recommendation,

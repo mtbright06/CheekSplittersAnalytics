@@ -103,12 +103,16 @@ def recommendation_tier_score(
 def model_probability_score(
     recommendation: Recommendation,
 ) -> float:
-    probability = recommendation.model_probability
+    probability = recommendation.model_win_strength
 
     if probability is None:
-        probability = recommendation.components.get(
-            "model_probability"
-        )
+        probability = recommendation.model_probability
+
+    if probability is None:
+        probability = recommendation.components.get("model_win_strength")
+
+    if probability is None:
+        probability = recommendation.components.get("model_probability")
 
     if probability is None:
         probability = recommendation.components.get(
@@ -131,12 +135,21 @@ def model_probability_score(
 def model_confidence_score(
     recommendation: Recommendation,
 ) -> float:
+    # Fallback order is intentionally model-first:
+    # 1. explicit numeric model confidence on the Recommendation contract
+    # 2. explicit numeric model confidence in components/source signals
+    # 3. generic numeric confidence retained by older model contracts
+    # 4. non-Hammer compatibility label on Recommendation.confidence
+    # 5. neutral fallback
+    # Hammer confidence, edge, EV, odds, price, and market quality are not
+    # authoritative model-confidence inputs.
     for value in (
+        recommendation.model_confidence,
         recommendation.components.get("model_confidence"),
-        recommendation.components.get("confidence"),
         recommendation.source_signals.get("model_confidence")
         if isinstance(recommendation.source_signals, dict)
         else None,
+        recommendation.components.get("confidence"),
     ):
         score = safe_float(
             value,
@@ -155,9 +168,13 @@ def model_confidence_score(
         "LOW": 56.0,
         "PASS": 0.0,
     }
+
+    if recommendation.hammer_confidence:
+        return 50.0
+
     return label_scores.get(
         str(recommendation.confidence or "").upper(),
-        0.0,
+        50.0,
     )
 
 

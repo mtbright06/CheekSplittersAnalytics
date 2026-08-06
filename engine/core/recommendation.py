@@ -94,6 +94,7 @@ class Recommendation:
     event_time: str | None = None
     scheduled_start_at: str | None = None
 
+    model_win_strength: float | None = None
     model_probability: float | None = None
     market_probability: float | None = None
 
@@ -110,6 +111,8 @@ class Recommendation:
     )
     hammer_tier: str | None = None
     hammer_assessment: str | None = None
+    model_confidence: float | None = None
+    hammer_confidence: str | None = None
     confidence: str | None = None
     stars: str | None = None
     units: float | None = None
@@ -168,11 +171,23 @@ class Recommendation:
             self.selection or ""
         ).strip()
 
+        self.model_win_strength = (
+            normalize_probability(
+                self.model_win_strength
+            )
+        )
+
         self.model_probability = (
             normalize_probability(
                 self.model_probability
             )
         )
+
+        if self.model_win_strength is None:
+            self.model_win_strength = self.model_probability
+
+        if self.model_probability is None:
+            self.model_probability = self.model_win_strength
 
         self.market_probability = (
             normalize_probability(
@@ -258,10 +273,8 @@ class Recommendation:
             self.model_recommendation = self.recommendation
 
         if not self.confidence:
-            self.confidence = (
-                confidence_label(
-                    self.hammer_score
-                )
+            self.confidence = confidence_label(
+                self.hammer_score
             )
 
         if not self.stars:
@@ -331,6 +344,9 @@ class Recommendation:
             "scheduled_start_at": self.scheduled_start_at,
             "market": self.market,
             "selection": self.selection,
+            "model_win_strength": (
+                self.model_win_strength
+            ),
             "model_probability": (
                 self.model_probability
             ),
@@ -365,6 +381,8 @@ class Recommendation:
             "hammer_assessment": (
                 self.hammer_assessment
             ),
+            "model_confidence": self.model_confidence,
+            "hammer_confidence": self.hammer_confidence,
             "confidence": self.confidence,
             "stars": self.stars,
             "units": self.units,
@@ -416,6 +434,9 @@ class Recommendation:
                 "selection",
                 "",
             ),
+            model_win_strength=(
+                data.get("model_win_strength")
+            ),
             model_probability=data.get(
                 "model_probability"
             ),
@@ -449,6 +470,12 @@ class Recommendation:
             hammer_tier=data.get("hammer_tier"),
             hammer_assessment=data.get(
                 "hammer_assessment"
+            ),
+            model_confidence=data.get(
+                "model_confidence"
+            ),
+            hammer_confidence=data.get(
+                "hammer_confidence"
             ),
             confidence=data.get(
                 "confidence"

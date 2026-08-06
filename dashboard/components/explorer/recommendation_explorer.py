@@ -76,7 +76,7 @@ def _render_overview(game):
         _safe(model.get("recommendation"), "PASS"),
     )
     top[3].metric(
-        "Confidence",
+        "Model Confidence",
         (
             "N/A"
             if model.get("confidence") is None
@@ -178,11 +178,15 @@ def _render_moneyline(game):
     metrics = st.columns(4)
 
     metrics[0].metric(
-        "Model Probability",
+        "Model Win Strength",
         _format_percent(
             market_edge.get("model_probability")
             if market_edge.get("model_probability") is not None
-            else model.get("model_probability"),
+            else (
+                model.get("model_win_strength")
+                if model.get("model_win_strength") is not None
+                else model.get("model_probability")
+            ),
         ),
     )
     metrics[1].metric(
@@ -341,7 +345,7 @@ def _render_mlb_intelligence_tabs(game, details_renderer):
         render_value_meter(game)
         confidence = game.get("model", {}).get("confidence")
         if confidence is not None:
-            render_progress_bar("Confidence", confidence)
+            render_progress_bar("Model Confidence", confidence)
 
     with hammer_tab:
         _render_placeholder(

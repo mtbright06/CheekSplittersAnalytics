@@ -263,7 +263,11 @@ def _moneyline_panel_html(game: dict) -> str:
     fair_price = _odds_text(odds.get("reference_price"))
     edge = _percent(model.get("edge"), signed=True)
     book_probability = _percent(odds.get("book_probability"))
-    model_probability = _percent(model.get("model_probability"))
+    model_probability = _percent(
+        model.get("model_win_strength")
+        if model.get("model_win_strength") is not None
+        else model.get("model_probability")
+    )
     status = odds.get("market_status") or odds.get("freshness_status")
 
     rows = [
@@ -278,7 +282,7 @@ def _moneyline_panel_html(game: dict) -> str:
         recommendation=recommendation,
         primary_label=model.get("play") or "Selection",
         primary_value=current_odds,
-        probability_pair=("Book Probability", book_probability, "Model Win Probability", model_probability),
+        probability_pair=("Book Probability", book_probability, "Model Win Strength", model_probability),
         rows=rows,
         explanation=explanation,
         tone="moneyline",
@@ -401,14 +405,18 @@ def _is_available(value: Any) -> bool:
 
 
 def _moneyline_explanation(model: dict, odds: dict) -> str | None:
-    probability = _percent(model.get("model_probability"))
+    probability = _percent(
+        model.get("model_win_strength")
+        if model.get("model_win_strength") is not None
+        else model.get("model_probability")
+    )
     edge = _percent(model.get("edge"), signed=True)
     play = model.get("play")
     status = odds.get("market_status") or odds.get("freshness_status")
     pieces = []
     if play and probability != "Unavailable":
         pieces.append(
-            f"Model projects {escape(str(play))} at "
+            f"Model win strength for {escape(str(play))} is "
             f"<strong class='mlb-explanation-accent'>{escape(probability)}</strong>."
         )
     if edge != "Unavailable":

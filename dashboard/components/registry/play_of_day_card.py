@@ -217,9 +217,9 @@ def render_play_of_day(
             </div>
 
             <div>
-                <span>Model Win</span>
+                <span>Model Win Strength</span>
                 <strong>
-                    {percent(recommendation.get("model_probability"))}
+                    {percent(recommendation.get("model_win_strength") if recommendation.get("model_win_strength") is not None else recommendation.get("model_probability"))}
                 </strong>
             </div>
 

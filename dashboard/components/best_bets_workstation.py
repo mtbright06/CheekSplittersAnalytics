@@ -178,7 +178,7 @@ def _recommendation_row_html(item: dict, rank: int) -> str:
     rows = [
         ("Current Odds", _odds_or_line(item, quote)),
         ("Edge", _edge(item)),
-        ("Confidence", _confidence(item)),
+        ("Hammer Confidence", _confidence(item)),
     ]
     rows_html = "".join(
         f"<div><span>{escape(label)}</span><strong>{escape(value)}</strong></div>"
@@ -278,6 +278,8 @@ def _top_play_edge(item: dict) -> str:
 
 
 def _confidence(item: dict) -> str:
+    if item.get("hammer_confidence") is not None:
+        return str(item.get("hammer_confidence"))
     if item.get("confidence") is not None:
         return str(item.get("confidence"))
     if item.get("model_probability") is not None:

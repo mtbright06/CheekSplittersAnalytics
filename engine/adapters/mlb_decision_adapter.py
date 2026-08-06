@@ -135,8 +135,10 @@ def adapt_decision(
         row
     )
 
-    model_probability = row.get(
-        "model_probability"
+    model_win_strength = (
+        row.get("model_win_strength")
+        if row.get("model_win_strength") is not None
+        else row.get("model_probability")
     )
 
     market_probability = (
@@ -171,7 +173,7 @@ def adapt_decision(
             "",
         ),
         model_probability=(
-            model_probability
+            model_win_strength
         ),
         market_probability=(
             market_probability
@@ -210,7 +212,12 @@ def adapt_decision(
         hammer_assessment=row.get(
             "hammer_assessment"
         ),
-        confidence=row.get(
+        model_win_strength=model_win_strength,
+        model_confidence=row.get("model_confidence"),
+        hammer_confidence=row.get("hammer_confidence") or row.get(
+            "confidence"
+        ),
+        confidence=row.get("hammer_confidence") or row.get(
             "confidence"
         ),
         stars=row.get("stars"),
@@ -220,10 +227,19 @@ def adapt_decision(
             "reasons",
             [],
         ),
-        components=row.get(
-            "score_breakdown",
-            {},
-        ),
+        components={
+            **(
+                row.get("score_breakdown", {})
+                if isinstance(row.get("score_breakdown"), dict)
+                else {}
+            ),
+            "model_win_strength": model_win_strength,
+            "model_probability": model_win_strength,
+            "model_confidence": row.get("model_confidence"),
+            "hammer_confidence": row.get("hammer_confidence") or row.get(
+                "confidence"
+            ),
+        },
 
         source_signals={
             **(

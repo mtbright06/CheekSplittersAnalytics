@@ -52,6 +52,21 @@ market leak, unreachable threshold, unbounded score path, or production defect
 that requires immediate model-code correction. The remaining items are
 terminology clarification and empirical validation work.
 
+## Phase 2A.3 Semantic Cleanup Decisions
+
+| Question | Decision | Alias Retained | Planned Retirement |
+|---|---|---|---|
+| What should the bounded score-differential value be called? | `model_win_strength` is authoritative. | `model_probability` | Retire after dashboards, persistence exports, and historical consumers read the new field. |
+| How should MLB model confidence be identified? | `model_confidence` is authoritative. | model-payload `confidence` | Retire after active consumers no longer need the generic field. |
+| How should Hammer confidence be identified? | `hammer_confidence` is authoritative. | Decision Builder row `confidence` | Retire after registry/dashboard consumers migrate. |
+| Should confidence use odds? | No. `odds` is a deprecated compatibility argument only. | function argument `odds` | Remove only when all call sites can change safely. |
+| Should ranking use Hammer confidence as model confidence? | No. Explicit Hammer confidence maps to neutral model-confidence fallback. | none | Closed in Phase 2A.3. |
+
+Phase 2A.3 changed only naming, contract fields, labels, and focused tests. It
+did not change team selection, SharpScore math, the probability transform,
+model-confidence formula, Hammer math, thresholds, ranking weights, grading, or
+historical records.
+
 ## Phase 3 Research Queue
 
 1. Calibrate model win strength using locked canonical recommendation episodes.

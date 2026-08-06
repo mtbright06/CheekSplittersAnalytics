@@ -21,7 +21,7 @@ def upgrade() -> None:
         sa.Column("recommendation_episode_id", sa.UUID(), nullable=True),
     )
     op.create_foreign_key(
-        "fk_recommendations_recommendation_episode_id_recommendation_episodes",
+        "fk_recommendations_episode",
         "recommendations",
         "recommendation_episodes",
         ["recommendation_episode_id"],
@@ -41,7 +41,7 @@ def downgrade() -> None:
         table_name="recommendations",
     )
     op.drop_constraint(
-        "fk_recommendations_recommendation_episode_id_recommendation_episodes",
+        "fk_recommendations_episode",
         "recommendations",
         type_="foreignkey",
     )

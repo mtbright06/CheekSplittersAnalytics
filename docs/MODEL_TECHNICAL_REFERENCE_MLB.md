@@ -307,3 +307,259 @@ Commands run:
   dashboard presentation zero-argument tests.
 
 No code changes were made.
+
+---
+
+# Phase 2A.2 Scientific Model Review Addendum
+
+Audit and analysis only. No production code, weights, thresholds, or model
+logic were changed.
+
+## Closure Recommendation
+
+**MLB MODEL INTEGRITY CERTIFIED WITH PHASE 3 VALIDATION ITEMS**
+
+Certification here means the current MLB moneyline implementation is coherent,
+traceable, and free of known conceptual defects. It does not mean the model is
+statistically optimal or probability-calibrated.
+
+## Resolved REVIEW Matrix
+
+| Prior ID | Phase 2A.2 Result | Resolution |
+|---|---:|---|
+| MLB-006 | REVIEW | Team-score weights are internally coherent because they sum to 1.0 and apply to 0..100 component scores, but remain empirically unvalidated. |
+| MLB-007 | REVIEW | Offense inputs are baseball-reasonable but partially overlapping; no internal defect, but independence is not established. |
+| MLB-008 | REVIEW | Starter inputs are role-aware and stabilized, but several measure the same run-prevention skill path; independence is not established. |
+| MLB-009 | REVIEW | Bullpen ERA/WHIP scoring is coherent but intentionally coarse relative to available bullpen evidence. |
+| MLB-010 | RENAME/CLARIFY | Displayed `model_probability` is a bounded model-strength transform, not a calibrated probability. |
+| MLB-011 | RENAME/CLARIFY | Confidence measures a conviction heuristic: matchup separation plus limited data completeness plus starter certainty. |
+| MLB-012 | RENAME/CLARIFY | The unused `odds` argument is harmless for market independence but misleading API surface. |
+| MLB-013 | REVIEW | Tier thresholds are monotonic and reachable, but require Phase 3 empirical validation. |
+| MLB-014 | REVIEW | Hammer is a partially duplicated ensemble, acceptable as advisory confirmation, not independent evidence. |
+| MLB-015 | RENAME/CLARIFY | Decision-card `confidence` is Hammer confidence label; MLB model confidence is distinct. |
+| MLB-016 | RENAME/CLARIFY | Ranking may consume the Hammer confidence label fallback if numeric model confidence is absent downstream. |
+
+No prior REVIEW item was upgraded to DEFECT.
+
+## Complete Feature Map
+
+```text
+MLB provider data
+  -> offense profile
+       raw: runs, games, OPS, HR, SLG, AVG, K, BB, PA
+       normalized: RPG, OPS, HR/G, ISO, K%, BB%
+       consumed by: offense_score
+       reappears: Hammer offense_score; First 5/Bomb may share offensive context
+  -> probable starter profile
+       raw: starter-only outs, ER, H, BB, SO, HR, BF, strikes, pitches, GO, AO
+       normalized: ERA, WHIP, K/9, BB/9, HR/9, H/9, K-BB%, strike%, P/IP, G/A
+       consumed by: starting_pitcher_score after IP stabilization
+       reappears: Hammer starter_score; First 5 and Bomb can share starter context
+  -> bullpen profile
+       raw: bullpen ERA, WHIP from bullpen provider profile
+       normalized: bullpen_score
+       consumed by: SharpScore team score
+       reappears: Hammer bullpen_score
+  -> home/away identity
+       normalized: home_field_score 56 home, 50 away
+       consumed by: SharpScore team score
+       reappears: nowhere material in MLB moneyline path
+  -> park/weather context
+       normalized: park_score/weather_score if present in card payloads
+       consumed by: Hammer only
+       reappears: Bomb/totals contexts may use related environment data
+```
+
+End-to-end dependency:
+
+```text
+raw MLB data
+  -> normalized offense/starter/bullpen/home features
+  -> away/home SharpScore component scores
+  -> weighted team scores
+  -> higher score selects side
+  -> score differential becomes displayed model strength/probability
+  -> model strength + confidence become MLB recommendation tier
+  -> Decision Builder preserves MLB tier as authority
+  -> Hammer consumes model strength plus supporting module/component signals
+  -> ranking uses tier, model strength, confidence, and Hammer
+```
+
+## Feature-Overlap Findings
+
+| Relationship | Classification | Finding |
+|---|---:|---|
+| Runs per game vs OPS/ISO/HR/BB/K | PARTIAL OVERLAP | RPG is the outcome of the same offensive events measured by rate statistics. |
+| OPS vs ISO/HR/G/BB% | LIKELY DOUBLE COUNT | OPS already includes on-base and slugging components, while ISO, HR/G, and BB% repeat parts of the same skill set. |
+| Starter ERA vs WHIP/H9/HR9/K9/BB9 | PARTIAL OVERLAP | ERA captures run prevention caused partly by the component skill metrics. |
+| WHIP vs H9 and BB9 | LIKELY DOUBLE COUNT | WHIP is directly composed from hits and walks per inning. |
+| K9 and BB9 vs K-BB% | LIKELY DOUBLE COUNT | K-BB% recombines strikeout and walk information already used separately. |
+| BB9 vs strike% vs pitches/IP | PARTIAL OVERLAP | Each represents command/efficiency from related pitch-count behavior. |
+| Team recent form vs season offense | UNKNOWN WITHOUT DATA | No current SharpScore moneyline recent-form term was found; future cards may expose it elsewhere. |
+| Bullpen performance vs team run prevention | UNKNOWN WITHOUT DATA | SharpScore uses bullpen ERA/WHIP directly; broader team run prevention is not a separate moneyline input here. |
+| Starter in SharpScore vs starter in Hammer | LIKELY DOUBLE COUNT | Hammer consumes starter score after starter already helped create model score/probability. |
+| Offense in SharpScore vs offense in Hammer | LIKELY DOUBLE COUNT | Hammer consumes offense score after offense already helped create model score/probability. |
+| Bullpen in SharpScore vs bullpen in Hammer | PARTIAL OVERLAP | Same component reappears, but with lower Hammer weight. |
+| Model probability in Hammer vs components | LIKELY DOUBLE COUNT | Model probability is derived from the same offense/starter/bullpen/home scores Hammer can also consume. |
+| First 5 vs starter signal | PARTIAL OVERLAP | First 5 naturally emphasizes starters and early offense, overlapping full-game starter inputs. |
+| Home field vs home/away splits | INDEPENDENT IN CURRENT PATH | No additional home/away split input was found in current SharpScore. |
+
+## Effective-Weight Findings
+
+SharpScore weights normalize: offense `0.40`, starting pitching `0.45`,
+bullpen `0.10`, and home field `0.05` sum to `1.00`. Because each component is
+clamped to `0..100`, configured and effective team-score scales are comparable.
+
+Maximum team-score contribution:
+
+| Component | Weight | Max Contribution |
+|---|---:|---:|
+| Offense | 0.40 | 40.0 |
+| Starting pitching | 0.45 | 45.0 |
+| Bullpen | 0.10 | 10.0 |
+| Home field | 0.05 | 5.0 |
+
+Effective matchup differential can be dominated by starter/offense because
+their weights and practical ranges are larger. Home field is mathematically
+consistent as a team-score component; its fixed score difference of `6` creates
+a `0.3` team-score advantage, which is small relative to offense/starter
+movement.
+
+Missing SharpScore components return neutral `50`, so missing data does not
+renormalize the team-score weights. Hammer behaves differently: unavailable
+Hammer components are removed from `used_weight`, which preserves a bounded
+average but changes relative influence among available signals.
+
+Hammer default weights sum to `1.05`, then normalize by used weight. With all
+inputs available, its effective shares are approximately:
+
+| Hammer Input | Nominal Weight | Effective Share |
+|---|---:|---:|
+| MLB model | 0.27 | 25.7% |
+| First 5 | 0.17 | 16.2% |
+| Starter | 0.15 | 14.3% |
+| Bomb | 0.12 | 11.4% |
+| Offense | 0.12 | 11.4% |
+| Bullpen | 0.08 | 7.6% |
+| Park | 0.05 | 4.8% |
+| Weather | 0.05 | 4.8% |
+| Sample confidence | 0.04 | 3.8% |
+
+This is coherent as a bounded advisory score, but the nominal weights should
+not be read as independent evidence shares because several inputs are derived
+from or correlated with SharpScore.
+
+## Probability Verdict
+
+`probability_from_scores(selected_score, opponent_score)` computes:
+
+```text
+model_probability = clamp(50 + (selected_score - opponent_score) * 0.75, 40, 70)
+```
+
+Input range is the selected score differential after the higher-scoring side is
+chosen, so practical input is `>= 0` except exact ties. Output is clipped to
+`40..70`, but selected-side outputs are practically `50..70`. Opposing team
+values are not calculated as a paired distribution and therefore are not shown
+to sum to 1. The value is used for tiering, display, Hammer, and ranking.
+
+Verdict: **RENAME/CLARIFY**. The value is best described as **Model Win
+Strength** or **model-implied win probability**, not calibrated model
+probability.
+
+## Confidence Verdict
+
+Current confidence decomposes into:
+
+| Contributor | Concept | Effect |
+|---|---|---|
+| Base 45 | default floor | fixed starting point |
+| `min(score_diff * 1.1, 30)` | matchup separation / conviction | monotonic with team-score gap |
+| completeness of ERA/WHIP/OPS fields times 20 | data completeness | more complete selected inputs raise score |
+| unknown starter penalty | starter certainty | unknown starters lower score |
+
+A confidence value of `70` means the model has baseline trust plus some mix of
+score separation and available core fields, after starter penalties. It does
+not mean 70% win probability, 70% calibration reliability, or 70% historical
+accuracy.
+
+Answers:
+
+- Bounded: yes, `35..95`.
+- Monotonic in score differential: yes, until the 30-point matchup cap.
+- Better data can lower confidence: no for this formula; added completeness
+  raises or preserves confidence, while confirmed bad stats affect team score
+  and therefore separation.
+- Missing data can accidentally increase confidence: not directly, but neutral
+  missing scores can preserve a favorable separation created elsewhere.
+- Identical team scores can produce high confidence: with full data and known
+  starters, identical scores produce `65`, which can reach LEAN confidence
+  threshold but cannot create a LEAN because model strength is only `50`.
+- Duplicates probability/margin: partially; matchup strength is the same score
+  differential that creates displayed model strength.
+
+Verdict: **RENAME/CLARIFY**. The number currently represents **model conviction
+quality**, not Data Quality alone, Prediction Uncertainty, or Historical
+Reliability.
+
+## Hammer Verdict
+
+Hammer is a **partially duplicated ensemble**. It adds useful cross-module
+context from First 5, Bomb Lab, park, weather, sample confidence, agreement,
+and contradictions, but it also repeats MLB model information through model
+strength plus starter/offense/bullpen component scores.
+
+Representative duplication example:
+
+```text
+Selected score 63.0 vs opponent 53.0
+Model strength: 57.5
+Model confidence: 81.0
+MLB tier: PLAYABLE
+Hammer inputs: model 57.5, First 5 68, Bomb 61, starter 72,
+offense 65, bullpen 59, park 52, weather 50, sample confidence 81
+Hammer base: 62.9
+Hammer final: 65.4 WATCH / MODERATE after one agreement bonus
+```
+
+The repeated MLB-derived block is model strength plus starter/offense/bullpen
+and sample confidence: nominal `0.66` of `1.05`, or about `62.9%` of the
+all-input Hammer average. Because First 5 and Bomb can also share starter and
+offense context, true duplication risk can be higher without data.
+
+Verdict: **REVIEW**. Coherent as advisory confirmation; not independent enough
+to be described as separate proof.
+
+## Threshold Verdict
+
+MLB moneyline tiers are monotonic and non-overlapping:
+
+| Tier | Model Strength | Confidence |
+|---|---:|---:|
+| CHEEK RIPPER | `>= 63.0` | `>= 85.0` |
+| STRONG PLAY | `>= 59.0` | `>= 78.0` |
+| PLAYABLE | `>= 56.5` | `>= 74.0` |
+| LEAN | `>= 52.0` | `>= 65.0` |
+| PASS | otherwise | otherwise |
+
+A higher model strength can receive a lower tier if confidence is lower; this
+is intentional and monotonic in the two-dimensional rule set. No unreachable or
+overlapping condition was found.
+
+Verdict: **COHERENT HEURISTIC; REQUIRES EMPIRICAL VALIDATION**.
+
+## Representative Walkthroughs
+
+No current generated MLB card JSON was found in the repository audit. The
+following are representative code-level traces using production formulas.
+
+| Case | Component Pattern | Team Scores | Strength | Confidence | MLB Tier | Hammer | Ranking Drivers |
+|---|---|---:|---:|---:|---|---|---|
+| Strong favorite | stronger starter/offense, moderate bullpen, neutral environment | 63.0 vs 53.0 | 57.5 | 81.0 | PLAYABLE | 65.4 WATCH | tier, 57.5 strength, 81 confidence, 65.4 Hammer |
+| Close matchup | near-even components, incomplete Bomb/park | 55.0 vs 54.0 | 50.8 | 66.1 | PASS | 52.6 PASS | PASS tier dominates despite fair data |
+| Model-selected underdog | away side wins model score despite no home edge | 58.0 vs 52.0 | 54.5 | 77.0 | LEAN | 64.7 WATCH | LEAN tier, 54.5 strength, 77 confidence |
+
+The explanation path is deterministic: component scores produce team scores;
+team-score gap produces model strength; score gap plus data/starter fields
+produce confidence; strength and confidence produce tier; Hammer and ranking
+then consume the serialized model output.

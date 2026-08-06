@@ -258,6 +258,14 @@ double-counting risk, and the distinction between MLB model confidence and
 Hammer confidence. No objective mathematical defect was found and no model
 logic was changed.
 
+Phase 2A.2 completed the scientific model review closure in
+`docs/MLB_MODEL_INTEGRITY_DECISION_LOG.md` and updated the MLB model
+specification/reference docs. Closure recommendation is MLB MODEL INTEGRITY
+CERTIFIED WITH PHASE 3 VALIDATION ITEMS: the moneyline model is coherent as a
+deterministic winner-first heuristic, while probability calibration, empirical
+weights, input independence, threshold validation, and Hammer incremental
+value remain Phase 3 research items. No production model logic was changed.
+
 **Sprint 68.1 — Application Shell:** implemented and awaiting review. The
 dashboard now has a dedicated `dashboard/shell/` boundary that owns one route
 configuration, compact sidebar navigation, slim top bar, and shell session

@@ -295,3 +295,114 @@ The MLB moneyline model can be treated as a coherent winner-first heuristic
 model. It should not be described as calibrated or empirically validated until
 resolved canonical samples prove calibration, threshold performance, and input
 independence.
+
+---
+
+# Phase 2A.2 Scientific Review Closure
+
+Audit and analysis only. No production code, model weights, recommendation
+thresholds, or Hammer behavior were changed.
+
+## Closure Recommendation
+
+**MLB MODEL INTEGRITY CERTIFIED WITH PHASE 3 VALIDATION ITEMS**
+
+The implementation is conceptually and mathematically defensible as a
+deterministic winner-first heuristic model. It is not certified as a calibrated
+probability model or an empirically optimized betting model.
+
+## Canonical Terminology
+
+| Current Field | Phase 2A.2 Interpretation | Notes |
+|---|---|---|
+| `model_probability` | Model Win Strength / model-implied win probability | Bounded score transform; not calibrated. |
+| `confidence` in SharpScore model payload | Model conviction quality | Mixes separation, core data completeness, and starter certainty. |
+| `confidence` in Decision Builder row | Hammer confidence label | Label derived from Hammer score, distinct from SharpScore numeric confidence. |
+| Hammer Score | Advisory confirmation score | Partially duplicates SharpScore components; not independent proof. |
+| Market Value | SSRP price-value label | Separate from recommendation conviction. |
+
+## End-To-End Dependency Map
+
+```text
+raw MLB provider fields
+  -> normalized offense / starter / bullpen / home features
+  -> component scores clamped to 0..100
+  -> weighted away/home team scores
+  -> higher score selects side
+  -> score gap maps to bounded model win strength
+  -> score gap + data completeness + starter certainty maps to confidence
+  -> model win strength + confidence maps to MLB moneyline tier
+  -> Decision Builder preserves MLB tier as authority
+  -> Hammer consumes model win strength plus First 5, Bomb, component,
+     park, weather, sample-confidence, agreement, and contradiction inputs
+  -> ranking sorts by tier, model strength, confidence, Hammer, and stable identity
+```
+
+## Scientific Review Verdicts
+
+| Area | Verdict |
+|---|---:|
+| Winner-first selection | PASS |
+| Market independence for conviction tier | PASS |
+| Component score normalization | PASS |
+| SharpScore weight normalization | PASS |
+| Missing-data safety | PASS |
+| Probability semantics | RENAME/CLARIFY |
+| Confidence semantics | RENAME/CLARIFY |
+| Offense input independence | REVIEW |
+| Starter input independence | REVIEW |
+| Bullpen completeness | REVIEW |
+| Hammer independence | REVIEW |
+| Tier thresholds | REVIEW |
+| Objective conceptual defect | None found |
+
+## Probability Specification
+
+The displayed MLB moneyline value currently named `model_probability` is:
+
+```text
+clamp(50 + (selected_score - opponent_score) * 0.75, 40, 70)
+```
+
+Because the selected team is chosen before this calculation, normal selected
+outputs are `50..70`. The model does not compute a paired home/away probability
+distribution, does not prove that opposing probabilities sum to 1, and does
+not include a calibration curve. The correct current meaning is model win
+strength on a probability-like display scale.
+
+## Confidence Specification
+
+MLB confidence is:
+
+```text
+45
++ min(score_diff * 1.1, 30)
++ core data completeness * 20
++ starter certainty penalty
+clamped to 35..95
+```
+
+It represents model conviction quality. It does not represent historical
+reliability, empirical uncertainty, price confidence, or calibrated win
+probability.
+
+## Hammer Specification
+
+Hammer is advisory. It is market-independent, bounded, and useful for showing
+cross-module support, but it is not independent from the MLB moneyline model.
+It can reuse the model score, starter score, offense score, bullpen score, and
+model confidence that already influenced the official recommendation.
+
+## Phase 3 Validation Items
+
+Future empirical validation should:
+
+1. Calibrate model win strength against canonical locked episodes.
+2. Validate or refit team-score weights with out-of-sample evidence.
+3. Run offense and starter ablation tests to measure duplicated information.
+4. Evaluate whether Hammer improves predictive discrimination after removing
+   duplicated SharpScore inputs.
+5. Validate tier thresholds by outcome, calibration, decision rate, and sample
+   stability.
+6. Clarify display/API labels for model win strength and the two confidence
+   concepts.

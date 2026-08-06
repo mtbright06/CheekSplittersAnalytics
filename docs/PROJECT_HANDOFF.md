@@ -339,6 +339,19 @@ not true Hammer. Current artifacts contain totals projections but no verified
 totals lines, so no live actionable totals examples were available for
 walkthrough validation. No production model logic changed.
 
+Phase 3.0 created the SharpStack statistical validation framework in
+`docs/PHASE3_VALIDATION_FRAMEWORK.md` and
+`docs/PHASE3_EXECUTION_PLAN.md`. The framework defines canonical episode
+records as the official performance layer, raw prediction snapshots as the
+stability/timeline layer, and `game_results` as the truth layer. Existing
+analytics to reuse first are `CanonicalRecommendationReadModel`,
+`RecommendationAnalyticsService`, `RecommendationHistoryService`, canonical
+grading, snapshot grading for raw diagnostics, and game-result ingestion.
+Phase 3 execution order is data readiness, official baseline performance,
+recommendation ordering, confidence calibration, projection error, threshold
+validation, feature contribution, drift detection, and stability/replay. No
+production model, threshold, weight, infrastructure, or report code changed.
+
 **Sprint 68.1 — Application Shell:** implemented and awaiting review. The
 dashboard now has a dedicated `dashboard/shell/` boundary that owns one route
 configuration, compact sidebar navigation, slim top bar, and shell session

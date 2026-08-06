@@ -1083,6 +1083,13 @@ These ideas may be valuable. They are not blocking the active Epic 1 objective.
   a silent fallback; canonical-empty analytics return empty samples. Read-only
   Azure verification reached revision `f2c8a1e6d4b7`, where episode tables are
   not yet deployed; immutable snapshot count was 172 at verification time.
+- Sprint 79.5 completed a documentation-only adversarial foundation
+  certification in `docs/FOUNDATION_CERTIFICATION.md`. Local Recommendation
+  Architecture is certified with observations: core lifecycle, canonical
+  locking, grading, analytics, history, transaction, migration, and legacy
+  isolation invariants pass local review/tests, while production deployment is
+  behind the episode migrations and true multi-worker PostgreSQL races remain
+  structurally guarded but not integration-proven.
 - Sprint 77.0 replaced the live Bomb Lab tabbed presentation with a
   presentation-only workstation renderer. The Bomb model, HR calculations,
   generated JSON contract, registry, persistence, odds, routing, and build

@@ -96,6 +96,16 @@ class _Grading:
         return SimpleNamespace(created=self.created)
 
 
+class _CanonicalGrading:
+    def __init__(self, *, created=1, reused=0, unmatched=0):
+        self.result = (created, reused, unmatched)
+        self.calls = []
+
+    def grade_for_result(self, *, league_code, provider_game_id, game_result_id):
+        self.calls.append((league_code, provider_game_id, game_result_id))
+        return self.result
+
+
 def _registry(path: Path, recommendations):
     path.write_text(
         json.dumps(
@@ -120,6 +130,8 @@ def _row(*, recommendation="PASS", selection="Washington Nationals", market="mon
         "matchup": "Arizona Diamondbacks @ Washington Nationals",
         "event_time": "6:30pm",
         "scheduled_start_at": "2026-07-28T18:30:00Z",
+        "pregame_eligible": True,
+        "pregame_eligibility_reason": "GAME_NOT_STARTED",
         "recommendation": recommendation,
         "components": {},
     }
@@ -153,11 +165,13 @@ def test_registry_snapshots_are_persisted_then_matching_results_are_graded():
         persistence = _SnapshotPersistence()
         ingestion = _ResultIngestion()
         grading = _Grading()
+        canonical_grading = _CanonicalGrading()
         service = DailyPersistenceService(
             session_factory=lambda: _MatchSession([SNAPSHOT_ID]),
             snapshot_persistence=persistence,
             result_ingestion=ingestion,
             grading=grading,
+            canonical_grading=canonical_grading,
         )
 
         summary = service.run(registry_path=path, provider=_Results([_result_input()]))
@@ -172,7 +186,8 @@ def test_registry_snapshots_are_persisted_then_matching_results_are_graded():
             "LEAN",
         }
         assert ingestion.inputs == [_result_input()]
-        assert grading.calls == [(SNAPSHOT_ID, RESULT_ID)]
+        assert grading.calls == []
+        assert canonical_grading.calls == [("MLB", "824414", RESULT_ID)]
         assert summary.persisted_snapshots == 2
         assert summary.created_grades == 1
         assert summary.unmatched_results == 0
@@ -187,6 +202,7 @@ def test_retry_reuses_existing_snapshots_and_existing_grade_without_duplicate_wo
             snapshot_persistence=_SnapshotPersistence(created=0),
             result_ingestion=_ResultIngestion(),
             grading=_Grading(created=False),
+            canonical_grading=_CanonicalGrading(created=0, reused=1),
         )
 
         summary = service.run(registry_path=path, provider=_Results([_result_input()]))
@@ -205,6 +221,7 @@ def test_unmatched_authoritative_result_is_visible_in_summary():
             snapshot_persistence=_SnapshotPersistence(),
             result_ingestion=_ResultIngestion(),
             grading=_Grading(),
+            canonical_grading=_CanonicalGrading(created=0, reused=0, unmatched=1),
         )
 
         summary = service.run(registry_path=path, provider=_Results([_result_input()]))
@@ -222,6 +239,7 @@ def test_snapshot_persistence_failure_stops_result_polling():
             snapshot_persistence=_SnapshotPersistence(error=DailyPersistenceError("forced failure")),
             result_ingestion=_ResultIngestion(),
             grading=_Grading(),
+            canonical_grading=_CanonicalGrading(),
         )
 
         try:

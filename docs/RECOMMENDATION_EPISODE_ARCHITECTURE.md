@@ -503,18 +503,43 @@ Snapshots:
 
 - may keep snapshot-level grades for audit if desired.
 - should not feed primary Model Health by default.
+- episode-enabled snapshots do not receive new snapshot-level `PENDING` grade
+  rows from the daily result flow.
 
 Episodes:
 
 - receive primary grade only when locked/canonical.
 - grade relationship should point to the canonical snapshot and result
   revision used for evaluation.
+- the canonical recommendation is the final active actionable episode in a
+  stream at lock, using the latest attached eligible snapshot with
+  `recommendation_time < scheduled_start_at`.
+- superseded and withdrawn episodes remain timeline/flip-analysis records and
+  never receive canonical grades.
 
 Game results:
 
 - scheduled/live result revisions should not create persistent pending grades
   for every snapshot.
 - terminal revisions should create or reuse one canonical grade per episode.
+- current status mapping: `LIVE`, `FINAL`, `SUSPENDED`, `CANCELED`, and
+  `INCOMPLETE` indicate the game has started or reached a terminal provider
+  state; `FINAL` grades, `SUSPENDED` remains pending after lock, and
+  `CANCELED` marks the episode `VOID` without win/loss grading.
+- `SCHEDULED` and `POSTPONED` fail closed unless the stream's authoritative
+  scheduled start has already passed. If a provider supplies a replacement
+  start for a postponed/rescheduled game, the stream schedule must be updated
+  before locking so the old start time is not used.
+
+Idempotency:
+
+- locking row-locks the stream and active/locked episode, then atomically sets
+  `canonical_snapshot_id`, `LOCKED`, and `locked_at`.
+- canonical grading row-locks the episode and reuses the existing
+  `canonical_recommendation_grades` row by `recommendation_episode_id`; the
+  database unique constraint enforces one canonical grade per episode.
+- grading atomically inserts/reuses the canonical grade and transitions
+  `LOCKED` to `GRADED`.
 
 ## Migration And Reset Recommendation
 

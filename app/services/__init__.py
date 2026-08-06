@@ -21,6 +21,11 @@ from app.services.daily_persistence_service import (
     DailyPersistenceService,
     DailyPersistenceSummary,
 )
+from app.services.canonical_recommendation_grading_service import (
+    CanonicalRecommendationGradingError,
+    CanonicalRecommendationGradingService,
+    SavedCanonicalRecommendationGrade,
+)
 from app.services.recommendation_analytics_service import (
     ModelHealthBucket,
     ModelHealthReport,
@@ -46,9 +51,16 @@ from app.services.prediction_snapshot_grading_service import (
     PredictionSnapshotGradingService,
     SavedPredictionSnapshotGrade,
 )
+from app.services.recommendation_episode_lock_service import (
+    EpisodeLockResult,
+    RecommendationEpisodeLockError,
+    RecommendationEpisodeLockService,
+)
 
 __all__ = [
     "GameInput",
+    "CanonicalRecommendationGradingError",
+    "CanonicalRecommendationGradingService",
     "DailyPersistenceError",
     "DailyPersistenceService",
     "DailyPersistenceSummary",
@@ -67,6 +79,8 @@ __all__ = [
     "PredictionSnapshotPersistenceService",
     "PredictionSnapshotGradingError",
     "PredictionSnapshotGradingService",
+    "RecommendationEpisodeLockError",
+    "RecommendationEpisodeLockService",
     "RecommendationInput",
     "RecommendationAnalyticsError",
     "RecommendationAnalyticsService",
@@ -74,7 +88,9 @@ __all__ = [
     "SavedRecommendationBatch",
     "TeamInput",
     "WithdrawalRequest",
+    "EpisodeLockResult",
     "SnapshotModelIdentity",
+    "SavedCanonicalRecommendationGrade",
     "SavedPredictionSnapshotGrade",
     "filter_model_health_buckets",
     "summarize_model_health",

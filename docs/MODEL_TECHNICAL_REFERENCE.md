@@ -264,6 +264,53 @@ Classification:
 - Registry preserves edge/EV fields in serialized rows: Display-only.
 - Stable deterministic tie-breaks do not use UUID, edge, EV, odds, or price.
 
+## Canonical Recommendation Episodes
+
+Primary files:
+
+- `app/services/recommendation_episode_lock_service.py`
+- `app/services/canonical_recommendation_grading_service.py`
+- `app/models/recommendation_episode.py`
+
+Lock rule:
+
+- the official recommendation for a stream is the final active actionable
+  episode before lock.
+- the canonical snapshot is the latest attached eligible snapshot with
+  `recommendation_time < recommendation_streams.scheduled_start_at`.
+- post-start snapshots are never canonical, even when locking runs
+  retroactively after completion.
+
+Canonical grading:
+
+- only `LOCKED` episodes with `canonical_snapshot_id` and terminal
+  authoritative result rows can create canonical grade rows.
+- moneyline and totals grades use the existing immutable snapshot grading
+  rules for winner side, totals direction, canonical market line, push, void,
+  and ungradeable handling.
+- successful canonical grading transitions `LOCKED` to `GRADED`.
+- superseded, withdrawn, active, ineligible, and void episodes do not receive
+  win/loss canonical grades.
+
+Status mapping:
+
+- `LIVE`, `FINAL`, `SUSPENDED`, `CANCELED`, and `INCOMPLETE` mean game-start or
+  terminal state is authoritative enough to lock.
+- `FINAL` can grade; `SUSPENDED` remains pending after lock; `CANCELED` marks
+  the episode `VOID`.
+- `SCHEDULED` and `POSTPONED` fail closed unless the authoritative stream
+  schedule has passed. A provider replacement start must update the stream
+  before lock so the old start time is not treated as authoritative.
+
+Idempotency and legacy isolation:
+
+- stream and episode rows are locked during canonical lock/grading.
+- `canonical_recommendation_grades` enforces one grade per episode with
+  `uq_canonical_recommendation_grades_episode`.
+- episode-enabled result processing no longer creates new snapshot-level
+  `PENDING` grades; existing `prediction_snapshot_grades` remain readable as
+  legacy/audit history.
+
 ## Play Of The Day
 
 File: `engine/core/play_of_day.py`

@@ -1062,6 +1062,16 @@ These ideas may be valuable. They are not blocking the active Epic 1 objective.
   supersession, withdrawal evidence, ineligible unattached snapshots, PASS-to-
   actionable creation, and rollback of snapshot persistence plus episode
   attachment in one transaction.
+- Sprint 79.3 added canonical episode locking and grading services. The
+  canonical recommendation is the final active actionable episode in a stream,
+  locked to the latest attached eligible pregame snapshot before
+  `scheduled_start_at`. Canonical grading reuses the existing snapshot grading
+  rules, writes at most one `canonical_recommendation_grades` row per episode,
+  and transitions `LOCKED` episodes to `GRADED`. `CANCELED` marks the episode
+  `VOID`; `SUSPENDED` remains pending after lock. The daily result flow now
+  uses canonical episode grading and does not create new snapshot-level
+  `PENDING` rows for episode-enabled snapshots. Existing snapshot grades remain
+  legacy/audit-readable and are not rewritten.
 - Sprint 77.0 replaced the live Bomb Lab tabbed presentation with a
   presentation-only workstation renderer. The Bomb model, HR calculations,
   generated JSON contract, registry, persistence, odds, routing, and build

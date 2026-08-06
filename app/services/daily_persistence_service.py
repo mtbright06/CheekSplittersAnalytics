@@ -9,12 +9,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Mapping, Protocol
 
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.database.session import SessionLocal
-from app.models import GameResult, Recommendation
+from app.services.canonical_recommendation_grading_service import (
+    CanonicalRecommendationGradingService,
+)
 from app.services.game_result_ingestion_service import GameResultIngestionService, GameResultInput
 from app.services.prediction_snapshot_grading_service import PredictionSnapshotGradingService
 from app.services.prediction_snapshot_persistence_service import (
@@ -64,11 +65,15 @@ class DailyPersistenceService:
         snapshot_persistence: PredictionSnapshotPersistenceService | None = None,
         result_ingestion: GameResultIngestionService | None = None,
         grading: PredictionSnapshotGradingService | None = None,
+        canonical_grading: CanonicalRecommendationGradingService | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._snapshot_persistence = snapshot_persistence or PredictionSnapshotPersistenceService(session_factory)
         self._result_ingestion = result_ingestion or GameResultIngestionService(session_factory)
         self._grading = grading or PredictionSnapshotGradingService(session_factory)
+        self._canonical_grading = canonical_grading or CanonicalRecommendationGradingService(
+            session_factory
+        )
 
     def persist_registry(self, registry_path: Path) -> PersistedPredictionRun:
         registry = _load_registry(registry_path)
@@ -149,32 +154,14 @@ class DailyPersistenceService:
         league_code: str,
         provider_game_id: str,
     ) -> tuple[int, int, int]:
-        session = self._session_factory()
         try:
-            snapshots = session.execute(
-                select(Recommendation.id).where(
-                    Recommendation.league_code == league_code.upper(),
-                    Recommendation.provider_game_id == str(provider_game_id),
-                )
-            ).scalars().all()
-        except SQLAlchemyError as exc:
-            raise DailyPersistenceError("Unable to match snapshots to GameResult.") from exc
-        finally:
-            session.close()
-
-        if not snapshots:
-            return 0, 0, 1
-        created = reused = 0
-        for snapshot_id in snapshots:
-            grade = self._grading.grade(
-                prediction_snapshot_id=snapshot_id,
+            return self._canonical_grading.grade_for_result(
+                league_code=league_code,
+                provider_game_id=provider_game_id,
                 game_result_id=game_result_id,
             )
-            if grade.created:
-                created += 1
-            else:
-                reused += 1
-        return created, reused, 0
+        except SQLAlchemyError as exc:
+            raise DailyPersistenceError("Unable to grade canonical episode.") from exc
 
 
 def _load_registry(path: Path) -> Mapping[str, Any]:

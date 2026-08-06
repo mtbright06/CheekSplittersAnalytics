@@ -1,16 +1,17 @@
 # MLB Totals Model Technical Audit Reference
 
-Phase 2C audit. No production behavior was changed.
+Phase 2C.2 review. Audit and documentation first; no production behavior was
+changed. The earlier Phase 2C "certified" wording was preliminary and is
+superseded by this deeper resolution pass.
 
 ## Closure Recommendation
 
 **TOTALS MODEL INTEGRITY CERTIFIED WITH PHASE 3 VALIDATION ITEMS**
 
-The model is projection-first and market-price independent. It requires a
-verified pregame total line, derives OVER/UNDER direction from projected total
-minus line, and scores recommendations from model separation, input
-completeness confidence, data quality, and bullpen confidence. No objective
-mathematical defect requiring code change was found.
+Certification here means every conceptual issue from Phase 2C has been
+resolved as either coherent implementation, terminology cleanup, or explicit
+Phase 3 statistical validation. It does not mean the model is calibrated or
+performance-certified.
 
 ## Files Audited
 
@@ -32,145 +33,216 @@ mathematical defect requiring code change was found.
 - `dashboard/pages/dashboard_page.py`
 - `tests/test_mlb_totals_winner_first.py`
 - `tests/test_mlb_totals_adapter.py`
-- `tests/test_mlb_totals_bullpen.py`
 - shared winner-first, ranking, recommendation, and pregame tests
 
-## PASS / REVIEW / DEFECT Matrix
+## Resolved REVIEW Matrix
 
-| ID | Classification | Finding |
-|---|---:|---|
-| TOTALS-001 | PASS | Direction authority is `projected_total - market_total`: positive OVER, negative UNDER, zero/no line PASS. |
-| TOTALS-002 | PASS | Recommendation score excludes odds price, sportsbook, EV, market quality, and staleness. |
-| TOTALS-003 | PASS | Verified pregame line is required before any actionable totals recommendation. |
-| TOTALS-004 | PASS | `projected_total` is explainable from starter/team projections plus bullpen adjustment. |
-| TOTALS-005 | RENAME/CLARIFY | `confidence` measures input completeness, not prediction probability or historical reliability. |
-| TOTALS-006 | REVIEW | `projected_total` is best described as expected runs/mean estimate, but no calibration evidence proves mean or median behavior. |
-| TOTALS-007 | REVIEW | Offense RPG, OPS, and wRC+ are partially overlapping run-production signals. |
-| TOTALS-008 | REVIEW | Starter ERA, WHIP, and HR/9 overlap run prevention and contact-quality effects. |
-| TOTALS-009 | REVIEW | Park factor is added to both teams, so one duplicated park data point is removed from confidence; projection influence remains intentionally doubled at game level. |
-| TOTALS-010 | REVIEW | Separation is used both as a score component and as tier gate; monotonic but potentially double-counted. |
-| TOTALS-011 | REVIEW | Recommendation score uses fixed `0.40/0.30/0.20/0.10` weights without empirical support in code/docs. |
-| TOTALS-012 | PASS | Score components are active; no dead or inactive weights were found. |
-| TOTALS-013 | REVIEW | Bullpen fatigue defaults missing `innings_last3` to rested `0.0`, which may understate uncertainty if provider data is absent. |
-| TOTALS-014 | REVIEW | Closer/setup availability defaults to available, a conservative compatibility choice but not proof of availability. |
-| TOTALS-015 | PASS | Shared Registry adapter carries totals recommendation score for ranking and leaves edge/EV null. |
-| TOTALS-016 | REVIEW | Adapter maps totals recommendation score into generic `hammer_score`; this is compatibility naming, not MLB Hammer. |
-| TOTALS-017 | PASS | Current artifact with no totals lines correctly produces PASS despite model projections. |
+| ID | Final | Evidence | Remaining Uncertainty | Phase Owner | Production Action |
+|---|---:|---|---|---|---|
+| TOTALS-005 confidence semantics | RENAME/CLARIFY | `confidence_from_data_points` is `40 + data_points * 4`, capped `40..78`. | It is not uncertainty or reliability. | Phase 3 docs/calibration | No formula change now. |
+| TOTALS-006 projected total semantics | RENAME/CLARIFY | `projected_total = away_expected_runs + home_expected_runs + bullpen_adjustment`. | Not proven mean or median by outcomes. | Phase 3 statistical validation | Keep label; describe as deterministic expected-runs estimate. |
+| TOTALS-007 offense overlap | REVIEW | RPG, OPS, and wRC+ all measure run creation but from run rate, base/power production, and context-adjusted offense. | Incremental value unproven. | Phase 3 feature study | No removal without evidence. |
+| TOTALS-008 starter overlap | REVIEW | ERA, WHIP, and HR/9 are an intentional starter-quality ensemble. | Correlation and incremental value unproven. | Phase 3 feature study | No removal without evidence. |
+| TOTALS-009 park/data points | PASS | Park affects both teams directly and contributes one unique data point after duplicate removal. | Static park table needs empirical validation. | Phase 3 park validation | No correction now. |
+| TOTALS-010 separation double-use | PASS | Separation is both direction evidence and magnitude score; score gate prevents separation alone from causing action in low-quality cases. | Threshold lift needs outcome validation. | Phase 3 threshold validation | No correction now. |
+| TOTALS-011 score weights | REVIEW | Score weights are explicit and bounded: separation `.40`, confidence `.30`, data quality `.20`, bullpen `.10`. | Empirical support absent. | Phase 3 weighting validation | No tuning now. |
+| TOTALS-013 bullpen fatigue default | REVIEW | Missing `innings_last3` becomes `0.0` rested through adapter default. | Missing workload may understate uncertainty. | Provider/data quality sprint | No correction unless provider contract changes. |
+| TOTALS-014 closer/setup default | REVIEW | Missing availability defaults true, preserving prior neutral behavior. | Availability is not proven. | Provider/data quality sprint | No correction unless availability source exists. |
+| TOTALS-016 Hammer compatibility | RENAME/CLARIFY | Adapter maps totals recommendation score into generic `Recommendation.hammer_score` for Registry ranking. | Could be misread as true MLB Hammer. | Contract/UI cleanup | No broad contract redesign now. |
 
-## Weight Findings
+No item is classified DEFECT in Phase 2C.2.
 
-Projection weighting:
+## Offense Inputs
 
-| Stage | Weight / Scale | Effective Influence | Audit |
-|---|---:|---:|---:|
-| Offense RPG | average member; clamp `-1.25..1.25` | up to one third of offense adjustment | REVIEW |
-| Offense wRC+ | average member; clamp `-0.80..0.80` | up to one third of offense adjustment | REVIEW |
-| Offense OPS | average member; clamp `-0.65..0.65` | up to one third of offense adjustment | REVIEW |
-| Starter ERA | average member; clamp `-1.15..1.15` | up to one third of starter adjustment | REVIEW |
-| Starter WHIP | average member; clamp `-0.75..0.75` | up to one third of starter adjustment | REVIEW |
-| Starter HR/9 | average member; clamp `-0.50..0.50` | up to one third of starter adjustment | REVIEW |
-| Park | `(factor - 1.0) * 4.0`, clamp `-0.80..0.80` | added to both teams | PASS/REVIEW |
-| Home field | `+0.12` | home team only | REVIEW |
-| Bullpen quality | ERA `.50`, WHIP `.25`, last7 `.25` | run adjustment clamp `-0.35..0.35` per team | PASS/REVIEW |
-| Bullpen fatigue | bucketed `0..0.45` | per team | REVIEW |
-| Availability | closer `+0.08`, setup `+0.05` | per team | REVIEW |
+| Input | Raw Source | Normalization | Range | Weight | Meaning | Overlap Verdict |
+|---|---|---|---:|---:|---|---:|
+| Runs/game | team profile offense fields | `RPG - 4.45`, clamped `-1.25..1.25` | `-1.25..1.25` | one member of average | observed run output | REVIEW |
+| wRC+ | team profile offense fields | `(wRC+ - 100) / 100 * 1.35`, clamped `-0.80..0.80` | `-0.80..0.80` | one member of average | context-adjusted offensive quality | REVIEW |
+| OPS | team profile offense fields | `(OPS - .720) * 4.5`, clamped `-0.65..0.65` | `-0.65..0.65` | one member of average | on-base plus power production | REVIEW |
 
-Recommendation weighting:
+The combination is **REVIEW - plausible but empirically unverified**. It is
+not a construction defect because each available input is averaged rather than
+summed, which limits mechanical double counting. It remains correlated and
+requires Phase 3 incremental-value testing.
 
-| Component | Weight | Notes | Audit |
-|---|---:|---|---:|
-| Model separation | `0.40` | `40 + runs * 30`, clamped | PASS/REVIEW |
-| Model confidence | `0.30` | input-completeness confidence `40..78` | RENAME/CLARIFY |
-| Data quality | `0.20` | categorical score `50..95` | REVIEW |
-| Bullpen confidence | `0.10` | game average bullpen confidence | PASS/REVIEW |
+## Starter Inputs
 
-No inactive recommendation-score weights were found. Missing components are
-generally omitted from averages or use neutral fallbacks rather than adding
-zero-weight dead branches.
+| Input | Normalization | Max Per-Team Influence | Max Game Influence | Typical Role | Verdict |
+|---|---|---:|---:|---|---:|
+| ERA | stabilized, `(ERA - 4.20) * .42`, clamp `-1.15..1.15` | one third of starter average | up to `2.30` before averaging effects | run prevention | REVIEW |
+| WHIP | stabilized, `(WHIP - 1.30) * 1.35`, clamp `-0.75..0.75` | one third | up to `1.50` before averaging effects | baserunner prevention | REVIEW |
+| HR/9 | stabilized, `(HR9 - 1.15) * .45`, clamp `-0.50..0.50` | one third | up to `1.00` before averaging effects | contact damage | REVIEW |
 
-## Feature-Overlap Findings
+Starter metrics are an intentional ensemble, not accidental duplicate
+arithmetic. ERA is outcome-level, WHIP is traffic, and HR/9 is damage shape.
+They are correlated and need Phase 3 validation.
 
-| Relationship | Classification | Finding |
-|---|---:|---|
-| RPG vs OPS/wRC+ | PARTIAL OVERLAP | All measure offense run creation from different views. |
-| Starter ERA vs WHIP/HR9 | PARTIAL OVERLAP | ERA reflects run prevention partly explained by baserunners and home runs. |
-| Starter projection vs projected total | LIKELY DOUBLE COUNT IF TREATED SEPARATELY | Projected total includes starter projection by construction. |
-| Bullpen adjustment vs bullpen confidence | PARTIAL OVERLAP | Bullpen inputs affect run total and separately influence recommendation quality. |
-| Projected total vs model separation | DERIVED | Separation is projected total minus line. |
-| Model separation vs recommendation score/tier | PARTIAL OVERLAP | Separation is both a weighted score component and mandatory tier gate. |
-| Data points vs data quality | DERIVED | Data quality label is derived from data point count. |
-| Model confidence vs data quality | PARTIAL OVERLAP | Confidence and data quality both reflect input completeness. |
-| Market total vs sportsbook odds | INDEPENDENT IN AUTHORITY | Line is required for direction; price is display only. |
+## Bullpen Semantics
 
-## Projection Semantics
-
-`projected_total` means a deterministic expected-runs estimate:
+Bullpen quality affects the projected total through run adjustment:
 
 ```text
-away_expected_runs + home_expected_runs + combined_bullpen_adjustment
+quality = ERA*.50 + WHIP*.25 + last7 ERA*.25 transformed around league average
+quality_run_adjustment = clamp(-weighted_quality * .60, -0.35, 0.35)
+fatigue_adjustment = 0.00 / 0.10 / 0.25 / 0.45
+availability_adjustment = closer_missing*.08 + setup_missing*.05
+team_adjustment = clamp(sum, -0.50, 0.75)
+game_adjustment = clamp(away + home, -1.25, 2.50)
 ```
 
-It is built from league-average team runs, offense quality, opposing starter
-quality, park environment, home field, and bullpen run adjustment. It does not
-include weather, confirmed lineups, umpire, defensive alignment, extra-inning
-distribution, or simulated run variance.
-
-Verdict: **RENAME/CLARIFY** only if UI/docs call it probability. Otherwise
-coherent as projected/expected total.
-
-## Confidence Verdict
-
-Totals confidence is not prediction certainty. It is input completeness:
+Bullpen confidence affects recommendation conviction:
 
 ```text
-40 + data_points * 4, clamped to 40..78
+team_bullpen_confidence starts 45
++18 season ERA, +15 season WHIP, +12 last7 ERA, +5 available quality
+-2 closer unavailable, -2 setup unavailable
+game_bullpen_confidence = average teams
+recommendation contribution = game_bullpen_confidence * .10
 ```
 
-`75 confidence` means high source/input coverage within the current totals
-projection pipeline. It does not mean 75% chance, 75% historical reliability,
-or calibrated uncertainty.
+Verdict: **PASS with REVIEW assumptions**. This is conceptually an
+independent estimate plus uncertainty: bullpen quality changes the projection,
+while bullpen confidence changes trust in the projection. It is not a defect.
+Provider defaults for workload and availability remain REVIEW.
 
-Verdict: **RENAME/CLARIFY**.
+## Confidence Semantics
 
-## Recommendation-Scoring Verdict
-
-The score is monotonic and bounded. Separation, model confidence, data quality,
-and bullpen confidence all increase or preserve recommendation score. No
-market-price fields affect it. The only review item is duplication: separation
-controls both the score and the tier gate, while data quality and confidence
-are closely related completeness measures.
-
-Verdict: **PASS with REVIEW items**.
-
-## Threshold Verdict
-
-Thresholds are reachable under complete data:
+Totals confidence measures input completeness only:
 
 ```text
-0.40+ runs and score 64+ -> LEAN
-0.75+ runs and score 72+ -> BET
-1.25+ runs and score 82+ -> STRONG BET
+data_points = away_projection_points + home_projection_points - duplicated_park_point
+confidence = clamp(40 + data_points * 4, 40, 78)
 ```
 
-The gates are monotonic and non-overlapping. Phase 3 should validate whether
-the score thresholds and run-separation thresholds produce useful decision
-rates and outcome calibration.
+It does not measure projection certainty, disagreement, bullpen certainty,
+historical reliability, or prediction uncertainty. Bullpen certainty is
+separate and enters recommendation score at 10%.
 
-Verdict: **PASS with Phase 3 validation items**.
+Answer: a totals confidence of `75` means high available offense/starter/park
+input coverage under the current completeness scale. Authoritative
+terminology should be **projection_input_confidence** or **input_completeness
+confidence** when contracts allow.
+
+## Separation Double-Use
+
+Representative complete-data examples with confidence `78`, data quality
+`EXCELLENT`, and bullpen confidence `95`:
+
+| Separation | Separation Score | Recommendation Score | Tier |
+|---:|---:|---:|---|
+| `0.39` | `51.7` | `72.6` | PASS |
+| `0.40` | `52.0` | `72.7` | LEAN |
+| `0.75` | `62.5` | `76.9` | BET |
+| `1.25` | `77.5` | `82.9` | STRONG BET |
+| `2.00` | `100.0` | `91.9` | STRONG BET |
+
+Low-quality example with confidence `40`, data quality `LIMITED`, bullpen
+confidence `45`:
+
+| Separation | Score | Tier |
+|---:|---:|---|
+| `0.40` | `47.3` | PASS |
+| `0.75` | `51.5` | PASS |
+| `1.25` | `57.5` | PASS |
+| `2.00` | `66.5` | LEAN |
+
+Verdict: **PASS**. Separation can change tiers at gates, but score gates
+prevent separation alone from automatically producing high-conviction plays.
+This is reasonable monotonic confirmation, not excessive double emphasis.
+
+## Recommendation Score Weights
+
+| Component | Weight | Effective Range | Min Contribution | Max Contribution | Missing Behavior |
+|---|---:|---:|---:|---:|---|
+| Separation score | `.40` | `0..100` | `0` | `40` | `0` without verified line |
+| Model confidence | `.30` | `40..78` normally, clamped `0..100` | `12` normal | `23.4` normal | computed from data points |
+| Data quality | `.20` | `50..95` | `10` | `19` | unknown maps LIMITED `50` |
+| Bullpen confidence | `.10` | `0..100` | `0` | `10` | neutral/partial confidence |
+
+Verdict: **coherent heuristic**. Nominal weights broadly match effective
+influence. Separation has the largest influence by design and does not dominate
+solely because of scale.
+
+## Thresholds
+
+Totals thresholds:
+
+```text
+STRONG BET: separation >= 1.25 and score >= 82
+BET:        separation >= 0.75 and score >= 72
+LEAN:       separation >= 0.40 and score >= 64
+PASS:       otherwise
+```
+
+Verdict: **PASS with Phase 3 validation**. Gates are monotonic, reachable,
+non-overlapping, and have no dead branches. A small separation change at
+`0.40`, `0.75`, or `1.25` can change labels only when score is already high
+enough. Near-line handling is PASS below `0.40`.
+
+## Park And Data Points
+
+Park affects the projection directly for both teams:
+
+```text
+park_adjustment = clamp((park_factor - 1.00) * 4.0, -0.80, 0.80)
+```
+
+Park availability affects data points once, not twice. Each team projection
+contains the same park input, then `calculate_game_data_points` subtracts one
+duplicated park point. Missing park data uses neutral factor `1.00`, no
+projection adjustment, and no park data point.
+
+Verdict: **PASS** for internal accounting. Static park factors remain Phase 3
+validation.
+
+## Projected Total Terminology
+
+Verdict: **RENAME/CLARIFY**. The best authoritative description is
+**deterministic central expected-runs estimate**. The label
+`projected_total` is acceptable. Avoid claiming calibrated mean, median, or
+probability until Phase 3 validates distribution behavior. Per-team clamp
+`2.25..7.25` and game floor `0.0` make it a bounded heuristic composite.
+
+## Hammer Compatibility
+
+Active consumers:
+
+- `engine/adapters/mlb_totals_adapter.py` maps totals recommendation score to
+  `Recommendation.hammer_score`.
+- `engine/core/ranking.py` consumes `hammer_score` as a generic ranking input.
+- Registry/Best Bets display may show the shared score field depending on
+  presentation path.
+
+Verdict: **RENAME/CLARIFY**. This is a safe compatibility alias for ranking,
+not a true Hammer calculation. No broad contract redesign is required now, but
+docs/UI should avoid presenting totals `hammer_score` as independent Hammer
+conviction.
+
+## Walkthroughs
+
+Current artifacts have totals projections but no verified totals lines, so the
+real current rows are PASS. The actionable examples below are synthetic
+boundary examples using production formulas, clearly labeled as such.
+
+| Case | Starter Total | Bullpen Adj | Projected | Line | Separation | Confidence | Bullpen Conf | Score | Tier |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| Synthetic strong OVER | `8.69` | `+0.57` | `9.26` | `8.00` | `+1.26` | `78` | `93` | `82.6` | STRONG BET OVER |
+| Synthetic strong UNDER | `8.30` | `-0.11` | `8.19` | `9.50` | `-1.31` | `78` | `95` | `83.6` | STRONG BET UNDER |
+| Current close/no-line PASS | `9.57` | `-0.47` | `9.10` | none | none | `78` | `95` | `0.0` | PASS |
 
 ## Comparison With MLB Moneyline
 
 | Area | MLB Moneyline | MLB Totals | Classification |
 |---|---|---|---:|
-| Official authority | model win strength + model confidence | projected total vs line + confidence/data quality | intentional |
-| Market role | SSRP edge display only | total line defines Over/Under separation; price display only | intentional |
+| Official authority | model win strength + model confidence | projected total vs verified line + confidence/data quality | intentional |
+| Market role | SSRP edge display only | total line is the Over/Under comparison target; odds price display only | intentional |
 | Probability semantics | bounded score, not calibrated probability | projected expected runs, not probability | aligned |
-| Confidence semantics | separation/completeness/starter certainty | input completeness, bullpen confidence separate | different but coherent |
-| Hammer | explicit advisory layer | no true Hammer; recommendation score mapped to `hammer_score` for Registry | REVIEW |
-| Ranking | tier, model strength, confidence, Hammer | tier, neutral model probability, confidence label, recommendation score as Hammer | compatible but semantically overloaded |
+| Confidence semantics | separation/completeness/starter certainty | input completeness, bullpen confidence separate | RENAME/CLARIFY |
+| Hammer | explicit advisory layer | no true Hammer; recommendation score compatibility alias | RENAME/CLARIFY |
+| Ranking | tier, model strength, confidence, Hammer | tier plus recommendation score through shared contract | compatible |
 | Explainability | structured model/Hammer reasons | projection, bullpen, market-line explanation | PASS |
 
 ## DEFECT Findings
 
-No objective mathematical DEFECT was found in this audit. Review items remain
-for Phase 3 statistical validation and semantic cleanup.
+No objective mathematical DEFECT was found. No production correction is
+required now.

@@ -320,7 +320,8 @@ validation item. No weights, thresholds, confidence formula, recommendation
 tiers, starter/offense calculations, market display, persistence, or grading
 were tuned.
 
-Phase 2C completed the MLB Totals model integrity audit in
+Phase 2C.2 superseded the preliminary Phase 2C MLB Totals model integrity
+audit in
 `docs/MODEL_SPECIFICATION_TOTALS.md`,
 `docs/MODEL_TECHNICAL_REFERENCE_TOTALS.md`, and
 `docs/TOTALS_MODEL_INTEGRITY_DECISION_LOG.md`. Closure recommendation is
@@ -328,12 +329,15 @@ TOTALS MODEL INTEGRITY CERTIFIED WITH PHASE 3 VALIDATION ITEMS. Totals is
 coherent as a projection-first Over/Under heuristic: direction comes from
 `projected_total - market_total`, verified pregame line is required, and odds
 price, sportsbook, EV, market quality, and staleness do not affect conviction.
-Review items remain for empirical weights, projection calibration, confidence
-semantics, overlapping offense/starter inputs, separation double-use in score
-and tier gates, and totals recommendation score being mapped into the generic
-Registry `hammer_score` field. Current artifacts contain totals projections
-but no verified totals lines, so no live actionable totals examples were
-available for walkthrough validation. No production model logic changed.
+The deeper review resolved the original REVIEW items as coherent
+implementation, RENAME/CLARIFY, or Phase 3 evidence work: offense and starter
+overlap are bounded ensembles rather than construction defects; bullpen
+projection and bullpen confidence are estimate/trust channels; separation
+double-use is monotonic confirmation; park data-point accounting is internally
+consistent; and totals `hammer_score` is a shared-contract compatibility alias,
+not true Hammer. Current artifacts contain totals projections but no verified
+totals lines, so no live actionable totals examples were available for
+walkthrough validation. No production model logic changed.
 
 **Sprint 68.1 — Application Shell:** implemented and awaiting review. The
 dashboard now has a dedicated `dashboard/shell/` boundary that owns one route

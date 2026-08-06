@@ -270,3 +270,14 @@ production history:
 - `tests/test_mlb_recommendation_authority.py`
 - `tests/test_mlb_totals_winner_first.py`
 
+## Canonical Analytics Note
+
+As of Sprint 79.4, official validation tables should be built from canonical
+recommendation episodes and canonical grades, not raw snapshot grades.
+Prediction snapshots remain timeline/audit evidence, but repeated model builds
+must not inflate win/loss, calibration, Hammer, tier, league, or market
+summaries.
+
+Canonical-empty behavior is intentional: if no `GRADED` canonical episodes are
+available, validation reports should show no official sample rather than
+falling back to legacy `prediction_snapshot_grades`.

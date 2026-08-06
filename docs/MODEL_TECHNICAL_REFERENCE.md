@@ -310,6 +310,11 @@ Idempotency and legacy isolation:
 - episode-enabled result processing no longer creates new snapshot-level
   `PENDING` grades; existing `prediction_snapshot_grades` remain readable as
   legacy/audit history.
+- official analytics use `CanonicalRecommendationReadModel`, which joins
+  `recommendation_episodes`, `canonical_recommendation_grades`, and the
+  canonical snapshot. Snapshot grades are not a silent fallback.
+- Model Health and Recommendation History return canonical-empty states until
+  canonical episode grades exist.
 
 ## Play Of The Day
 

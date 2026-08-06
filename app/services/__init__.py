@@ -26,6 +26,12 @@ from app.services.canonical_recommendation_grading_service import (
     CanonicalRecommendationGradingService,
     SavedCanonicalRecommendationGrade,
 )
+from app.services.canonical_recommendation_read_model import (
+    CanonicalRecommendationReadError,
+    CanonicalRecommendationReadModel,
+    CanonicalRecommendationRecord,
+    RecommendationTimelineSnapshot,
+)
 from app.services.recommendation_analytics_service import (
     ModelHealthBucket,
     ModelHealthReport,
@@ -61,6 +67,9 @@ __all__ = [
     "GameInput",
     "CanonicalRecommendationGradingError",
     "CanonicalRecommendationGradingService",
+    "CanonicalRecommendationReadError",
+    "CanonicalRecommendationReadModel",
+    "CanonicalRecommendationRecord",
     "DailyPersistenceError",
     "DailyPersistenceService",
     "DailyPersistenceSummary",
@@ -81,6 +90,7 @@ __all__ = [
     "PredictionSnapshotGradingService",
     "RecommendationEpisodeLockError",
     "RecommendationEpisodeLockService",
+    "RecommendationTimelineSnapshot",
     "RecommendationInput",
     "RecommendationAnalyticsError",
     "RecommendationAnalyticsService",

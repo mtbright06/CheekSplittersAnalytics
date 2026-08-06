@@ -19,6 +19,12 @@ from app.models import (
     Recommendation,
     LegacyRecommendationSettlement,
 )
+from app.services.canonical_recommendation_read_model import (
+    CanonicalRecommendationReadError,
+    CanonicalRecommendationReadModel,
+    CanonicalRecommendationRecord,
+    RecommendationTimelineSnapshot,
+)
 
 
 class RecommendationHistoryError(RuntimeError):
@@ -112,6 +118,11 @@ class RecommendationHistoryItem:
     source: str
 
     latest_grade: LatestGradeView | None
+    recommendation_episode_id: UUID | None = None
+    canonical_snapshot_id: UUID | None = None
+    locked_at: datetime | None = None
+    graded_at: datetime | None = None
+    timeline_snapshots: tuple[RecommendationTimelineSnapshot, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,8 +159,13 @@ class RecommendationHistoryService:
     def __init__(
         self,
         session_factory: sessionmaker[Session] = SessionLocal,
+        *,
+        canonical_read_model: CanonicalRecommendationReadModel | None = None,
     ) -> None:
         self._session_factory = session_factory
+        self._canonical_read_model = canonical_read_model or CanonicalRecommendationReadModel(
+            session_factory
+        )
 
     def list_recommendations(
         self,
@@ -163,43 +179,139 @@ class RecommendationHistoryService:
         )
         self._validate_pagination(limit=limit, offset=offset)
 
-        statement = self._build_recommendation_statement(
-            filters=normalized_filters,
-            limit=limit,
-            offset=offset,
-        )
-
-        session = self._session_factory()
-
         try:
-            rows = session.execute(statement).all()
-
-            return tuple(
-                self._to_recommendation_history_item(
-                    recommendation=recommendation,
-                    game=game,
-                    league=league,
-                    model_version=model_version,
-                    model_run=model_run,
-                    latest_grade=latest_grade,
-                )
-                for (
-                    recommendation,
-                    game,
-                    league,
-                    model_version,
-                    model_run,
-                    latest_grade,
-                ) in rows
-            )
-
-        except SQLAlchemyError as exc:
+            records = self._canonical_read_model.list_graded_records()
+        except (CanonicalRecommendationReadError, SQLAlchemyError) as exc:
             raise RecommendationHistoryError(
-                "Database operation failed while querying recommendation history."
+                "Database operation failed while querying canonical recommendation history."
             ) from exc
 
-        finally:
-            session.close()
+        filtered = tuple(
+            record
+            for record in records
+            if self._record_matches_filters(record, normalized_filters)
+        )
+        page = filtered[offset: offset + limit]
+        return tuple(self._to_canonical_history_item(record) for record in page)
+
+    def list_episode_timeline(
+        self,
+        episode_id: UUID,
+    ) -> tuple[RecommendationTimelineSnapshot, ...]:
+        return self._canonical_read_model.list_episode_timeline(episode_id)
+
+    @classmethod
+    def _record_matches_filters(
+        cls,
+        record: CanonicalRecommendationRecord,
+        filters: RecommendationHistoryFilters,
+    ) -> bool:
+        if filters.start_time is not None and record.canonical_snapshot_time < filters.start_time:
+            return False
+        if filters.end_time is not None and record.canonical_snapshot_time >= filters.end_time:
+            return False
+        if filters.league_code is not None and record.league_code.upper() != filters.league_code:
+            return False
+        if filters.sport is not None and record.sport.upper() != filters.sport:
+            return False
+        if filters.market_type is not None and record.market.upper() != filters.market_type:
+            return False
+        if filters.selection is not None and record.selection.upper() != filters.selection:
+            return False
+        if filters.model_version is not None and record.model_version != filters.model_version:
+            return False
+        if filters.model_name is not None and (record.model_name or "").upper() != filters.model_name:
+            return False
+        if filters.outcome is not None and record.grade_status.upper() != filters.outcome:
+            return False
+        if filters.graded is False:
+            return False
+        if filters.tier is not None and (record.recommendation_tier or "").upper() != filters.tier:
+            return False
+        if filters.minimum_confidence is not None and (
+            record.confidence is None or record.confidence < filters.minimum_confidence
+        ):
+            return False
+        if filters.maximum_confidence is not None and (
+            record.confidence is None or record.confidence > filters.maximum_confidence
+        ):
+            return False
+        if filters.minimum_hammer is not None and (
+            record.hammer_score is None or record.hammer_score < filters.minimum_hammer
+        ):
+            return False
+        if filters.maximum_hammer is not None and (
+            record.hammer_score is None or record.hammer_score > filters.maximum_hammer
+        ):
+            return False
+        return True
+
+    @classmethod
+    def _to_canonical_history_item(
+        cls,
+        record: CanonicalRecommendationRecord,
+    ) -> RecommendationHistoryItem:
+        latest_grade = LatestGradeView(
+            grade_id=record.canonical_grade_id,
+            outcome=record.grade_status,
+            american_odds=None,
+            stake_units=Decimal("0"),
+            profit_units=Decimal("0"),
+            actual_home_score=None,
+            actual_away_score=None,
+            graded_at=record.graded_at,
+            source="canonical_recommendation_grades",
+            notes=None,
+            grade_metadata={
+                "game_result_id": str(record.game_result_id),
+                "game_result_revision": record.game_result_revision,
+                "result_status": record.result_status,
+            },
+        )
+        scheduled_start = record.locked_at or record.canonical_snapshot_time
+        return RecommendationHistoryItem(
+            recommendation_id=record.canonical_snapshot_id,
+            recommendation_time=record.canonical_snapshot_time,
+            league_code=record.league_code,
+            league_name=record.league_code,
+            sport=record.sport,
+            game_id=record.stream_id,
+            external_game_id=record.provider_game_id,
+            scheduled_start=scheduled_start,
+            game_status=record.result_status,
+            model_name=record.model_name or "unknown",
+            model_version=record.model_version,
+            git_commit=record.git_commit or "unknown",
+            model_run_id=record.model_run_id,
+            run_label=None,
+            run_source=record.run_source,
+            market_type=record.market,
+            selection=record.selection,
+            market_line=record.canonical_market_line,
+            projection=record.model_probability or Decimal("0"),
+            edge=None,
+            confidence=record.confidence or Decimal("0"),
+            tier=cls._normalize_tier(record.recommendation_tier),
+            hammer_score=record.hammer_score,
+            signal_combination=cls._extract_optional_string(
+                record.components,
+                "signal_combination",
+                "signal_combo",
+                "signals",
+            ),
+            real_market_loaded=cls._extract_optional_bool(
+                record.components,
+                "real_market_loaded",
+            ),
+            components=record.components,
+            explanation=record.explanation,
+            source=record.source,
+            latest_grade=latest_grade,
+            recommendation_episode_id=record.episode_id,
+            canonical_snapshot_id=record.canonical_snapshot_id,
+            locked_at=record.locked_at,
+            graded_at=record.graded_at,
+        )
 
     def list_model_runs(
         self,
@@ -815,6 +927,10 @@ class RecommendationHistoryService:
             "recommendation",
         )
 
+        return value.upper() if value is not None else None
+
+    @staticmethod
+    def _normalize_tier(value: str | None) -> str | None:
         return value.upper() if value is not None else None
 
     @staticmethod

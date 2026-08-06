@@ -26,7 +26,7 @@ def render_model_health_dashboard(
     render_compact_header(
         "",
         "Model Health",
-        "Read-only performance from immutable prediction snapshots and grades.",
+        "Read-only performance from canonical recommendation episodes and grades.",
     )
     try:
         report = (service or RecommendationAnalyticsService()).model_health()

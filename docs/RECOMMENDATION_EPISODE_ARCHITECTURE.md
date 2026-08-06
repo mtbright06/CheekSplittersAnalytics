@@ -541,6 +541,31 @@ Idempotency:
 - grading atomically inserts/reuses the canonical grade and transitions
   `LOCKED` to `GRADED`.
 
+## Canonical Analytics
+
+Official performance analytics now read from
+`recommendation_episodes` + `canonical_recommendation_grades` +
+`canonical_snapshot_id` through `CanonicalRecommendationReadModel`.
+
+Rules:
+
+- include only `GRADED` episodes in primary performance counts.
+- count one official recommendation per canonical episode, not each attached
+  snapshot or model-run rebuild.
+- use the canonical snapshot for tier, confidence, Hammer, projection, market
+  line, and recommendation timestamp.
+- exclude `VOID` from win-rate denominators while keeping void counts visible.
+- return an empty canonical state when no canonical grades exist; do not fall
+  back to legacy snapshot-grade statistics.
+- keep snapshot timelines available only through explicit timeline reads.
+
+Surfaces using canonical records:
+
+- Model Health and recommendation analytics.
+- Recommendation History official rows.
+- future calibration, Hammer performance, tier performance, market summaries,
+  league summaries, and win/loss records.
+
 ## Migration And Reset Recommendation
 
 Do not delete snapshots.

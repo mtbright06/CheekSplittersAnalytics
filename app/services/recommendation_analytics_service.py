@@ -14,6 +14,10 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.database.session import SessionLocal
 from app.models import Recommendation, RecommendationGrade
+from app.services.canonical_recommendation_read_model import (
+    CanonicalRecommendationReadModel,
+    CanonicalRecommendationRecord,
+)
 
 
 GRADE_STATUSES = frozenset(
@@ -129,6 +133,7 @@ class _AnalyticsRecord:
     recommendation_time: datetime | None
     grade_status: str | None
     is_prediction_snapshot: bool
+    hammer_score: Decimal | None = None
 
 
 class _AnalyticsRecordLoader(Protocol):
@@ -145,11 +150,15 @@ class RecommendationAnalyticsService:
         record_loader: _AnalyticsRecordLoader | None = None,
         now_factory: Callable[[], datetime] = lambda: datetime.now(UTC),
         include_legacy: bool = False,
+        canonical_read_model: CanonicalRecommendationReadModel | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._record_loader = record_loader
         self._now_factory = now_factory
         self._include_legacy = include_legacy
+        self._canonical_read_model = canonical_read_model or CanonicalRecommendationReadModel(
+            session_factory
+        )
 
     def model_health(self) -> ModelHealthReport:
         records = (
@@ -157,17 +166,22 @@ class RecommendationAnalyticsService:
             if self._record_loader is not None
             else self._load_records()
         )
-        included_records = (
-            records
-            if self._include_legacy
-            else tuple(record for record in records if record.is_prediction_snapshot)
-        )
+        if self._record_loader is not None and not self._include_legacy:
+            records = tuple(record for record in records if record.is_prediction_snapshot)
         return ModelHealthReport(
             generated_at=_as_utc(self._now_factory()),
-            buckets=_aggregate(included_records),
+            buckets=_aggregate(records),
         )
 
     def _load_records(self) -> tuple[_AnalyticsRecord, ...]:
+        canonical_records = self._canonical_read_model.list_graded_records()
+        if canonical_records or not self._include_legacy:
+            return tuple(_analytics_record_from_canonical(record) for record in canonical_records)
+        return self._load_legacy_snapshot_records()
+
+    def _load_legacy_snapshot_records(self) -> tuple[_AnalyticsRecord, ...]:
+        """Explicit legacy/audit path; primary analytics do not call this by default."""
+
         latest_grade_revision = (
             select(
                 RecommendationGrade.prediction_snapshot_id.label("snapshot_id"),
@@ -311,6 +325,20 @@ def _recommendation_tier(components: object) -> str | None:
         prediction.get("conviction_tier")
         or prediction.get("model_recommendation")
         or prediction.get("recommendation")
+    )
+
+
+def _analytics_record_from_canonical(
+    record: CanonicalRecommendationRecord,
+) -> _AnalyticsRecord:
+    return _AnalyticsRecord(
+        league=record.league_code,
+        market=record.market,
+        recommendation_tier=record.recommendation_tier,
+        recommendation_time=record.canonical_snapshot_time,
+        grade_status=record.grade_status,
+        is_prediction_snapshot=False,
+        hammer_score=record.hammer_score,
     )
 
 

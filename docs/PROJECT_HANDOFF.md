@@ -1072,6 +1072,17 @@ These ideas may be valuable. They are not blocking the active Epic 1 objective.
   uses canonical episode grading and does not create new snapshot-level
   `PENDING` rows for episode-enabled snapshots. Existing snapshot grades remain
   legacy/audit-readable and are not rewritten.
+- Sprint 79.4 migrated official analytics reads to canonical episodes and
+  canonical grades through `CanonicalRecommendationReadModel`.
+  `RecommendationAnalyticsService`, Model Health, and
+  `RecommendationHistoryService` now count one official recommendation per
+  `GRADED` canonical episode and use the canonical snapshot for tier,
+  confidence, Hammer, projection, market line, and timestamps. Snapshot
+  timelines remain available through explicit episode timeline reads only.
+  Legacy `prediction_snapshot_grades` are not deleted or rewritten and are not
+  a silent fallback; canonical-empty analytics return empty samples. Read-only
+  Azure verification reached revision `f2c8a1e6d4b7`, where episode tables are
+  not yet deployed; immutable snapshot count was 172 at verification time.
 - Sprint 77.0 replaced the live Bomb Lab tabbed presentation with a
   presentation-only workstation renderer. The Bomb model, HR calculations,
   generated JSON contract, registry, persistence, odds, routing, and build

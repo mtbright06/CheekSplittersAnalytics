@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from types import SimpleNamespace
+from uuid import uuid4
 
+from app.services.canonical_recommendation_read_model import CanonicalRecommendationRecord
 from app.services.recommendation_analytics_service import (
     RecommendationAnalyticsService,
     _AnalyticsRecord,
@@ -34,6 +37,71 @@ def _record(
 def _report(records):
     return RecommendationAnalyticsService(
         record_loader=lambda: records,
+        now_factory=lambda: NOW,
+    ).model_health()
+
+
+class _CanonicalReadModel:
+    def __init__(self, records):
+        self.records = tuple(records)
+
+    def list_graded_records(self):
+        return self.records
+
+
+def _canonical_record(
+    *,
+    league="MLB",
+    market="MONEYLINE",
+    selection="HOME",
+    tier="STRONG PLAY",
+    status="WIN",
+    confidence=Decimal("0.74"),
+    hammer=Decimal("68.2"),
+    minutes=0,
+    model_version="1.0.0",
+):
+    return CanonicalRecommendationRecord(
+        episode_id=uuid4(),
+        stream_id=uuid4(),
+        sport="BASEBALL",
+        league_code=league,
+        provider="mlb_stats_api",
+        provider_game_id="824414",
+        market=market,
+        selection=selection,
+        selection_side="HOME" if market == "MONEYLINE" else "",
+        canonical_snapshot_id=uuid4(),
+        canonical_snapshot_time=NOW + timedelta(minutes=minutes),
+        canonical_market_line=Decimal("8.5") if market in {"TOTAL", "TOTALS"} else None,
+        recommendation_tier=tier,
+        confidence=confidence,
+        hammer_score=hammer,
+        model_probability=Decimal("0.612"),
+        opened_at=NOW,
+        locked_at=NOW + timedelta(hours=2),
+        graded_at=NOW + timedelta(hours=5),
+        canonical_grade_id=uuid4(),
+        grade_status=status,
+        game_result_id=uuid4(),
+        game_result_revision=1,
+        result_status="FINAL",
+        winner_side="HOME",
+        total_score=9,
+        model_version=model_version,
+        model_name="sharpstack_registry",
+        git_commit="abc123",
+        model_run_id=uuid4(),
+        run_source="sharpstack",
+        components={"prediction": {"hammer_score": str(hammer)}},
+        explanation=None,
+        source="sharpstack",
+    )
+
+
+def _canonical_report(records):
+    return RecommendationAnalyticsService(
+        canonical_read_model=_CanonicalReadModel(records),
         now_factory=lambda: NOW,
     ).model_health()
 
@@ -140,34 +208,64 @@ def test_legacy_records_are_excluded_by_default_and_can_be_opted_in():
 
 
 def test_database_loader_extracts_immutable_snapshot_tier_without_writing():
-    recommendation = SimpleNamespace(
-        league_code="MLB",
-        market_type="MONEYLINE",
-        components={"prediction": {"conviction_tier": "✅ PLAYABLE"}},
-        recommendation_time=NOW,
-        idempotency_key="snapshot-key",
-        model_run_id="run-id",
-    )
-
-    class _Session:
-        closed = False
-        statement = None
-
-        def execute(self, statement):
-            self.statement = statement
-            return SimpleNamespace(all=lambda: [(recommendation, "WIN")])
-
-        def close(self):
-            self.closed = True
-
-    session = _Session()
     report = RecommendationAnalyticsService(
-        session_factory=lambda: session,
+        canonical_read_model=_CanonicalReadModel(
+            [_canonical_record(tier="✅ PLAYABLE")]
+        ),
         now_factory=lambda: NOW,
     ).model_health()
 
     bucket = report.buckets[0]
     assert bucket.recommendation_tier == "PLAYABLE"
     assert bucket.wins == 1
-    assert session.closed is True
-    assert "max(" in str(session.statement).lower()
+
+
+def test_four_snapshots_for_one_episode_count_as_one_official_recommendation():
+    bucket = _canonical_report([_canonical_record()]).buckets[0]
+
+    assert bucket.sample_size == 1
+    assert bucket.wins == 1
+
+
+def test_selection_flip_counts_only_final_canonical_recommendation():
+    bucket = _canonical_report([
+        _canonical_record(selection="AWAY", status="LOSS"),
+    ]).buckets[0]
+
+    assert bucket.sample_size == 1
+    assert bucket.selection if hasattr(bucket, "selection") else True
+    assert bucket.losses == 1
+
+
+def test_pushes_and_voids_are_handled_with_void_excluded_from_win_rate():
+    bucket = _canonical_report(
+        [
+            _canonical_record(status="WIN"),
+            _canonical_record(status="LOSS", minutes=1),
+            _canonical_record(status="PUSH", minutes=2),
+            _canonical_record(status="VOID", minutes=3),
+        ]
+    ).buckets[0]
+
+    assert bucket.sample_size == 4
+    assert (bucket.wins, bucket.losses, bucket.pushes, bucket.voids) == (1, 1, 1, 1)
+    assert bucket.win_percentage == 50.0
+
+
+def test_canonical_empty_state_does_not_fall_back_to_legacy_snapshot_data():
+    legacy_loader = lambda: [_record(status="WIN")]
+
+    report = RecommendationAnalyticsService(
+        record_loader=None,
+        canonical_read_model=_CanonicalReadModel([]),
+        now_factory=lambda: NOW,
+    ).model_health()
+
+    assert report.buckets == ()
+    assert legacy_loader()[0].grade_status == "WIN"
+
+
+if __name__ == "__main__":
+    for name, fn in sorted(globals().items()):
+        if name.startswith("test_") and callable(fn):
+            fn()

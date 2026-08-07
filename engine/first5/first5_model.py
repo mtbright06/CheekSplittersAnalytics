@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import math
 from typing import Any
 
 import requests
@@ -13,6 +14,13 @@ from engine.model.pitcher_stabilization import (
 
 
 MLB_API = "https://statsapi.mlb.com/api/v1"
+
+LEAGUE_RUNS_PER_GAME = 4.45
+LEAGUE_F5_TEAM_RUNS = LEAGUE_RUNS_PER_GAME * (5 / 9)
+LEAGUE_ERA = 4.20
+LEAGUE_WHIP = 1.28
+LEAGUE_HR9 = 1.15
+LEAGUE_K_MINUS_BB9 = 5.0
 
 DEFAULT_TEAM_METRICS = {
     "games": 0,
@@ -253,6 +261,19 @@ def fetch_pitcher_metrics(pitcher_id: int | None) -> dict:
     return metrics
 
 
+def offense_factor(stats: dict) -> float:
+    runs_per_game = safe_float(
+        stats.get("runs_per_game"),
+        LEAGUE_RUNS_PER_GAME,
+    )
+
+    return clamp(
+        runs_per_game / LEAGUE_RUNS_PER_GAME,
+        0.78,
+        1.24,
+    )
+
+
 def offense_score(stats: dict) -> float:
     runs_component = clamp((stats["runs_per_game"] - 3.2) / 2.6 * 100)
     ops_component = clamp((stats["ops"] - 0.620) / 0.190 * 100)
@@ -295,80 +316,202 @@ def park_factor_for_game(home_team: str | None) -> float:
     return safe_float(PARK_FACTORS.get(home_team, 1.0), 1.0)
 
 
+def starter_run_factor(
+    pitcher: dict,
+) -> float:
+    era = safe_float(
+        pitcher.get("era"),
+        LEAGUE_ERA,
+    )
+    whip = safe_float(
+        pitcher.get("whip"),
+        LEAGUE_WHIP,
+    )
+    hr9 = safe_float(
+        pitcher.get("hr9"),
+        LEAGUE_HR9,
+    )
+    k_minus_bb9 = safe_float(
+        pitcher.get("k_minus_bb9"),
+        LEAGUE_K_MINUS_BB9,
+    )
+
+    log_factor = (
+        ((era - LEAGUE_ERA) * 0.045)
+        + ((whip - LEAGUE_WHIP) * 0.13)
+        + ((hr9 - LEAGUE_HR9) * 0.055)
+        - ((k_minus_bb9 - LEAGUE_K_MINUS_BB9) * 0.014)
+    )
+
+    return clamp(
+        math.exp(log_factor),
+        0.78,
+        1.28,
+    )
+
+
 def project_team_f5_runs(
     offense_stats: dict,
     opposing_pitcher: dict,
     park_factor: float,
-    home_adjustment: float = 0.0,
+    *,
+    is_home: bool = False,
 ) -> float:
-    base_runs = offense_stats["runs_per_game"] * (5 / 9)
-
-    pitcher_multiplier = (
-        1.0
-        + ((opposing_pitcher["era"] - 4.20) * 0.055)
-        + ((opposing_pitcher["whip"] - 1.28) * 0.18)
-        + ((opposing_pitcher["hr9"] - 1.15) * 0.075)
-        - ((opposing_pitcher["k_minus_bb9"] - 5.0) * 0.018)
-    )
-
-    pitcher_multiplier = max(0.70, min(1.38, pitcher_multiplier))
-
-    park_multiplier = 1.0 + ((park_factor - 1.0) * 0.60)
+    park_multiplier = 1.0 + ((park_factor - 1.0) * 0.55)
+    home_multiplier = 1.018 if is_home else 1.0
 
     projected = (
-        base_runs
-        * pitcher_multiplier
+        LEAGUE_F5_TEAM_RUNS
+        * offense_factor(offense_stats)
+        * starter_run_factor(opposing_pitcher)
         * park_multiplier
-        + home_adjustment
+        * home_multiplier
     )
 
-    return round(max(0.8, min(5.5, projected)), 2)
+    return round(clamp(projected, 0.5, 6.5), 2)
 
 
-def confidence_grade(score: float) -> str:
-    if score >= 88:
-        return "A+"
-    if score >= 80:
-        return "A"
-    if score >= 72:
-        return "B+"
-    if score >= 64:
-        return "B"
-    if score >= 56:
-        return "C+"
-    return "PASS"
-
-
-def build_confidence(
+def build_reliability(
     away_pitcher: dict,
     home_pitcher: dict,
-    run_margin: float,
-    total_distance: float,
-) -> float:
-    score = 45.0
+    away_offense: dict,
+    home_offense: dict,
+    *,
+    park_factor: float | None = None,
+) -> dict:
+    score = 100.0
+    concerns: list[str] = []
+    future_unavailable_context = [
+        "lineup_quality_not_evaluated",
+        "handedness_splits_not_evaluated",
+        "expected_workload_not_evaluated",
+    ]
 
-    if away_pitcher.get("available"):
-        score += 12
+    for side, pitcher in (
+        ("away", away_pitcher),
+        ("home", home_pitcher),
+    ):
+        innings = safe_float(
+            pitcher.get("innings"),
+            0.0,
+        )
 
-    if home_pitcher.get("available"):
-        score += 12
+        if not pitcher.get("available"):
+            score -= 30
+            concerns.append(f"{side}_starter_unconfirmed")
+        elif innings < 20:
+            score -= 20
+            concerns.append(f"{side}_starter_very_limited_sample")
+        elif innings < 45:
+            score -= 12
+            concerns.append(f"{side}_starter_limited_sample")
 
-    minimum_innings = min(
-        safe_float(away_pitcher.get("innings")),
-        safe_float(home_pitcher.get("innings")),
+    for side, offense in (
+        ("away", away_offense),
+        ("home", home_offense),
+    ):
+        if safe_int(offense.get("games")) <= 0:
+            score -= 25
+            concerns.append(f"{side}_core_offense_unavailable")
+
+    if park_factor is None:
+        score -= 5
+        concerns.append("park_factor_unavailable")
+
+    reliability = round(clamp(score, 35, 100), 1)
+
+    if reliability < 55:
+        tier_cap = "PASS"
+    elif reliability < 70:
+        tier_cap = "LEAN"
+    elif reliability < 82:
+        tier_cap = "PLAYABLE"
+    elif reliability < 92:
+        tier_cap = "PLAY"
+    else:
+        tier_cap = "STRONG PLAY"
+
+    return {
+        "score": reliability,
+        "tier_cap": tier_cap,
+        "active_concerns": concerns,
+        "concerns": concerns,
+        "future_unavailable_context": future_unavailable_context,
+    }
+
+
+def margin_tier(
+    model_strength: float,
+) -> str:
+    if model_strength < 0.25:
+        return "PASS"
+    if model_strength < 0.45:
+        return "LEAN"
+    if model_strength < 0.65:
+        return "PLAYABLE"
+    if model_strength < 0.90:
+        return "PLAY"
+    return "STRONG PLAY"
+
+
+def apply_tier_cap(
+    tier: str,
+    cap: str,
+) -> str:
+    order = {
+        "PASS": 0,
+        "LEAN": 1,
+        "PLAYABLE": 2,
+        "PLAY": 3,
+        "STRONG PLAY": 4,
+    }
+
+    if order[tier] <= order[cap]:
+        return tier
+
+    for label, value in order.items():
+        if value == order[cap]:
+            return label
+
+    return tier
+
+
+def moneyline_recommendation(
+    away_team: str,
+    home_team: str,
+    away_runs: float,
+    home_runs: float,
+    reliability: dict,
+) -> dict:
+    margin = round(home_runs - away_runs, 2)
+    model_strength = round(abs(margin), 2)
+    base_tier = margin_tier(model_strength)
+    final_tier = apply_tier_cap(
+        base_tier,
+        reliability["tier_cap"],
     )
 
-    if minimum_innings >= 80:
-        score += 14
-    elif minimum_innings >= 45:
-        score += 9
-    elif minimum_innings >= 20:
-        score += 4
+    if final_tier == "PASS" or margin == 0:
+        lean = "PASS"
+        side = "PASS"
+    elif margin > 0:
+        lean = home_team
+        side = "HOME"
+    else:
+        lean = away_team
+        side = "AWAY"
 
-    score += min(abs(run_margin) * 11, 11)
-    score += min(abs(total_distance) * 8, 6)
-
-    return round(clamp(score, 35, 95), 1)
+    return {
+        "lean": lean,
+        "side": side,
+        "projected_margin": margin,
+        "model_strength": model_strength,
+        "base_tier": base_tier,
+        "recommendation": final_tier,
+        "recommendation_tier": final_tier,
+        "tier_cap": reliability["tier_cap"],
+        "changed_by_reliability": final_tier != base_tier,
+    }
 
 
 def total_lean(projected_total: float) -> dict:
@@ -388,31 +531,7 @@ def total_lean(projected_total: float) -> dict:
         "lean": lean,
         "model_line": round(model_line, 1),
         "projected_total": round(projected_total, 2),
-    }
-
-
-def moneyline_lean(
-    away_team: str,
-    home_team: str,
-    away_runs: float,
-    home_runs: float,
-) -> dict:
-    margin = round(home_runs - away_runs, 2)
-
-    if margin >= 0.45:
-        lean = home_team
-        side = "HOME"
-    elif margin <= -0.45:
-        lean = away_team
-        side = "AWAY"
-    else:
-        lean = "PASS"
-        side = "PASS"
-
-    return {
-        "lean": lean,
-        "side": side,
-        "projected_margin": margin,
+        "recommendation": lean,
     }
 
 
@@ -428,6 +547,7 @@ def build_reasons(
     f5_ml: dict,
     f5_total: dict,
     park_factor: float,
+    reliability: dict,
 ) -> list[str]:
     reasons = []
 
@@ -465,8 +585,22 @@ def build_reasons(
 
     if f5_ml["lean"] != "PASS":
         reasons.append(
-            f"{f5_ml['lean']} projects ahead by "
-            f"{abs(f5_ml['projected_margin']):.2f} runs through five."
+            f"{f5_ml['lean']} rates as {f5_ml['recommendation']} with a "
+            f"{abs(f5_ml['projected_margin']):.2f}-run projected margin "
+            "through five."
+        )
+    elif f5_ml.get("base_tier") != "PASS" and f5_ml.get(
+        "changed_by_reliability"
+    ):
+        reasons.append(
+            "The projected margin cleared the model tier ladder, but input "
+            f"reliability capped the recommendation at {f5_ml['recommendation']}."
+        )
+
+    if reliability.get("concerns"):
+        reasons.append(
+            "Reliability reflects currently implemented First 5 inputs only; "
+            "future lineup, handedness, and workload context is diagnostic."
         )
 
     if not reasons:
@@ -561,14 +695,14 @@ def build_first5_card() -> dict:
             offense_stats=away_offense,
             opposing_pitcher=home_pitcher,
             park_factor=park_factor,
-            home_adjustment=0.0,
+            is_home=False,
         )
 
         home_projected_runs = project_team_f5_runs(
             offense_stats=home_offense,
             opposing_pitcher=away_pitcher,
             park_factor=park_factor,
-            home_adjustment=0.08,
+            is_home=True,
         )
 
         projected_total = round(
@@ -576,23 +710,23 @@ def build_first5_card() -> dict:
             2,
         )
 
-        f5_ml = moneyline_lean(
+        reliability = build_reliability(
+            away_pitcher=away_pitcher,
+            home_pitcher=home_pitcher,
+            away_offense=away_offense,
+            home_offense=home_offense,
+            park_factor=park_factor,
+        )
+
+        f5_ml = moneyline_recommendation(
             away_team=game["away_team"],
             home_team=game["home_team"],
             away_runs=away_projected_runs,
             home_runs=home_projected_runs,
+            reliability=reliability,
         )
 
         f5_total = total_lean(projected_total)
-
-        total_distance = projected_total - 4.5
-
-        confidence = build_confidence(
-            away_pitcher=away_pitcher,
-            home_pitcher=home_pitcher,
-            run_margin=f5_ml["projected_margin"],
-            total_distance=total_distance,
-        )
 
         reasons = build_reasons(
             away_team=game["away_team"],
@@ -606,15 +740,7 @@ def build_first5_card() -> dict:
             f5_ml=f5_ml,
             f5_total=f5_total,
             park_factor=park_factor,
-        )
-
-        decision_score = round(
-            clamp(
-                confidence * 0.55
-                + abs(f5_ml["projected_margin"]) * 18
-                + abs(total_distance) * 8
-            ),
-            1,
+            reliability=reliability,
         )
 
         game_cards.append(
@@ -646,15 +772,36 @@ def build_first5_card() -> dict:
                 },
                 "f5_ml": f5_ml,
                 "f5_total": f5_total,
-                "confidence": confidence,
-                "confidence_grade": confidence_grade(confidence),
-                "decision_score": decision_score,
+                "model_strength": f5_ml["model_strength"],
+                "reliability": reliability["score"],
+                "reliability_tier_cap": reliability["tier_cap"],
+                "reliability_concerns": reliability["concerns"],
+                "active_reliability_concerns": reliability[
+                    "active_concerns"
+                ],
+                "future_unavailable_context": reliability[
+                    "future_unavailable_context"
+                ],
+                "recommendation": f5_ml["recommendation"],
+                "recommendation_tier": f5_ml["recommendation_tier"],
+                # Compatibility aliases for existing consumers.
+                "confidence": reliability["score"],
                 "reasons": reasons,
             }
         )
 
     game_cards.sort(
-        key=lambda item: item.get("decision_score", 0),
+        key=lambda item: (
+            {
+                "STRONG PLAY": 4,
+                "PLAY": 3,
+                "PLAYABLE": 2,
+                "LEAN": 1,
+                "PASS": 0,
+            }.get(item.get("recommendation_tier"), 0),
+            item.get("model_strength", 0),
+            item.get("reliability", 0),
+        ),
         reverse=True,
     )
 
@@ -662,6 +809,17 @@ def build_first5_card() -> dict:
         game for game in game_cards
         if game.get("f5_ml", {}).get("lean") != "PASS"
     ]
+    tier_counts = {
+        "PASS": 0,
+        "LEAN": 0,
+        "PLAYABLE": 0,
+        "PLAY": 0,
+        "STRONG PLAY": 0,
+    }
+
+    for game in game_cards:
+        tier = game.get("recommendation_tier", "PASS")
+        tier_counts[tier] = tier_counts.get(tier, 0) + 1
 
     actionable_totals = [
         game for game in game_cards
@@ -676,6 +834,12 @@ def build_first5_card() -> dict:
         "summary": {
             "games_loaded": len(game_cards),
             "f5_ml_leans": len(actionable_ml),
+            "recommendation_distribution": tier_counts,
+            "pass": tier_counts["PASS"],
+            "lean": tier_counts["LEAN"],
+            "playable": tier_counts["PLAYABLE"],
+            "play": tier_counts["PLAY"],
+            "strong_play": tier_counts["STRONG PLAY"],
             "f5_total_leans": len(actionable_totals),
             "top_ml_play": (
                 actionable_ml[0]["f5_ml"]["lean"]
@@ -702,6 +866,18 @@ def empty_first5_card(message: str) -> dict:
         "summary": {
             "games_loaded": 0,
             "f5_ml_leans": 0,
+            "recommendation_distribution": {
+                "PASS": 0,
+                "LEAN": 0,
+                "PLAYABLE": 0,
+                "PLAY": 0,
+                "STRONG PLAY": 0,
+            },
+            "pass": 0,
+            "lean": 0,
+            "playable": 0,
+            "play": 0,
+            "strong_play": 0,
             "f5_total_leans": 0,
             "top_ml_play": "PASS",
             "top_total_play": "PASS",

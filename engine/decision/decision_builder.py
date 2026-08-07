@@ -433,10 +433,23 @@ def first5_score_for_team(
     game: dict,
     team_name: str,
 ) -> float | None:
+    f5_ml = game.get("f5_ml", {})
+
+    if isinstance(f5_ml, dict):
+        margin = safe_float(f5_ml.get("projected_margin"))
+        if margin is not None:
+            away_blob = extract_team_blob(game, "away")
+            home_blob = extract_team_blob(game, "home")
+
+            if teams_match(team_name, home_blob.get("team")):
+                return clamp(50 + (margin * 40))
+
+            if teams_match(team_name, away_blob.get("team")):
+                return clamp(50 - (margin * 40))
+
     explicit_score = (
         game.get("f5_score")
-        or game.get("decision_score")
-        or game.get("confidence")
+        or game.get("model_support_score")
     )
 
     score = safe_float(explicit_score)

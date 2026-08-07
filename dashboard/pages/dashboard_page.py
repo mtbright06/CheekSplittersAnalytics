@@ -201,15 +201,31 @@ def _first5_preview(first5_card: dict) -> dict:
         "route": "First 5",
         "primary": selection or "No First 5 recommendation",
         "secondary": item.get("matchup") or "No First 5 matchup loaded",
-        "badge": recommendation_badge_html("LEAN" if selection else "PASS"),
+        "badge": recommendation_badge_html(
+            (
+                item.get("recommendation_tier")
+                or item.get("f5_ml", {}).get("recommendation_tier")
+                or "LEAN"
+            )
+            if selection
+            else "PASS"
+        ),
         "logo": (
             team_logo_html(selection, "mlb")
             if selection and not selection.startswith(("OVER", "UNDER"))
             else ""
         ),
         "metrics": [
-            ("F5 Score", _number(item.get("decision_score"))),
-            ("Confidence", _number(item.get("confidence"))),
+            ("Strength", _number(item.get("model_strength"))),
+            (
+                "Reliability",
+                _number(
+                    item.get(
+                        "reliability",
+                        item.get("confidence"),
+                    )
+                ),
+            ),
         ],
     }
 
@@ -316,9 +332,17 @@ def _top_first5_item(first5_card: dict) -> dict:
 def _first5_selection(item: dict) -> str:
     moneyline = item.get("f5_ml", {}) if isinstance(item, dict) else {}
     total = item.get("f5_total", {}) if isinstance(item, dict) else {}
-    if isinstance(moneyline, dict) and moneyline.get("lean"):
+    if (
+        isinstance(moneyline, dict)
+        and moneyline.get("lean")
+        and moneyline.get("lean") != "PASS"
+    ):
         return str(moneyline.get("lean"))
-    if isinstance(total, dict) and total.get("lean"):
+    if (
+        isinstance(total, dict)
+        and total.get("lean")
+        and total.get("lean") != "PASS"
+    ):
         line = total.get("model_line")
         if line is not None:
             return f"{total.get('lean')} {line}"

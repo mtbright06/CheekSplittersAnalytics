@@ -42,8 +42,10 @@ def render_first5_game_card(game, rank=None):
 
     matchup = esc(game.get("matchup"))
     venue = esc(game.get("venue"))
-    grade = esc(game.get("confidence_grade"))
-    confidence = format_number(game.get("confidence"), 1)
+    reliability = format_number(
+        game.get("reliability", game.get("confidence")),
+        1,
+    )
 
     away_team = esc(away.get("team"))
     home_team = esc(home.get("team"))
@@ -52,6 +54,11 @@ def render_first5_game_card(game, rank=None):
 
     ml_lean = esc(f5_ml.get("lean"))
     ml_margin = format_number(f5_ml.get("projected_margin"), 2)
+    ml_tier = esc(
+        f5_ml.get("recommendation_tier")
+        or game.get("recommendation_tier")
+        or "PASS"
+    )
 
     total_lean = esc(f5_total.get("lean"))
     model_line = format_number(f5_total.get("model_line"), 1)
@@ -65,11 +72,11 @@ def render_first5_game_card(game, rank=None):
         '<div>'
         f'<div class="first5-rank">{rank_text}</div>'
         f'<div class="first5-matchup">{matchup}</div>'
-        f'<div class="first5-meta">{venue} · Confidence {grade}</div>'
+        f'<div class="first5-meta">{venue} · Tier {ml_tier}</div>'
         '</div>'
         '<div class="first5-confidence">'
-        '<span>Confidence</span>'
-        f'<strong>{confidence}</strong>'
+        '<span>Reliability</span>'
+        f'<strong>{reliability}</strong>'
         '</div>'
         '</div>'
         '<div class="first5-projections">'
@@ -88,7 +95,7 @@ def render_first5_game_card(game, rank=None):
         '<div>'
         '<span>F5 Moneyline</span>'
         f'<strong>{ml_lean}</strong>'
-        f'<small>Margin {ml_margin}</small>'
+        f'<small>{ml_tier} · Margin {ml_margin}</small>'
         '</div>'
         '<div>'
         '<span>F5 Total</span>'
@@ -131,14 +138,25 @@ def render_first5_table(games):
             {
                 "Matchup": game.get("matchup"),
                 "F5 ML": f5_ml.get("lean"),
+                "Tier": (
+                    f5_ml.get("recommendation_tier")
+                    or game.get("recommendation_tier")
+                ),
                 "Margin": f5_ml.get("projected_margin"),
+                "Model Strength": (
+                    f5_ml.get("model_strength")
+                    or game.get("model_strength")
+                ),
                 "F5 Total": f5_total.get("lean"),
                 "Model Line": f5_total.get("model_line"),
                 "Projected Total": f5_total.get("projected_total"),
                 "Away Runs": away.get("projected_f5_runs"),
                 "Home Runs": home.get("projected_f5_runs"),
-                "Confidence": game.get("confidence"),
-                "Grade": game.get("confidence_grade"),
+                "Reliability": game.get(
+                    "reliability",
+                    game.get("confidence"),
+                ),
+                "Reliability Cap": game.get("reliability_tier_cap"),
             }
         )
 

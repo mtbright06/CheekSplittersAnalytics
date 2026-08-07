@@ -33,6 +33,17 @@ def build_test_game() -> dict[str, Any]:
 
     return {
         "market_total": 8.0,
+        "odds": {
+            "totals": {
+                "available": True,
+                "line": 8.0,
+                "real_market_loaded": True,
+                "over_odds": -110,
+                "under_odds": -110,
+                "pregame_eligible": True,
+                "pregame_eligibility_reason": "GAME_NOT_STARTED",
+            },
+        },
         "teams": {
             "away": {
                 "name": "New York Yankees",
@@ -185,7 +196,8 @@ def validate_primary_projection(
         "EXCELLENT",
     }
 
-    assert 40.0 <= result["confidence"] <= 78.0
+    assert 35.0 <= result["confidence"] <= 100.0
+    assert result["reliability"] == result["confidence"]
 
     assert result["data_quality"] in {
         "LIMITED",
@@ -307,6 +319,10 @@ def validate_missing_market() -> None:
         "market_total",
         None,
     )
+    game.pop(
+        "odds",
+        None,
+    )
 
     result = build_totals_projection(
         game
@@ -424,14 +440,14 @@ def validate_explanation_rendering(
     assert "Risks" in full_output
     assert "Context" in full_output
 
-    assert "PASS" in full_output
+    assert result["recommendation"] in full_output
     assert "Model versus market" in full_output
     assert "Starter-based projection" in full_output
     assert "Bullpen adjustment" in full_output
     assert "Projection inputs" in full_output
 
     assert explanation.summary in compact_output
-    assert "PASS" in compact_output
+    assert result["recommendation"] in compact_output
     assert "Model versus market" in compact_output
 
 def main() -> None:

@@ -1,4 +1,5 @@
 from engine.mlb.totals.recommendation import build_totals_recommendation
+from engine.mlb.totals.totals_model import reliability_from_current_inputs
 
 
 def market_payload(**overrides):
@@ -24,6 +25,8 @@ def totals_recommendation(**overrides):
         "data_quality": "EXCELLENT",
         "bullpen_confidence": 90.0,
         "market_payload": market_payload(),
+        "reliability": 90.0,
+        "reliability_concerns": [],
     }
     data.update(overrides)
     return build_totals_recommendation(**data)
@@ -77,3 +80,124 @@ def test_totals_still_requires_verified_pregame_line():
     assert result.recommendation == "PASS"
     assert result.actionable is False
     assert result.model_separation_score == 0.0
+
+
+def test_totals_recommendation_score_does_not_gate_authority():
+    result = totals_recommendation(
+        model_separation=1.30,
+        model_confidence=1.0,
+        data_quality="LIMITED",
+        bullpen_confidence=1.0,
+        reliability=100.0,
+    )
+
+    assert result.recommendation == "STRONG BET OVER"
+    assert result.actionable is True
+    assert result.recommendation_score == result.model_separation_score
+
+
+def test_old_confidence_does_not_gate_authority_when_reliability_is_clean():
+    result = totals_recommendation(
+        model_separation=0.80,
+        model_confidence=1.0,
+        reliability=100.0,
+    )
+
+    assert result.recommendation == "BET OVER"
+    assert result.actionable is True
+
+
+def test_reliability_can_downgrade_but_never_promote():
+    downgraded = totals_recommendation(
+        model_separation=1.30,
+        reliability=62.0,
+        reliability_concerns=["bullpen_inputs_partial"],
+    )
+    weak = totals_recommendation(
+        model_separation=0.30,
+        reliability=100.0,
+    )
+
+    assert downgraded.base_recommendation == "STRONG BET OVER"
+    assert downgraded.recommendation == "LEAN OVER"
+    assert downgraded.changed_by_reliability is True
+    assert weak.recommendation == "PASS"
+
+
+def test_clean_current_totals_inputs_can_reach_reliability_100():
+    projection = type(
+        "Projection",
+        (),
+        {"data_points": 7},
+    )()
+    park = type(
+        "Park",
+        (),
+        {"available": True},
+    )()
+    bullpen = type(
+        "Bullpen",
+        (),
+        {"confidence": 95.0},
+    )()
+
+    reliability, concerns = reliability_from_current_inputs(
+        away_projection=projection,
+        home_projection=projection,
+        park=park,
+        bullpen_adjustment=bullpen,
+    )
+
+    assert reliability == 100.0
+    assert concerns == []
+
+
+def test_future_totals_context_absence_does_not_reduce_reliability():
+    projection = type(
+        "Projection",
+        (),
+        {"data_points": 7},
+    )()
+    park = type(
+        "Park",
+        (),
+        {"available": True},
+    )()
+    bullpen = type(
+        "Bullpen",
+        (),
+        {"confidence": 95.0},
+    )()
+
+    reliability, concerns = reliability_from_current_inputs(
+        away_projection=projection,
+        home_projection=projection,
+        park=park,
+        bullpen_adjustment=bullpen,
+    )
+
+    assert reliability == 100.0
+    assert not any(
+        "lineup" in concern
+        or "handedness" in concern
+        or "weather" in concern
+        for concern in concerns
+    )
+
+
+def test_market_price_edge_ev_and_sportsbook_do_not_change_totals_authority():
+    baseline = totals_recommendation()
+    changed = totals_recommendation(
+        market_payload=market_payload(
+            over_odds=220,
+            under_odds=-260,
+            sportsbook="ChangedBook",
+            edge=99.0,
+            expected_value=99.0,
+            implied_probability=0.99,
+        )
+    )
+
+    assert changed.recommendation == baseline.recommendation
+    assert changed.selection == baseline.selection
+    assert changed.recommendation_score == baseline.recommendation_score

@@ -33,6 +33,11 @@ class TotalsRecommendation:
     model_confidence_score: float
     data_quality_score: float
     bullpen_confidence_score: float
+    reliability_score: float
+    reliability_tier_cap: str
+    reliability_concerns: list[str]
+    base_recommendation: str
+    changed_by_reliability: bool
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -43,6 +48,14 @@ class TotalsRecommendation:
                 1,
             ),
             "confidence": self.confidence,
+            "reliability": round(
+                self.reliability_score,
+                1,
+            ),
+            "reliability_tier_cap": self.reliability_tier_cap,
+            "reliability_concerns": self.reliability_concerns,
+            "base_recommendation": self.base_recommendation,
+            "changed_by_reliability": self.changed_by_reliability,
             "stars": self.stars,
             "actionable": self.actionable,
             "score_components": {
@@ -60,6 +73,10 @@ class TotalsRecommendation:
                 ),
                 "bullpen_confidence": round(
                     self.bullpen_confidence_score,
+                    1,
+                ),
+                "reliability": round(
+                    self.reliability_score,
                     1,
                 ),
             },
@@ -137,12 +154,60 @@ def stars_from_score(
     return "★★"
 
 
+TIER_RANKS = {
+    "PASS": 0,
+    "LEAN": 1,
+    "BET": 2,
+    "STRONG BET": 3,
+}
+
+
+def reliability_tier_cap(
+    reliability: float,
+) -> str:
+    if reliability < 55:
+        return "PASS"
+    if reliability < 70:
+        return "LEAN"
+    if reliability < 82:
+        return "BET"
+    return "STRONG BET"
+
+
+def apply_reliability_cap(
+    tier: str,
+    cap: str,
+) -> str:
+    if TIER_RANKS.get(tier, 0) <= TIER_RANKS.get(cap, 3):
+        return tier
+
+    for label, rank in TIER_RANKS.items():
+        if rank == TIER_RANKS.get(cap, 3):
+            return label
+
+    return "PASS"
+
+
+def tier_from_separation(
+    model_separation: float | None,
+) -> str:
+    if model_separation is None:
+        return "PASS"
+    if model_separation >= STRONG_BET_SEPARATION:
+        return "STRONG BET"
+    if model_separation >= BET_SEPARATION:
+        return "BET"
+    if model_separation >= LEAN_SEPARATION:
+        return "LEAN"
+    return "PASS"
+
+
 def recommendation_label(
     *,
     direction: str,
     model_separation: float | None,
-    recommendation_score: float,
     line_available: bool,
+    reliability: float,
 ) -> tuple[str, str, bool]:
     if (
         not line_available
@@ -156,41 +221,23 @@ def recommendation_label(
         )
 
     selection = direction
+    base_tier = tier_from_separation(model_separation)
+    final_tier = apply_reliability_cap(
+        base_tier,
+        reliability_tier_cap(reliability),
+    )
 
-    if (
-        model_separation >= STRONG_BET_SEPARATION
-        and recommendation_score >= 82
-    ):
+    if final_tier == "PASS":
         return (
             selection,
-            f"STRONG BET {selection}",
-            True,
-        )
-
-    if (
-        model_separation >= BET_SEPARATION
-        and recommendation_score >= 72
-    ):
-        return (
-            selection,
-            f"BET {selection}",
-            True,
-        )
-
-    if (
-        model_separation >= LEAN_SEPARATION
-        and recommendation_score >= 64
-    ):
-        return (
-            selection,
-            f"LEAN {selection}",
-            True,
+            "PASS",
+            False,
         )
 
     return (
         selection,
-        "PASS",
-        False,
+        f"{final_tier} {selection}",
+        True,
     )
 
 
@@ -203,6 +250,8 @@ def build_totals_recommendation(
     data_quality: str,
     bullpen_confidence: float,
     market_payload: dict[str, Any] | None,
+    reliability: float | None = None,
+    reliability_concerns: list[str] | None = None,
 ) -> TotalsRecommendation:
     market_payload = market_payload or {}
     if model_separation is None:
@@ -230,6 +279,13 @@ def build_totals_recommendation(
         model_separation
     )
 
+    reliability_value = clamp(
+        model_confidence if reliability is None else reliability,
+        0.0,
+        100.0,
+    )
+    reliability_concerns = reliability_concerns or []
+
     model_component = clamp(
         model_confidence,
         0.0,
@@ -249,17 +305,25 @@ def build_totals_recommendation(
     if not line_available:
         recommendation_score = 0.0
     else:
-        recommendation_score = (
-            separation_component * 0.40
-            + model_component * 0.30
-            + data_component * 0.20
-            + bullpen_component * 0.10
-        )
+        # Compatibility/display score only. Official authority is separation
+        # tier capped by reliability below.
+        recommendation_score = separation_component
 
     recommendation_score = clamp(
         recommendation_score,
         0.0,
         100.0,
+    )
+
+    base_tier = (
+        tier_from_separation(model_separation)
+        if line_available
+        else "PASS"
+    )
+    cap = reliability_tier_cap(reliability_value)
+    final_tier = apply_reliability_cap(
+        base_tier,
+        cap,
     )
 
     (
@@ -269,8 +333,8 @@ def build_totals_recommendation(
     ) = recommendation_label(
         direction=direction,
         model_separation=model_separation,
-        recommendation_score=recommendation_score,
         line_available=line_available,
+        reliability=reliability_value,
     )
 
     return TotalsRecommendation(
@@ -288,4 +352,13 @@ def build_totals_recommendation(
         model_confidence_score=model_component,
         data_quality_score=data_component,
         bullpen_confidence_score=bullpen_component,
+        reliability_score=reliability_value,
+        reliability_tier_cap=cap,
+        reliability_concerns=reliability_concerns,
+        base_recommendation=(
+            "PASS"
+            if base_tier == "PASS" or direction not in {"OVER", "UNDER"}
+            else f"{base_tier} {direction}"
+        ),
+        changed_by_reliability=final_tier != base_tier,
     )

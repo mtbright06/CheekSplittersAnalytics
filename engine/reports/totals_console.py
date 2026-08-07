@@ -84,7 +84,7 @@ def print_totals_report(result: dict[str, Any]) -> None:
     )
 
     _line(
-        "Confidence",
+        "Reliability",
         f"{result['confidence']:.1f}%",
     )
 

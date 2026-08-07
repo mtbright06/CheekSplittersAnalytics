@@ -115,6 +115,10 @@ class TotalsProjection:
                 self.confidence,
                 1,
             ),
+            "reliability": round(
+                self.confidence,
+                1,
+            ),
             "data_quality": (
                 self.data_quality
             ),
@@ -199,6 +203,57 @@ def confidence_from_data_points(
         ),
         40.0,
         78.0,
+    )
+
+
+def reliability_from_current_inputs(
+    *,
+    away_projection: TeamRunProjection,
+    home_projection: TeamRunProjection,
+    park: ParkFactorResult,
+    bullpen_adjustment: GameBullpenAdjustment,
+) -> tuple[float, list[str]]:
+    """
+    Measure trust in inputs currently consumed by the totals projection.
+
+    This intentionally does not penalize future-only enrichments such as
+    lineups, handedness splits, weather, umpire data, or injury feeds.
+    """
+    reliability = 100.0
+    concerns: list[str] = []
+
+    for side, projection in (
+        ("away", away_projection),
+        ("home", home_projection),
+    ):
+        if projection.data_points <= 1:
+            reliability -= 25.0
+            concerns.append(f"{side}_projection_core_inputs_limited")
+        elif projection.data_points <= 3:
+            reliability -= 10.0
+            concerns.append(f"{side}_projection_inputs_partial")
+
+    if not park.available:
+        reliability -= 5.0
+        concerns.append("park_factor_unavailable")
+
+    if bullpen_adjustment.confidence < 55.0:
+        reliability -= 15.0
+        concerns.append("bullpen_inputs_limited")
+    elif bullpen_adjustment.confidence < 75.0:
+        reliability -= 8.0
+        concerns.append("bullpen_inputs_partial")
+
+    return (
+        round(
+            clamp(
+                reliability,
+                35.0,
+                100.0,
+            ),
+            1,
+        ),
+        concerns,
     )
 
 
@@ -360,8 +415,14 @@ def build_totals_projection(
         park=park,
     )
 
-    confidence = confidence_from_data_points(
-        data_points
+    (
+        reliability,
+        reliability_concerns,
+    ) = reliability_from_current_inputs(
+        away_projection=away_projection,
+        home_projection=home_projection,
+        park=park,
+        bullpen_adjustment=bullpen_adjustment,
     )
 
     quality = data_quality_label(
@@ -383,12 +444,14 @@ def build_totals_projection(
     recommendation = build_totals_recommendation(
         direction=market_edge.direction,
         model_separation=market_edge.absolute_edge,
-        model_confidence=confidence,
+        model_confidence=reliability,
         data_quality=quality,
         bullpen_confidence=(
             bullpen_adjustment.confidence
         ),
         market_payload=market_payload,
+        reliability=reliability,
+        reliability_concerns=reliability_concerns,
     )
 
     reasons = build_projection_reasons(
@@ -432,7 +495,7 @@ def build_totals_projection(
             bullpen_adjustment.combined_adjustment
         ),
         projected_total=projected_total,
-        confidence=confidence,
+        confidence=reliability,
         data_quality=quality,
         reasons=reasons,
     )

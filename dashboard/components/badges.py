@@ -40,6 +40,9 @@ def recommendation_badge_class(recommendation):
     if "CHEEK RIPPER" in label or "STRONG PLAY" in label:
         return "badge recommendation-badge recommendation-strong"
 
+    if label == "PLAY":
+        return "badge recommendation-badge recommendation-playable"
+
     if "PLAYABLE" in label:
         return "badge recommendation-badge recommendation-playable"
 
@@ -58,6 +61,9 @@ def recommendation_stars(recommendation, *, model_only=False, fallback=""):
 
     if "CHEEK RIPPER" in label or "STRONG PLAY" in label:
         return "★★★★★"
+
+    if label == "PLAY":
+        return "★★★★☆"
 
     if "PLAYABLE" in label:
         return "★★★★☆"

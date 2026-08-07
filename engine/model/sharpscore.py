@@ -162,6 +162,7 @@ def build_sharpscore_decision(
             v2_reliability,
         )
     )
+    official_recommendation = v2_candidate_authority["recommendation"]
     market_value_label, market_value_tone = (
         market_value_classification(edge)
     )
@@ -179,7 +180,10 @@ def build_sharpscore_decision(
         # Compatibility alias for the MLB model's numeric confidence.
         "confidence": confidence,
         "confidence_breakdown": confidence_breakdown,
-        "recommendation": model_recommendation,
+        "recommendation": official_recommendation,
+        "model_recommendation": official_recommendation,
+        "v1_shadow_recommendation": model_recommendation,
+        "v1_shadow_tier": model_recommendation,
         "v2_recommendation": v2_authority["recommendation"],
         "v2_authority": v2_authority,
         "v2_candidate_recommendation": (
@@ -191,7 +195,7 @@ def build_sharpscore_decision(
         "recommendation_explanation": (
             mlb_moneyline_explanation(
                 team=play,
-                recommendation=model_recommendation,
+                recommendation=official_recommendation,
                 market_value_label=market_value_label,
                 market_value_tone=market_value_tone,
             )

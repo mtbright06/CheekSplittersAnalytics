@@ -88,6 +88,9 @@ def recommendation_tier_score(
     if "STRONG" in label or label == "BET":
         return 4.0
 
+    if label == "PLAY":
+        return 3.5
+
     if "PLAYABLE" in label:
         return 3.0
 

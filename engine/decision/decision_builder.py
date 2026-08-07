@@ -836,11 +836,19 @@ def build_decision_card() -> dict:
         mlb_choice = extract_mlb_choice(mlb_game)
         model_recommendation = str(
             mlb_game.get("model", {}).get(
+                "model_recommendation",
+            )
+            or mlb_game.get("model", {}).get(
                 "recommendation",
             )
             if isinstance(mlb_game.get("model"), dict)
             else ""
         ).strip() or "PASS"
+        v1_shadow_recommendation = (
+            mlb_game.get("model", {}).get("v1_shadow_recommendation")
+            if isinstance(mlb_game.get("model"), dict)
+            else None
+        )
         v2_authority = (
             mlb_game.get("model", {}).get("v2_authority")
             if isinstance(mlb_game.get("model"), dict)
@@ -1119,6 +1127,12 @@ def build_decision_card() -> dict:
                 # Hammer is retained as a diagnostic validation layer.
                 "recommendation": model_recommendation,
                 "model_recommendation": model_recommendation,
+                "v1_shadow_recommendation": v1_shadow_recommendation,
+                "v1_shadow_tier": (
+                    mlb_game.get("model", {}).get("v1_shadow_tier")
+                    if isinstance(mlb_game.get("model"), dict)
+                    else None
+                ),
                 "v2_recommendation": v2_authority.get("recommendation"),
                 "v2_authority": v2_authority,
                 "v2_candidate_recommendation": (

@@ -141,7 +141,9 @@ def test_sharpscore_serializes_conviction_and_market_value_separately():
     assert model["model_win_strength"] == model["model_probability"]
     assert model["model_confidence"] == 85.0
     assert model["confidence"] == model["model_confidence"]
-    assert model["recommendation"] == "✅ STRONG PLAY"
+    assert model["recommendation"] == "PLAY"
+    assert model["model_recommendation"] == "PLAY"
+    assert model["v1_shadow_recommendation"] == "✅ STRONG PLAY"
     assert model["market_value_label"] == "HEAVY PREMIUM"
     assert result["market_edge"]["edge"] == -6.0
     assert result["market_edge"]["market_value_tone"] == "heavy_premium"
@@ -171,11 +173,12 @@ def test_sharpscore_keeps_strong_conviction_when_edge_is_missing():
             None,
         )
 
-    assert result["model"]["recommendation"] == "✅ STRONG PLAY"
+    assert result["model"]["recommendation"] == "PLAY"
+    assert result["model"]["v1_shadow_recommendation"] == "✅ STRONG PLAY"
     assert result["model"]["market_value_label"] == "VALUE UNAVAILABLE"
 
 
-def test_sharpscore_emits_v2_shadow_without_changing_v1():
+def test_sharpscore_promotes_v2_candidate_and_preserves_v1_shadow():
     components = {"offense": 60, "starting_pitching": 60, "bullpen": 60, "home_field": 50}
 
     with (
@@ -200,7 +203,9 @@ def test_sharpscore_emits_v2_shadow_without_changing_v1():
         )
 
     model = result["model"]
-    assert model["recommendation"] == "LEAN"
+    assert model["recommendation"] == "STRONG PLAY"
+    assert model["model_recommendation"] == "STRONG PLAY"
+    assert model["v1_shadow_recommendation"] == "LEAN"
     assert model["v2_recommendation"] == "PLAYABLE"
     assert model["v2_authority"]["authoritative_signal"] == "sharpscore_gap"
     assert model["v2_authority"]["sharpscore_gap"] == 8.7

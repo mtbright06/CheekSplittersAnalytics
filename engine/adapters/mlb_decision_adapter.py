@@ -236,6 +236,14 @@ def adapt_decision(
             "model_win_strength": model_win_strength,
             "model_probability": model_win_strength,
             "model_confidence": row.get("model_confidence"),
+            "v1_shadow_recommendation": row.get(
+                "v1_shadow_recommendation"
+            ),
+            "v1_shadow_tier": row.get("v1_shadow_tier"),
+            "v2_authority": row.get("v2_authority"),
+            "v2_candidate_authority": row.get(
+                "v2_candidate_authority"
+            ),
             "hammer_confidence": row.get("hammer_confidence") or row.get(
                 "confidence"
             ),

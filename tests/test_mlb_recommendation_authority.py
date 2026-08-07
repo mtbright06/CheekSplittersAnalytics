@@ -78,6 +78,40 @@ def test_mlb_pass_remains_non_actionable_with_hammer_context():
     assert recommendation.actionable is False
 
 
+def test_mlb_v2_official_recommendation_overrides_v1_shadow():
+    card = {
+        "decisions": [
+            {
+                "game_pk": 4,
+                "matchup": "Away Club @ Home Club",
+                "selected_team": "Away Club",
+                "market": "REAL MARKET",
+                "pregame_eligible": True,
+                "pregame_eligibility_reason": "GAME_NOT_STARTED",
+                "book_odds": -110,
+                "model_win_strength": 0.51,
+                "model_probability": 0.51,
+                "model_confidence": 60.0,
+                "hammer_confidence": "PASS",
+                "hammer_score": 0.0,
+                "hammer_tier": "PASS",
+                "recommendation": "PLAY",
+                "model_recommendation": "PLAY",
+                "v1_shadow_recommendation": "PASS",
+                "v1_shadow_tier": "PASS",
+            }
+        ]
+    }
+
+    recommendation = adapt_mlb_decision_card(card)[0]
+
+    assert recommendation.recommendation == "PLAY"
+    assert recommendation.model_recommendation == "PLAY"
+    assert recommendation.components["v1_shadow_recommendation"] == "PASS"
+    assert recommendation.hammer_tier == "PASS"
+    assert recommendation.actionable is True
+
+
 def test_mlb_confidence_ignores_market_probability():
     away_pitcher = {"name": "Away Starter", "era": 3.2, "whip": 1.1}
     home_pitcher = {"name": "Home Starter", "era": 4.2, "whip": 1.3}

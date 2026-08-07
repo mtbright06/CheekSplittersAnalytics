@@ -217,8 +217,11 @@ def mlb_moneyline_explanation(
     """Structured explanation contract for MLB conviction and SSRP value."""
     conviction_summaries = {
         "🔥 CHEEK RIPPER": "One of the model's strongest win projections.",
+        "STRONG PLAY": "One of the model's strongest win projections.",
         "✅ STRONG PLAY": f"The model has high conviction in {team}.",
+        "PLAY": f"The model has high conviction in {team}.",
         "🟡 PLAYABLE": f"The model supports {team} as a bet.",
+        "PLAYABLE": f"The model supports {team} as a bet.",
         "LEAN": f"The model gives {team} a modest projected edge.",
         "PASS": f"The model does not clear a conviction tier for {team}.",
     }

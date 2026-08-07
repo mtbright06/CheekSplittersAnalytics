@@ -391,6 +391,34 @@ classified as INSUFFICIENT DATA for conclusions. The reliability-table format
 is READY for future volume. No production code, schema, model logic,
 thresholds, recommendations, or data changed.
 
+Sprint 82.0 completed the read-only Phase 4 engineering integrity audit in
+`docs/ENGINEERING_INTEGRITY_AUDIT.md`,
+`docs/ENGINEERING_DEBT_REGISTER.md`, and
+`docs/ENGINEERING_CLEANUP_PLAN.md`. Closure recommendation:
+ENGINEERING INTEGRITY CERTIFIED WITH FUTURE CLEANUP. No objective production
+DEFECT was confirmed. The main debt is transitional surface area: legacy
+top-level KBO/model packages, compatibility aliases for model strength,
+confidence, and Hammer fields, duplicate label/safe-float helpers, root-level
+tooling/scripts, broad dependency-file drift, and several large future
+decomposition candidates. Recommendation authority, canonical persistence,
+canonical analytics isolation, migrations, and core test coverage were
+classified as PASS. No production code, schema, model logic, thresholds,
+recommendations, data, or migrations changed.
+
+Sprint 82.0 verification reevaluated the engineering audit with the decision
+test: "Would removing or leaving this create a correctness, maintainability,
+or future-development problem?" The closure remains ENGINEERING INTEGRITY
+CERTIFIED WITH FUTURE CLEANUP. Classification changes: duplicate safe numeric
+parsing moved from FUTURE ENHANCEMENT to DOCUMENT; dependency manifests moved
+from FUTURE ENHANCEMENT to DOCUMENT; `models/mlb/placeholder_model.py` moved
+from FUTURE ENHANCEMENT to DEPRECATED; totals projected-total explainability
+moved from DOCUMENT to FUTURE ENHANCEMENT because leaving it blocks Phase 3
+projection-error validation. Highest-priority cleanup remains supported-surface
+marking for top-level legacy KBO/model packages, compatibility-alias inventory,
+label taxonomy consolidation, and structured totals projected-total
+persistence before official projection-error analysis. No production code,
+schema, model logic, thresholds, recommendations, data, or migrations changed.
+
 **Sprint 68.1 — Application Shell:** implemented and awaiting review. The
 dashboard now has a dedicated `dashboard/shell/` boundary that owns one route
 configuration, compact sidebar navigation, slim top bar, and shell session

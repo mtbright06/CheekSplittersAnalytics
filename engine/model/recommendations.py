@@ -50,6 +50,136 @@ def mlb_moneyline_conviction_recommendation(
     return "PASS"
 
 
+MLB_MONEYLINE_V2_TIERS = (
+    ("STRONG PLAY", 17.4),
+    ("PLAY", 12.0),
+    ("PLAYABLE", 8.7),
+    ("LEAN", 2.6),
+)
+
+MLB_MONEYLINE_V2_CANDIDATE_TIERS = (
+    ("STRONG PLAY", 8.0),
+    ("PLAY", 6.0),
+    ("PLAYABLE", 3.0),
+    ("LEAN", 1.0),
+)
+
+MLB_MONEYLINE_V2_RANKS = {
+    "PASS": 0,
+    "LEAN": 1,
+    "PLAYABLE": 2,
+    "PLAY": 3,
+    "STRONG PLAY": 4,
+}
+
+
+def mlb_moneyline_v2_recommendation(
+    sharpscore_gap: Any,
+    reliability: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Shadow-mode MLB moneyline V2 authority.
+
+    V2 uses SharpScore gap as the single model-strength authority. Reliability
+    checks may cap the tier only when they introduce independent input-quality
+    evidence.
+    """
+    gap = _number(sharpscore_gap)
+    reliability = reliability or {}
+
+    if gap is None:
+        base_tier = "PASS"
+    else:
+        base_tier = "PASS"
+        for tier, threshold in MLB_MONEYLINE_V2_TIERS:
+            if gap >= threshold:
+                base_tier = tier
+                break
+
+    cap = str(reliability.get("tier_cap") or "STRONG PLAY").upper()
+    if cap not in MLB_MONEYLINE_V2_RANKS:
+        cap = "STRONG PLAY"
+
+    final_tier = _cap_mlb_moneyline_v2_tier(base_tier, cap)
+
+    return {
+        "version": "mlb_moneyline_v2_shadow",
+        "authoritative_signal": "sharpscore_gap",
+        "sharpscore_gap": gap,
+        "base_recommendation": base_tier,
+        "recommendation": final_tier,
+        "tier_cap": cap,
+        "reliability": reliability,
+        "changed_by_reliability": final_tier != base_tier,
+    }
+
+
+def mlb_moneyline_v2_candidate_recommendation(
+    sharpscore_gap: Any,
+    reliability: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Candidate V2 baseline using diagnostic SharpScore gap bands."""
+    return _mlb_moneyline_v2_from_gap(
+        sharpscore_gap,
+        reliability,
+        tiers=MLB_MONEYLINE_V2_CANDIDATE_TIERS,
+        version="mlb_moneyline_v2_candidate_shadow",
+    )
+
+
+def _mlb_moneyline_v2_from_gap(
+    sharpscore_gap: Any,
+    reliability: dict[str, Any] | None,
+    *,
+    tiers: tuple[tuple[str, float], ...],
+    version: str,
+) -> dict[str, Any]:
+    gap = _number(sharpscore_gap)
+    reliability = reliability or {}
+
+    if gap is None:
+        base_tier = "PASS"
+    else:
+        base_tier = "PASS"
+        for tier, threshold in tiers:
+            if gap >= threshold:
+                base_tier = tier
+                break
+
+    cap = str(reliability.get("tier_cap") or "STRONG PLAY").upper()
+    if cap not in MLB_MONEYLINE_V2_RANKS:
+        cap = "STRONG PLAY"
+
+    final_tier = _cap_mlb_moneyline_v2_tier(base_tier, cap)
+
+    return {
+        "version": version,
+        "authoritative_signal": "sharpscore_gap",
+        "sharpscore_gap": gap,
+        "base_recommendation": base_tier,
+        "recommendation": final_tier,
+        "tier_cap": cap,
+        "reliability": reliability,
+        "changed_by_reliability": final_tier != base_tier,
+    }
+
+
+def _cap_mlb_moneyline_v2_tier(
+    tier: str,
+    cap: str,
+) -> str:
+    tier_rank = MLB_MONEYLINE_V2_RANKS.get(tier, 0)
+    cap_rank = MLB_MONEYLINE_V2_RANKS.get(cap, 4)
+
+    if tier_rank <= cap_rank:
+        return tier
+
+    for label, rank in MLB_MONEYLINE_V2_RANKS.items():
+        if rank == cap_rank:
+            return label
+
+    return "PASS"
+
+
 def market_value_classification(
     edge: Any,
 ) -> tuple[str, str]:

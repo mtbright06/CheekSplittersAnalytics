@@ -7,7 +7,9 @@ from engine.model.component_scores import (
 from engine.model.confidence import calculate_confidence
 from engine.model.recommendations import (
     market_value_classification,
+    mlb_moneyline_v2_candidate_recommendation,
     mlb_moneyline_conviction_recommendation,
+    mlb_moneyline_v2_recommendation,
     mlb_moneyline_explanation,
 )
 from engine.odds.market_edge import calculate_market_edge, market_edge_to_dict
@@ -114,6 +116,10 @@ def build_sharpscore_decision(
         selected_score,
         opponent_score,
     )
+    sharpscore_gap = round(
+        selected_score - opponent_score,
+        1,
+    )
 
     market_edge = {}
     edge = None
@@ -138,6 +144,24 @@ def build_sharpscore_decision(
             confidence,
         )
     )
+    v2_reliability = mlb_moneyline_v2_reliability(
+        away_offense=away_offense,
+        home_offense=home_offense,
+        away_pitcher=away_pitcher,
+        home_pitcher=home_pitcher,
+        away_bullpen=away_bullpen,
+        home_bullpen=home_bullpen,
+    )
+    v2_authority = mlb_moneyline_v2_recommendation(
+        sharpscore_gap,
+        v2_reliability,
+    )
+    v2_candidate_authority = (
+        mlb_moneyline_v2_candidate_recommendation(
+            sharpscore_gap,
+            v2_reliability,
+        )
+    )
     market_value_label, market_value_tone = (
         market_value_classification(edge)
     )
@@ -150,11 +174,18 @@ def build_sharpscore_decision(
         # historical probability-looking field. Do not calculate separately.
         "model_probability": model_win_strength,
         "model_confidence": confidence,
+        "sharpscore_gap": sharpscore_gap,
         "edge": edge,
         # Compatibility alias for the MLB model's numeric confidence.
         "confidence": confidence,
         "confidence_breakdown": confidence_breakdown,
         "recommendation": model_recommendation,
+        "v2_recommendation": v2_authority["recommendation"],
+        "v2_authority": v2_authority,
+        "v2_candidate_recommendation": (
+            v2_candidate_authority["recommendation"]
+        ),
+        "v2_candidate_authority": v2_candidate_authority,
         "market_value_label": market_value_label,
         "market_value_tone": market_value_tone,
         "recommendation_explanation": (
@@ -187,6 +218,7 @@ def build_sharpscore_decision(
             "opponent": opponent_components,
             "selected_total": selected_score,
             "opponent_total": opponent_score,
+            "sharpscore_gap": sharpscore_gap,
         },
     }
 
@@ -201,6 +233,79 @@ def build_sharpscore_decision(
         "model": model,
         "quote": quote,
         "market_edge": market_edge,
+    }
+
+
+def mlb_moneyline_v2_reliability(
+    *,
+    away_offense,
+    home_offense,
+    away_pitcher,
+    home_pitcher,
+    away_bullpen,
+    home_bullpen,
+):
+    concerns = []
+
+    core_values = [
+        away_pitcher.get("era"),
+        away_pitcher.get("whip"),
+        home_pitcher.get("era"),
+        home_pitcher.get("whip"),
+        away_offense.get("ops"),
+        home_offense.get("ops"),
+    ]
+    present_core = len(
+        [
+            value
+            for value in core_values
+            if value is not None
+        ]
+    )
+
+    unknown_starters = []
+    for pitcher in [away_pitcher, home_pitcher]:
+        if not pitcher:
+            unknown_starters.append("Unknown Starter")
+        elif pitcher.get("name") == "Unknown Starter":
+            unknown_starters.append("Unknown Starter")
+
+    if unknown_starters:
+        concerns.append("unknown_starter")
+
+    if away_offense.get("ops") is None or home_offense.get("ops") is None:
+        concerns.append("missing_core_offense")
+
+    starter_fields = [
+        away_pitcher.get("era"),
+        away_pitcher.get("whip"),
+        home_pitcher.get("era"),
+        home_pitcher.get("whip"),
+    ]
+    if any(value is None for value in starter_fields):
+        concerns.append("missing_core_starter_data")
+
+    if not away_bullpen or not home_bullpen:
+        concerns.append("missing_bullpen_data")
+
+    if present_core < 4:
+        tier_cap = "PASS"
+        concerns.append("severe_data_incompleteness")
+    elif (
+        "missing_core_offense" in concerns
+        or "missing_core_starter_data" in concerns
+    ):
+        tier_cap = "LEAN"
+    elif unknown_starters or "missing_bullpen_data" in concerns:
+        tier_cap = "PLAYABLE"
+    else:
+        tier_cap = "STRONG PLAY"
+
+    return {
+        "core_fields_present": present_core,
+        "core_fields_total": len(core_values),
+        "concerns": concerns,
+        "tier_cap": tier_cap,
     }
 
 

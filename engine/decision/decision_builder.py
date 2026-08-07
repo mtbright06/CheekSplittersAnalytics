@@ -841,6 +841,20 @@ def build_decision_card() -> dict:
             if isinstance(mlb_game.get("model"), dict)
             else ""
         ).strip() or "PASS"
+        v2_authority = (
+            mlb_game.get("model", {}).get("v2_authority")
+            if isinstance(mlb_game.get("model"), dict)
+            else None
+        )
+        if not isinstance(v2_authority, dict):
+            v2_authority = {}
+        v2_candidate_authority = (
+            mlb_game.get("model", {}).get("v2_candidate_authority")
+            if isinstance(mlb_game.get("model"), dict)
+            else None
+        )
+        if not isinstance(v2_candidate_authority, dict):
+            v2_candidate_authority = {}
         first5_choice = extract_first5_choice(first5_game)
 
         bomb = find_bomb_for_team(
@@ -1105,6 +1119,12 @@ def build_decision_card() -> dict:
                 # Hammer is retained as a diagnostic validation layer.
                 "recommendation": model_recommendation,
                 "model_recommendation": model_recommendation,
+                "v2_recommendation": v2_authority.get("recommendation"),
+                "v2_authority": v2_authority,
+                "v2_candidate_recommendation": (
+                    v2_candidate_authority.get("recommendation")
+                ),
+                "v2_candidate_authority": v2_candidate_authority,
                 "market_value_label": mlb_game.get(
                     "model", {}
                 ).get("market_value_label"),

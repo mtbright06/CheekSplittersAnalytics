@@ -352,6 +352,45 @@ recommendation ordering, confidence calibration, projection error, threshold
 validation, feature contribution, drift detection, and stability/replay. No
 production model, threshold, weight, infrastructure, or report code changed.
 
+Phase 3.1 completed the read-only historical data readiness audit in
+`docs/PHASE3_DATA_READINESS.md`. The canonical schema is structurally READY:
+no duplicate active episodes, duplicate canonical grades, orphan linked
+snapshots, orphan snapshot grades, canonical grade/result join anomalies,
+timestamp anomalies, or conflicting finals were found. The dataset is not yet
+statistically ready: Azure currently has `12` recommendation episodes, `4`
+canonical grades, `242` raw snapshots, and `213` game results. MLB moneyline
+and MLB totals are PARTIAL due to tiny canonical samples; KBO is BLOCKED
+because no canonical/raw KBO recommendations or KBO game results are present.
+Totals projection-error validation is PARTIAL/BLOCKED until projected totals
+are reliably extracted from components or persisted to the top-level
+projection field. No production code or data changed.
+
+Sprint 81.2 resolved the Phase 3.1 readiness findings with read-only database
+queries and documentation only. The `205` unlinked snapshots are classified as
+`102` legacy actionable rows from before the Sprint 79 episode architecture and
+`103` PASS rows intentionally persisted without episode attachment unless they
+withdraw an active episode; no current persistence defect was confirmed. The
+six `UNSPECIFIED` canonical-tier rows are ACTIVE, unlocked episodes with no
+canonical snapshot yet, not locked/graded records missing tier data. Totals
+projected runs are not a first-class persisted numeric field: market line,
+model separation, confidence, and projection explanation text exist, but Phase
+3 projection-error work should wait for structured projected-total persistence
+or an approved extraction contract. KBO remains BLOCKED for historical
+validation because the audited database contains only MLB recommendations and
+MLB game results. No production code, schema, recommendation logic, thresholds,
+models, or data changed.
+
+Sprint 81.3 established the first read-only calibration baseline in
+`docs/CALIBRATION_BASELINE.md` and
+`docs/CALIBRATION_BASELINE_RESULTS.md`, with CSV reliability-table artifacts in
+`output/reports/`. The usable official sample is only `4` graded canonical
+recommendations: MLB moneyline is `0-2`, MLB totals is `1-1`, and KBO has no
+persisted calibration dataset. Confidence, tier, moneyline ordering, totals
+ordering, KBO calibration, and totals projection-error studies are all
+classified as INSUFFICIENT DATA for conclusions. The reliability-table format
+is READY for future volume. No production code, schema, model logic,
+thresholds, recommendations, or data changed.
+
 **Sprint 68.1 — Application Shell:** implemented and awaiting review. The
 dashboard now has a dedicated `dashboard/shell/` boundary that owns one route
 configuration, compact sidebar navigation, slim top bar, and shell session

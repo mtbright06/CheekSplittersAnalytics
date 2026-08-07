@@ -158,21 +158,20 @@ def to_float(value):
 
 
 def starting_pitcher_score(pitcher):
-    """
-    Build a role-aware starting-pitcher score from stabilized performance
-    and underlying skill indicators.
+    return starting_pitcher_breakdown(pitcher)["starting_pitching_score"]
 
-    All observed metrics are regressed toward league-average baselines using
-    starter-only innings pitched. Small samples therefore remain close to a
-    neutral score while established starter samples receive more influence.
-    """
+
+def starting_pitcher_breakdown(pitcher):
+    """Build a cleaner starter-quality score from non-duplicative buckets."""
     if not pitcher or pitcher.get("name") == "Unknown Starter":
-        return 50
+        return neutral_starting_pitcher_breakdown()
 
     innings_pitched = pitcher.get("ip")
 
     if innings_pitched is None or innings_pitched <= 0:
-        return 50
+        return neutral_starting_pitcher_breakdown(
+            missing_inputs=["ip"],
+        )
 
     era = stabilize_pitcher_stat(
         observed_value=pitcher.get("era"),
@@ -184,112 +183,127 @@ def starting_pitcher_score(pitcher):
         innings_pitched=innings_pitched,
         league_average=PITCHER_BASELINES["whip"],
     )
-    k9 = stabilize_pitcher_stat(
-        observed_value=pitcher.get("k_rate"),
-        innings_pitched=innings_pitched,
-        league_average=PITCHER_BASELINES["k9"],
-    )
-    bb9 = stabilize_pitcher_stat(
-        observed_value=pitcher.get("bb_rate"),
-        innings_pitched=innings_pitched,
-        league_average=PITCHER_BASELINES["bb9"],
-    )
     hr9 = stabilize_pitcher_stat(
         observed_value=pitcher.get("hr9"),
         innings_pitched=innings_pitched,
         league_average=PITCHER_BASELINES["hr9"],
-    )
-    h9 = stabilize_pitcher_stat(
-        observed_value=pitcher.get("h9"),
-        innings_pitched=innings_pitched,
-        league_average=PITCHER_BASELINES["h9"],
     )
     k_bb_pct = stabilize_pitcher_stat(
         observed_value=pitcher.get("k_bb_pct"),
         innings_pitched=innings_pitched,
         league_average=PITCHER_BASELINES["k_bb_pct"],
     )
-    strike_pct = stabilize_pitcher_stat(
-        observed_value=pitcher.get("strike_pct"),
-        innings_pitched=innings_pitched,
-        league_average=PITCHER_BASELINES["strike_pct"],
-    )
-    pitches_per_inning = stabilize_pitcher_stat(
-        observed_value=pitcher.get("pitches_per_inning"),
-        innings_pitched=innings_pitched,
-        league_average=PITCHER_BASELINES["pitches_per_inning"],
-    )
-    ground_air_ratio = stabilize_pitcher_stat(
-        observed_value=pitcher.get("ground_air_ratio"),
-        innings_pitched=innings_pitched,
-        league_average=PITCHER_BASELINES["ground_air_ratio"],
-    )
 
-    score = 50
+    missing_inputs = []
+    subcomponents = {}
 
-    # Run prevention: 30% of the practical scoring influence.
     if era is not None:
-        score += (
-            PITCHER_BASELINES["era"] - era
-        ) * 3.0
+        subcomponents["run_prevention"] = inverse_metric_score(
+            era,
+            average=PITCHER_BASELINES["era"],
+            half_range=1.75,
+        )
+    else:
+        missing_inputs.append("era")
 
     if whip is not None:
-        score += (
-            PITCHER_BASELINES["whip"] - whip
-        ) * 10.0
-
-    # Bat-missing and command skills.
-    if k9 is not None:
-        score += (
-            k9 - PITCHER_BASELINES["k9"]
-        ) * 1.25
-
-    if bb9 is not None:
-        score += (
-            PITCHER_BASELINES["bb9"] - bb9
-        ) * 1.5
+        subcomponents["baserunner_control"] = inverse_metric_score(
+            whip,
+            average=PITCHER_BASELINES["whip"],
+            half_range=0.35,
+        )
+    else:
+        missing_inputs.append("whip")
 
     if k_bb_pct is not None:
-        score += (
-            k_bb_pct - PITCHER_BASELINES["k_bb_pct"]
-        ) * 0.30
+        subcomponents["strikeout_command"] = normalize_metric(
+            k_bb_pct,
+            average=PITCHER_BASELINES["k_bb_pct"],
+            half_range=12.0,
+        )
+    else:
+        missing_inputs.append("k_bb_pct")
 
-    if strike_pct is not None:
-        score += (
-            strike_pct - PITCHER_BASELINES["strike_pct"]
-        ) * 0.35
-
-    # Contact management.
     if hr9 is not None:
-        score += (
-            PITCHER_BASELINES["hr9"] - hr9
-        ) * 4.0
+        subcomponents["damage_suppression"] = inverse_metric_score(
+            hr9,
+            average=PITCHER_BASELINES["hr9"],
+            half_range=0.70,
+        )
+    else:
+        missing_inputs.append("hr9")
 
-    if h9 is not None:
-        score += (
-            PITCHER_BASELINES["h9"] - h9
-        ) * 0.75
+    weights = {
+        "run_prevention": 0.35,
+        "baserunner_control": 0.25,
+        "strikeout_command": 0.25,
+        "damage_suppression": 0.15,
+    }
+    active_weight = sum(
+        weight
+        for name, weight in weights.items()
+        if name in subcomponents
+    )
 
-    # Efficiency and batted-ball tendency receive modest influence.
-    if pitches_per_inning is not None:
-        score += (
-            PITCHER_BASELINES["pitches_per_inning"]
-            - pitches_per_inning
-        ) * 0.40
-
-    if ground_air_ratio is not None:
-        ground_ball_edge = clamp(
-            ground_air_ratio,
-            low=0.50,
-            high=2.00,
+    if active_weight <= 0:
+        return neutral_starting_pitcher_breakdown(
+            missing_inputs=missing_inputs,
         )
 
-        score += (
-            ground_ball_edge
-            - PITCHER_BASELINES["ground_air_ratio"]
-        ) * 1.5
+    score = sum(
+        subcomponents[name] * weight
+        for name, weight in weights.items()
+        if name in subcomponents
+    ) / active_weight
 
-    return round(clamp(score), 1)
+    return {
+        "starting_pitching_score": round(clamp(score), 1),
+        "run_prevention": round(
+            subcomponents.get("run_prevention", 50.0),
+            1,
+        ),
+        "baserunner_control": round(
+            subcomponents.get("baserunner_control", 50.0),
+            1,
+        ),
+        "strikeout_command": round(
+            subcomponents.get("strikeout_command", 50.0),
+            1,
+        ),
+        "damage_suppression": round(
+            subcomponents.get("damage_suppression", 50.0),
+            1,
+        ),
+        "active_subcomponents": [
+            name
+            for name in weights
+            if name in subcomponents
+        ],
+        "missing_inputs": sorted(set(missing_inputs)),
+    }
+
+
+def neutral_starting_pitcher_breakdown(
+    *,
+    missing_inputs=None,
+):
+    return {
+        "starting_pitching_score": 50.0,
+        "run_prevention": 50.0,
+        "baserunner_control": 50.0,
+        "strikeout_command": 50.0,
+        "damage_suppression": 50.0,
+        "active_subcomponents": [],
+        "missing_inputs": missing_inputs or [],
+    }
+
+
+def inverse_metric_score(value, *, average, half_range):
+    return normalize_metric(
+        average - (value - average),
+        average=average,
+        half_range=half_range,
+    )
 
 
 def bullpen_score(bullpen):

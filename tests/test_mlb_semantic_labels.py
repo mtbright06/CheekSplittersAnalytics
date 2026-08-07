@@ -27,10 +27,13 @@ def test_mlb_play_summary_labels_model_strength_separately_from_market_probabili
                     "play": "Away",
                     "market": "Moneyline",
                     "recommendation": "LEAN",
+                    "model_strength": 10.7,
                     "model_win_strength": 0.58,
                     "model_probability": 0.58,
-                    "model_confidence": 76.0,
-                    "confidence": 76.0,
+                    "model_reliability": 90.0,
+                    "reliability": 90.0,
+                    "model_confidence": 90.0,
+                    "confidence": 90.0,
                 },
                 "odds": {
                     "book_probability": 0.52,
@@ -44,6 +47,8 @@ def test_mlb_play_summary_labels_model_strength_separately_from_market_probabili
 
     html = "".join(rendered)
 
-    assert "Model Win Strength" in html
-    assert "Model Confidence" in html
+    assert "Model Strength" in html
+    assert "10.7" in html
+    assert "Model Reliability" in html
+    assert "90.0/100" in html
     assert "Market Probability" not in html

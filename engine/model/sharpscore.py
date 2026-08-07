@@ -46,10 +46,15 @@ def calculate_team_score(
     return round(total, 1), components
 
 
-def probability_from_scores(selected_score, opponent_score):
+def strength_score_from_scores(selected_score, opponent_score):
     diff = selected_score - opponent_score
-    probability = 50 + diff * 0.75
-    return round(max(40, min(70, probability)), 1)
+    strength_score = 50 + diff * 0.75
+    return round(max(40, min(70, strength_score)), 1)
+
+
+def probability_from_scores(selected_score, opponent_score):
+    """Compatibility alias for the historical pseudo-probability field."""
+    return strength_score_from_scores(selected_score, opponent_score)
 
 
 def choose_side(away_name, home_name, away_score, home_score):
@@ -112,7 +117,7 @@ def build_sharpscore_decision(
         selected_pitcher = home_pitcher
         opponent_pitcher = away_pitcher
 
-    model_win_strength = probability_from_scores(
+    model_strength_score = strength_score_from_scores(
         selected_score,
         opponent_score,
     )
@@ -125,11 +130,11 @@ def build_sharpscore_decision(
     edge = None
 
     if quote:
-        calculated = calculate_market_edge(model_win_strength, quote)
+        calculated = calculate_market_edge(model_strength_score, quote)
         market_edge = market_edge_to_dict(calculated)
         edge = market_edge.get("edge")
 
-    confidence, confidence_breakdown = calculate_confidence(
+    legacy_confidence, legacy_confidence_breakdown = calculate_confidence(
         abs(selected_score - opponent_score),
         away_pitcher,
         home_pitcher,
@@ -140,8 +145,8 @@ def build_sharpscore_decision(
 
     model_recommendation = (
         mlb_moneyline_conviction_recommendation(
-            model_win_strength,
-            confidence,
+            model_strength_score,
+            legacy_confidence,
         )
     )
     v2_reliability = mlb_moneyline_v2_reliability(
@@ -163,6 +168,7 @@ def build_sharpscore_decision(
         )
     )
     official_recommendation = v2_candidate_authority["recommendation"]
+    reliability_score = v2_reliability["score"]
     market_value_label, market_value_tone = (
         market_value_classification(edge)
     )
@@ -170,16 +176,27 @@ def build_sharpscore_decision(
     model = {
         "play": play,
         "market": "Moneyline",
-        "model_win_strength": model_win_strength,
+        "model_strength": sharpscore_gap,
+        "model_strength_score": model_strength_score,
+        # Compatibility alias for downstream consumers that still expect the
+        # historical percent-like strength score.
+        "model_win_strength": model_strength_score,
         # Compatibility alias for downstream consumers that still expect the
         # historical probability-looking field. Do not calculate separately.
-        "model_probability": model_win_strength,
-        "model_confidence": confidence,
+        "model_probability": model_strength_score,
+        "model_reliability": reliability_score,
+        "reliability": reliability_score,
+        "reliability_breakdown": v2_reliability,
+        # Compatibility aliases: MLB model confidence now means input
+        # reliability, not SharpScore separation or win probability.
+        "model_confidence": reliability_score,
         "sharpscore_gap": sharpscore_gap,
         "edge": edge,
-        # Compatibility alias for the MLB model's numeric confidence.
-        "confidence": confidence,
-        "confidence_breakdown": confidence_breakdown,
+        "confidence": reliability_score,
+        "confidence_breakdown": v2_reliability,
+        "legacy_confidence": legacy_confidence,
+        "legacy_model_confidence": legacy_confidence,
+        "legacy_confidence_breakdown": legacy_confidence_breakdown,
         "recommendation": official_recommendation,
         "model_recommendation": official_recommendation,
         "v1_shadow_recommendation": model_recommendation,
@@ -305,7 +322,24 @@ def mlb_moneyline_v2_reliability(
     else:
         tier_cap = "STRONG PLAY"
 
+    score = 100.0
+
+    if "severe_data_incompleteness" in concerns:
+        score = 35.0
+    else:
+        if "missing_core_offense" in concerns:
+            score -= 25.0
+        if "missing_core_starter_data" in concerns:
+            score -= 25.0
+        if "unknown_starter" in concerns:
+            score -= 20.0
+        if "missing_bullpen_data" in concerns:
+            score -= 10.0
+
+    score = round(max(0.0, min(100.0, score)), 1)
+
     return {
+        "score": score,
         "core_fields_present": present_core,
         "core_fields_total": len(core_values),
         "concerns": concerns,

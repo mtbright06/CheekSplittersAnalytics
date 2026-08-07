@@ -982,8 +982,22 @@ def build_decision_card() -> dict:
             or mlb_game.get("model_confidence")
         )
 
+        legacy_model_confidence = safe_float(
+            (
+                mlb_game.get("model", {}).get("legacy_model_confidence")
+                if isinstance(mlb_game.get("model"), dict)
+                else None
+            )
+            or (
+                mlb_game.get("model", {}).get("legacy_confidence")
+                if isinstance(mlb_game.get("model"), dict)
+                else None
+            )
+        )
+
         sample_confidence = safe_float(
             bomb.get("sample_confidence")
+            or legacy_model_confidence
             or model_confidence
             or mlb_game.get("confidence")
         )
@@ -1176,7 +1190,14 @@ def build_decision_card() -> dict:
                     if mlb_probability is not None
                     else None
                 ),
+                "model_strength": (
+                    mlb_game.get("model", {}).get("model_strength")
+                    if isinstance(mlb_game.get("model"), dict)
+                    else None
+                ),
                 "model_confidence": model_confidence,
+                "model_reliability": model_confidence,
+                "legacy_model_confidence": legacy_model_confidence,
                 "hammer_confidence": hammer["confidence"],
                 # Compatibility alias for older consumers; authoritative
                 # Hammer confidence is `hammer_confidence`.

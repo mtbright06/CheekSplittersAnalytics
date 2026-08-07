@@ -239,7 +239,7 @@ def mlb_moneyline_explanation(
         "schema_version": "mlb_moneyline_v1",
         "conviction": {
             "label": recommendation,
-            "source": "model_probability_and_confidence",
+            "source": "sharpscore_gap_and_input_reliability",
             "summary": conviction_summaries[recommendation],
         },
         "market_value": {

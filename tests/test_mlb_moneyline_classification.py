@@ -8,7 +8,30 @@ from engine.model.recommendations import (
     mlb_moneyline_v2_recommendation,
     recommendation,
 )
-from engine.model.sharpscore import build_sharpscore_decision
+from engine.model.sharpscore import (
+    build_sharpscore_decision,
+    mlb_moneyline_v2_reliability,
+)
+
+
+COMPLETE_AWAY_PROFILE = {
+    "offense": {"ops": .750},
+    "bullpen": {"season_era": 3.8},
+}
+COMPLETE_HOME_PROFILE = {
+    "offense": {"ops": .700},
+    "bullpen": {"season_era": 4.2},
+}
+COMPLETE_AWAY_PITCHER = {
+    "name": "Away Starter",
+    "era": 3.0,
+    "whip": 1.1,
+}
+COMPLETE_HOME_PITCHER = {
+    "name": "Home Starter",
+    "era": 4.0,
+    "whip": 1.3,
+}
 
 
 def test_mlb_moneyline_conviction_tiers():
@@ -127,10 +150,10 @@ def test_sharpscore_serializes_conviction_and_market_value_separately():
         result = build_sharpscore_decision(
             "Away Club",
             "Home Club",
-            {"offense": {}},
-            {"offense": {}},
-            {"name": "Away Starter"},
-            {"name": "Home Starter"},
+            COMPLETE_AWAY_PROFILE,
+            COMPLETE_HOME_PROFILE,
+            COMPLETE_AWAY_PITCHER,
+            COMPLETE_HOME_PITCHER,
             quote,
             None,
         )
@@ -139,10 +162,14 @@ def test_sharpscore_serializes_conviction_and_market_value_separately():
     assert model["model_win_strength"] == 59.0
     assert model["model_probability"] == 59.0
     assert model["model_win_strength"] == model["model_probability"]
-    assert model["model_confidence"] == 85.0
+    assert model["model_strength"] == 12.0
+    assert model["model_confidence"] == 100.0
+    assert model["model_reliability"] == 100.0
     assert model["confidence"] == model["model_confidence"]
-    assert model["recommendation"] == "PLAY"
-    assert model["model_recommendation"] == "PLAY"
+    assert model["legacy_model_confidence"] == 85.0
+    assert model["legacy_confidence"] == 85.0
+    assert model["recommendation"] == "STRONG PLAY"
+    assert model["model_recommendation"] == "STRONG PLAY"
     assert model["v1_shadow_recommendation"] == "✅ STRONG PLAY"
     assert model["market_value_label"] == "HEAVY PREMIUM"
     assert result["market_edge"]["edge"] == -6.0
@@ -165,17 +192,91 @@ def test_sharpscore_keeps_strong_conviction_when_edge_is_missing():
         result = build_sharpscore_decision(
             "Away Club",
             "Home Club",
-            {"offense": {}},
-            {"offense": {}},
-            {"name": "Away Starter"},
-            {"name": "Home Starter"},
+            COMPLETE_AWAY_PROFILE,
+            COMPLETE_HOME_PROFILE,
+            COMPLETE_AWAY_PITCHER,
+            COMPLETE_HOME_PITCHER,
             None,
             None,
         )
 
-    assert result["model"]["recommendation"] == "PLAY"
+    assert result["model"]["recommendation"] == "STRONG PLAY"
     assert result["model"]["v1_shadow_recommendation"] == "✅ STRONG PLAY"
     assert result["model"]["market_value_label"] == "VALUE UNAVAILABLE"
+
+
+def test_mlb_reliability_is_current_input_quality_not_sharpscore_gap():
+    full_reliability = mlb_moneyline_v2_reliability(
+        away_offense=COMPLETE_AWAY_PROFILE["offense"],
+        home_offense=COMPLETE_HOME_PROFILE["offense"],
+        away_pitcher=COMPLETE_AWAY_PITCHER,
+        home_pitcher=COMPLETE_HOME_PITCHER,
+        away_bullpen=COMPLETE_AWAY_PROFILE["bullpen"],
+        home_bullpen=COMPLETE_HOME_PROFILE["bullpen"],
+    )
+    missing_bullpen = mlb_moneyline_v2_reliability(
+        away_offense=COMPLETE_AWAY_PROFILE["offense"],
+        home_offense=COMPLETE_HOME_PROFILE["offense"],
+        away_pitcher=COMPLETE_AWAY_PITCHER,
+        home_pitcher=COMPLETE_HOME_PITCHER,
+        away_bullpen={},
+        home_bullpen={},
+    )
+    missing_starter = mlb_moneyline_v2_reliability(
+        away_offense=COMPLETE_AWAY_PROFILE["offense"],
+        home_offense=COMPLETE_HOME_PROFILE["offense"],
+        away_pitcher={"name": "Unknown Starter"},
+        home_pitcher=COMPLETE_HOME_PITCHER,
+        away_bullpen=COMPLETE_AWAY_PROFILE["bullpen"],
+        home_bullpen=COMPLETE_HOME_PROFILE["bullpen"],
+    )
+
+    assert full_reliability["score"] == 100.0
+    assert full_reliability["tier_cap"] == "STRONG PLAY"
+    assert missing_bullpen["score"] == 90.0
+    assert missing_bullpen["tier_cap"] == "PLAYABLE"
+    assert missing_starter["score"] == 55.0
+    assert missing_starter["tier_cap"] == "LEAN"
+
+
+def test_mlb_reliability_aliases_do_not_change_with_sharpscore_gap():
+    components = {"offense": 60, "starting_pitching": 60, "bullpen": 60, "home_field": 50}
+
+    with patch(
+        "engine.model.sharpscore.calculate_team_score",
+        side_effect=[(54.0, components), (50.0, components)],
+    ):
+        modest = build_sharpscore_decision(
+            "Away Club",
+            "Home Club",
+            COMPLETE_AWAY_PROFILE,
+            COMPLETE_HOME_PROFILE,
+            COMPLETE_AWAY_PITCHER,
+            COMPLETE_HOME_PITCHER,
+            None,
+            None,
+        )
+
+    with patch(
+        "engine.model.sharpscore.calculate_team_score",
+        side_effect=[(62.0, components), (50.0, components)],
+    ):
+        strong = build_sharpscore_decision(
+            "Away Club",
+            "Home Club",
+            COMPLETE_AWAY_PROFILE,
+            COMPLETE_HOME_PROFILE,
+            COMPLETE_AWAY_PITCHER,
+            COMPLETE_HOME_PITCHER,
+            None,
+            None,
+        )
+
+    assert modest["model"]["model_strength"] == 4.0
+    assert strong["model"]["model_strength"] == 12.0
+    assert modest["model"]["model_confidence"] == strong["model"]["model_confidence"]
+    assert modest["model"]["confidence"] == strong["model"]["confidence"]
+    assert modest["model"]["model_reliability"] == strong["model"]["model_reliability"]
 
 
 def test_sharpscore_promotes_v2_candidate_and_preserves_v1_shadow():

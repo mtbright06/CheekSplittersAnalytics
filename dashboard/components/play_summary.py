@@ -21,7 +21,7 @@ def render_play_summary(
     market = model.get("market") or "Market"
     recommendation = model.get("recommendation") or "PASS"
     sport = str(game.get("sport") or "").lower()
-    confidence = model.get("confidence")
+    confidence = model.get("reliability", model.get("confidence"))
     book_probability = odds.get("book_probability")
     moneyline = odds.get("moneyline")
     market_loaded = bool(odds.get("real_market_loaded")) or (
@@ -77,12 +77,12 @@ def render_play_summary(
             f"<div class='muted'>{subtitle}</div>",
             "</div><div class='play-hero-metrics'>",
             (
-                f"<div><span>Model Win Strength</span><strong>{_model_probability_text(model.get('model_win_strength') if model.get('model_win_strength') is not None else model.get('model_probability'))}</strong></div>"
+                f"<div><span>Model Strength</span><strong>{_model_strength_text(model)}</strong></div>"
                 if sport == "mlb"
                 else f"<div><span>Edge</span><strong>{edge_text}</strong></div>"
             ),
             (
-                f"<div><span>Model Confidence</span><strong>{confidence_text}</strong></div>"
+                f"<div><span>Model Reliability</span><strong>{confidence_text}</strong></div>"
                 if sport == "mlb"
                 else f"<div><span>Book</span><strong>{book_text}</strong></div>"
             ),
@@ -138,6 +138,19 @@ def _model_probability_text(value):
     if value is None:
         return "Unavailable"
     return f"{_percent(value):.1f}%"
+
+
+def _model_strength_text(model):
+    value = model.get("model_strength")
+
+    if value is None:
+        return _model_probability_text(
+            model.get("model_win_strength")
+            if model.get("model_win_strength") is not None
+            else model.get("model_probability")
+        )
+
+    return f"{float(value):.1f}"
 
 
 def play_summary_state(

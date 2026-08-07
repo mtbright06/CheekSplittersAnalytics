@@ -95,8 +95,8 @@ def test_mlb_v2_official_recommendation_overrides_v1_shadow():
                 "hammer_confidence": "PASS",
                 "hammer_score": 0.0,
                 "hammer_tier": "PASS",
-                "recommendation": "PLAY",
-                "model_recommendation": "PLAY",
+                "recommendation": "PLAYABLE",
+                "model_recommendation": "PLAYABLE",
                 "v1_shadow_recommendation": "PASS",
                 "v1_shadow_tier": "PASS",
             }
@@ -105,8 +105,8 @@ def test_mlb_v2_official_recommendation_overrides_v1_shadow():
 
     recommendation = adapt_mlb_decision_card(card)[0]
 
-    assert recommendation.recommendation == "PLAY"
-    assert recommendation.model_recommendation == "PLAY"
+    assert recommendation.recommendation == "PLAYABLE"
+    assert recommendation.model_recommendation == "PLAYABLE"
     assert recommendation.components["v1_shadow_recommendation"] == "PASS"
     assert recommendation.hammer_tier == "PASS"
     assert recommendation.actionable is True

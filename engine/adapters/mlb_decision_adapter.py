@@ -235,7 +235,15 @@ def adapt_decision(
             ),
             "model_win_strength": model_win_strength,
             "model_probability": model_win_strength,
+            "model_strength": row.get("model_strength"),
+            "model_reliability": row.get(
+                "model_reliability",
+                row.get("model_confidence"),
+            ),
             "model_confidence": row.get("model_confidence"),
+            "legacy_model_confidence": row.get(
+                "legacy_model_confidence"
+            ),
             "v1_shadow_recommendation": row.get(
                 "v1_shadow_recommendation"
             ),

@@ -419,6 +419,22 @@ label taxonomy consolidation, and structured totals projected-total
 persistence before official projection-error analysis. No production code,
 schema, model logic, thresholds, recommendations, data, or migrations changed.
 
+Sprint 83.0 completed the read-only Phase 5 product integrity audit in
+`docs/PRODUCT_INTEGRITY_AUDIT.md`,
+`docs/PRODUCT_EXPLAINABILITY_GUIDE.md`, and
+`docs/PRODUCT_TERMINOLOGY_REFERENCE.md`. Verdict: PRODUCT INTEGRITY CERTIFIED
+WITH CLARIFICATIONS. No objectively incorrect user-facing value was corrected,
+but several truthful internal metrics need clearer product language before
+broad release: `Model Probability` should be treated as model win strength
+unless calibrated; generic `Confidence` should be qualified as model or Hammer
+confidence; `Hammer Score` is true Hammer for MLB moneyline but compatibility
+score for some KBO/Totals surfaces; `Edge` should distinguish market value
+from totals run separation; and projected totals/recommendation scores should
+not imply calibrated probability. KBO workstation terminology needs special
+attention because one display path labels confidence as Model Strength while
+also showing model probability/strength separately. No production code, UI
+code, model logic, thresholds, recommendations, data, or migrations changed.
+
 **Sprint 68.1 — Application Shell:** implemented and awaiting review. The
 dashboard now has a dedicated `dashboard/shell/` boundary that owns one route
 configuration, compact sidebar navigation, slim top bar, and shell session

@@ -1,5 +1,6 @@
 from engine.model.component_scores import (
     offense_score,
+    offense_breakdown,
     starting_pitcher_score,
     bullpen_score,
     home_field_score,
@@ -29,11 +30,13 @@ def calculate_team_score(
     bullpen,
     is_home,
 ):
+    offense_details = offense_breakdown(offense)
     components = {
-        "offense": offense_score(offense),
+        "offense": offense_details["offense_score"],
         "starting_pitching": starting_pitcher_score(pitcher),
         "bullpen": bullpen_score(bullpen),
         "home_field": home_field_score(is_home),
+        "offense_breakdown": offense_details,
     }
 
     total = (

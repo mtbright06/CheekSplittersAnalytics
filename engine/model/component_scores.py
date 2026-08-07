@@ -9,37 +9,152 @@ def clamp(value, low=0, high=100):
 
 
 def offense_score(offense):
-    score = 50
+    return offense_breakdown(offense)["offense_score"]
 
+
+def offense_breakdown(offense):
     if not offense:
-        return score
+        return {
+            "offense_score": 50.0,
+            "run_creation": 50.0,
+            "power": 50.0,
+            "plate_discipline": 50.0,
+            "active_subcomponents": [],
+            "missing_inputs": [
+                "runs_per_game",
+                "ops",
+                "iso",
+                "hr_per_game",
+                "bb_rate",
+                "k_rate",
+            ],
+        }
 
-    rpg = offense.get("runs_per_game")
-    ops = offense.get("ops")
-    hrpg = offense.get("hr_per_game")
-    iso = offense.get("iso")
-    k_rate = offense.get("k_rate")
-    bb_rate = offense.get("bb_rate")
+    run_creation_inputs = []
+    missing_inputs = []
+
+    rpg = to_float(offense.get("runs_per_game"))
+    ops = to_float(offense.get("ops"))
+    hrpg = to_float(offense.get("hr_per_game"))
+    iso = to_float(offense.get("iso"))
+    k_rate = to_float(offense.get("k_rate"))
+    bb_rate = to_float(offense.get("bb_rate"))
 
     if rpg is not None:
-        score += (rpg - 4.4) * 7
+        run_creation_inputs.append(
+            normalize_metric(rpg, average=4.4, half_range=1.0)
+        )
+    else:
+        missing_inputs.append("runs_per_game")
 
     if ops is not None:
-        score += (ops - 0.710) * 120
+        run_creation_inputs.append(
+            normalize_metric(ops, average=0.710, half_range=0.080)
+        )
+    else:
+        missing_inputs.append("ops")
 
-    if hrpg is not None:
-        score += (hrpg - 1.1) * 8
+    run_creation = active_average(run_creation_inputs)
 
     if iso is not None:
-        score += (iso - 0.160) * 90
+        power = normalize_metric(iso, average=0.160, half_range=0.040)
+        power_source = "iso"
+    elif hrpg is not None:
+        power = normalize_metric(hrpg, average=1.10, half_range=0.30)
+        power_source = "hr_per_game"
+        missing_inputs.append("iso")
+    else:
+        power = None
+        power_source = None
+        missing_inputs.extend(["iso", "hr_per_game"])
 
-    if k_rate is not None:
-        score -= (k_rate - 22.0) * 0.6
+    if bb_rate is not None and k_rate is not None:
+        plate_discipline = normalize_metric(
+            bb_rate - k_rate,
+            average=-14.0,
+            half_range=6.0,
+        )
+    else:
+        plate_discipline = None
+        if bb_rate is None:
+            missing_inputs.append("bb_rate")
+        if k_rate is None:
+            missing_inputs.append("k_rate")
 
-    if bb_rate is not None:
-        score += (bb_rate - 8.0) * 0.8
+    subcomponents = {
+        "run_creation": run_creation,
+        "power": power,
+        "plate_discipline": plate_discipline,
+    }
+    weights = {
+        "run_creation": 0.45,
+        "power": 0.30,
+        "plate_discipline": 0.25,
+    }
+    active_weight = sum(
+        weight
+        for name, weight in weights.items()
+        if subcomponents[name] is not None
+    )
 
-    return round(clamp(score), 1)
+    if active_weight <= 0:
+        score = 50.0
+        active_subcomponents = []
+    else:
+        score = sum(
+            subcomponents[name] * weight
+            for name, weight in weights.items()
+            if subcomponents[name] is not None
+        ) / active_weight
+        active_subcomponents = [
+            name
+            for name in weights
+            if subcomponents[name] is not None
+        ]
+
+    return {
+        "offense_score": round(clamp(score), 1),
+        "run_creation": (
+            round(run_creation, 1)
+            if run_creation is not None
+            else 50.0
+        ),
+        "power": round(power, 1) if power is not None else 50.0,
+        "power_source": power_source,
+        "plate_discipline": (
+            round(plate_discipline, 1)
+            if plate_discipline is not None
+            else 50.0
+        ),
+        "active_subcomponents": active_subcomponents,
+        "missing_inputs": sorted(set(missing_inputs)),
+    }
+
+
+def normalize_metric(value, *, average, half_range):
+    return clamp(50 + ((value - average) / half_range) * 20)
+
+
+def active_average(values):
+    active = [
+        value
+        for value in values
+        if value is not None
+    ]
+
+    if not active:
+        return None
+
+    return sum(active) / len(active)
+
+
+def to_float(value):
+    try:
+        if value in (None, ""):
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def starting_pitcher_score(pitcher):

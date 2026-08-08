@@ -85,9 +85,13 @@ def canonical_kbo_row(row: dict) -> dict:
         "model_confidence": (
             model.get("model_confidence")
             if model.get("model_confidence") is not None
-            else model.get("confidence")
+            else (
+                model.get("model_reliability")
+                if model.get("model_reliability") is not None
+                else model.get("confidence")
+            )
         ),
-        "hammer_score": model.get("confidence"),
+        "hammer_score": model.get("hammer_score"),
         "confidence": model.get("confidence"),
         "recommendation_label": model.get("recommendation"),
         "reasons": model.get("reasons", row.get("reasons")),
@@ -471,7 +475,6 @@ def extract_model_probability(
 def extract_hammer_score(row: dict) -> float:
     for key in [
         "hammer_score",
-        "confidence",
         "model_score",
         "stack_score",
         "score",
@@ -483,11 +486,6 @@ def extract_hammer_score(row: dict) -> float:
                 0.0,
                 min(100.0, value),
             )
-
-    probability = extract_model_probability(row)
-
-    if probability is not None:
-        return probability * 100
 
     return 0.0
 
@@ -727,6 +725,7 @@ def adapt_kbo_row(
             ),
             "model_strength": row.get("model_strength"),
             "model_confidence": row.get("model_confidence"),
+            "model_reliability": row.get("model_confidence"),
         },
 
         source_signals={

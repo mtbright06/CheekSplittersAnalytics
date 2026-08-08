@@ -1,5 +1,4 @@
 from engine.edge import EdgeCalculator
-from engine.confidence import ConfidenceEngine
 
 from loaders.pitcher_loader import PitcherLoader
 
@@ -14,8 +13,8 @@ from calculators.recent_form import RecentFormCalculator
 
 class KBOModel:
 
-    MODEL_SCORE_MINIMUM = 42.4
-    MODEL_SCORE_MAXIMUM = 59.6
+    MODEL_SCORE_MINIMUM = 42.0
+    MODEL_SCORE_MAXIMUM = 58.0
 
     def __init__(self):
 
@@ -44,16 +43,17 @@ class KBOModel:
             result = ModelResult()
 
             result.market = "Moneyline"
+            result.inactive_components = []
 
             weighted_score = 0
 
             for calculator in self.calculators:
 
                 score = calculator.score(game, i)
-                contribution = round(score * calculator.WEIGHT, 2)
+                contribution = score * calculator.WEIGHT
 
                 result.signals.append(
-                    (calculator.NAME, contribution)
+                    (calculator.NAME, round(contribution, 2))
                 )
 
                 weighted_score += contribution
@@ -66,26 +66,27 @@ class KBOModel:
                 for reason in calculator.reasons(game, i):
                     result.reasons.append(reason)
 
-            result.model_probability = round(
+            result.model_strength = round(
                 50 + (weighted_score * 8),
                 1
             )
-            result.model_strength = result.model_probability
+            # Deprecated compatibility alias: this is ordinal model strength,
+            # not a calibrated win probability.
+            result.model_probability = result.model_strength
             result.play = self._selection_from_score(
                 weighted_score,
                 game,
             )
 
             (
-                result.confidence,
-                result.confidence_breakdown,
-            ) = ConfidenceEngine.calculate(
-                result.model_probability,
-                game.away.pitcher,
-                game.home.pitcher,
-                game.away.offense,
-                game.home.offense,
-                market_available=False,
+                result.model_reliability,
+                result.reliability_breakdown,
+            ) = self._input_reliability(game)
+            result.model_confidence = result.model_reliability
+            result.confidence = result.model_reliability
+            result.confidence_breakdown = result.reliability_breakdown
+            result.legacy_model_confidence = self._model_strength_confidence(
+                result.model_strength
             )
 
             # Mock odds are only a pre-enrichment placeholder. They must not
@@ -116,17 +117,22 @@ class KBOModel:
             else:
                 result.edge = None
 
+            if getattr(result, "model_strength", None) is None:
+                result.model_strength = result.model_probability
+
             result.recommendation = self._model_score_recommendation(
-                result.model_probability
+                result.model_strength
             )
-            result.confidence = self._model_strength_confidence(
-                result.model_probability
+            (
+                result.model_reliability,
+                result.reliability_breakdown,
+            ) = self._input_reliability(game)
+            result.confidence = result.model_reliability
+            result.model_confidence = result.model_reliability
+            result.confidence_breakdown = result.reliability_breakdown
+            result.legacy_model_confidence = self._model_strength_confidence(
+                result.model_strength
             )
-            result.model_confidence = result.confidence
-            result.confidence_breakdown = {
-                "model_strength": result.confidence,
-                "basis": "KBO ordinal model score",
-            }
 
         return games
 
@@ -164,8 +170,11 @@ class KBOModel:
     @staticmethod
     def _model_score_recommendation(model_score):
         """Return a KBO-only ordinal label when no real market is available."""
-        if model_score >= 58.0:
+        if model_score >= 57.0:
             return "🔥 STRONG PLAY"
+
+        if model_score >= 56.5:
+            return "✅ PLAY"
 
         if model_score >= 55.0:
             return "✅ PLAYABLE"
@@ -186,6 +195,89 @@ class KBOModel:
             * 100
         )
         return round(max(0.0, min(100.0, strength)), 1)
+
+    @classmethod
+    def _input_reliability(cls, game):
+        score = 100.0
+        breakdown = {
+            "basis": "KBO current input reliability",
+            "starter_identity": 0.0,
+            "starter_stats": 0.0,
+            "starter_role": 0.0,
+            "offense": 0.0,
+            "bullpen": 0.0,
+            "recent_form": 0.0,
+            "schedule_mapping": 0.0,
+            "provider_quality": 0.0,
+            "inactive_components": 0.0,
+        }
+
+        for side in (game.away, game.home):
+            pitcher = side.pitcher
+            if cls._missing_starter(pitcher):
+                score -= 20.0
+                breakdown["starter_identity"] -= 20.0
+            elif getattr(pitcher, "data_source", None) != "starter_profile":
+                score -= 8.0
+                breakdown["provider_quality"] -= 8.0
+
+            if not cls._has_required_starter_stats(pitcher):
+                score -= 12.0
+                breakdown["starter_stats"] -= 12.0
+
+            role_context = getattr(pitcher, "role_context", None)
+            if role_context == "no_prior_starts":
+                score -= 6.0
+                breakdown["starter_role"] -= 6.0
+            elif role_context == "limited_starting_role":
+                score -= 3.0
+                breakdown["starter_role"] -= 3.0
+
+            if side.offense.runs_per_game is None:
+                score -= 10.0
+                breakdown["offense"] -= 10.0
+            elif getattr(
+                side.offense,
+                "offense_source",
+                None,
+            ) == "STATIC_FALLBACK":
+                score -= 5.0
+                breakdown["offense"] -= 5.0
+
+            if side.bullpen.era is None or side.bullpen.league_era is None:
+                score -= 6.0
+                breakdown["bullpen"] -= 6.0
+
+            if (
+                side.form.recent_runs_per_game is None
+                or side.form.season_runs_per_game is None
+                or side.form.recent_games is None
+            ):
+                score -= 3.0
+                breakdown["recent_form"] -= 3.0
+
+        if not game.game_url:
+            score -= 5.0
+            breakdown["schedule_mapping"] -= 5.0
+
+        breakdown["inactive_components"] = "No inactive KBO model components."
+
+        return round(max(0.0, min(100.0, score)), 1), breakdown
+
+    @staticmethod
+    def _missing_starter(pitcher):
+        return (
+            pitcher.name is None
+            or pitcher.name == "Unknown Starter"
+            or getattr(pitcher, "starter_confirmed", False) is False
+        )
+
+    @staticmethod
+    def _has_required_starter_stats(pitcher):
+        return (
+            pitcher.era is not None
+            and pitcher.whip is not None
+        )
 
     def _should_skip_game(self, game):
 

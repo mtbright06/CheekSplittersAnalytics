@@ -177,6 +177,7 @@ def sportsbook_priority(
 def pitcher_from_team(
     team_blob: dict,
     *,
+    game_date: Any = None,
     game_log_cache: PitcherGameLogCache | None = None,
 ) -> dict:
     pitcher = (
@@ -190,6 +191,7 @@ def pitcher_from_team(
 
     stats = fetch_pitcher_stats(
         pitcher_id,
+        as_of=game_date,
         game_log_cache=game_log_cache,
     )
 
@@ -236,6 +238,34 @@ def pitcher_from_team(
         ),
         "opponent_avg": stats.get(
             "opponent_avg"
+        ),
+        "previous_start_date": stats.get(
+            "previous_start_date"
+        ),
+        "previous_appearance_date": stats.get(
+            "previous_appearance_date"
+        ),
+        "days_rest": stats.get("days_rest"),
+        "previous_start_ip": stats.get(
+            "previous_start_ip"
+        ),
+        "previous_start_pitch_count": stats.get(
+            "previous_start_pitch_count"
+        ),
+        "last_two_starts_ip": stats.get(
+            "last_two_starts_ip"
+        ),
+        "last_two_starts_pitch_count": stats.get(
+            "last_two_starts_pitch_count"
+        ),
+        "last14_start_ip": stats.get(
+            "last14_start_ip"
+        ),
+        "average_start_ip": stats.get(
+            "average_start_ip"
+        ),
+        "role_context": stats.get(
+            "role_context"
         ),
         "data_source": stats.get(
             "data_source"
@@ -1197,11 +1227,13 @@ def build_mlb_card(
 
         away_pitcher = pitcher_from_team(
             away_blob,
+            game_date=scheduled_start_at,
             game_log_cache=game_log_cache,
         )
 
         home_pitcher = pitcher_from_team(
             home_blob,
+            game_date=scheduled_start_at,
             game_log_cache=game_log_cache,
         )
 

@@ -71,3 +71,59 @@ def test_kbo_pitcher_loader_uses_the_profile_name_when_summary_name_is_blank(mon
     assert pitcher.name == "So Hyeong-jun"
     assert pitcher.starter_confirmed is True
     assert pitcher.data_source == "starter_profile"
+
+
+def test_kbo_pitcher_loader_fails_safely_when_both_sides_map_to_same_profile(monkeypatch):
+    from models.game import Game
+
+    game = Game("Away", "Home", game_url="game")
+
+    monkeypatch.setattr(
+        KBODataProvider,
+        "get_team_data",
+        lambda team: {"offense": {"runs_per_game": 5.0}},
+    )
+    monkeypatch.setattr(
+        KBODataProvider,
+        "get_game_details",
+        lambda url: {
+            "away": {
+                "name": "Same Starter",
+                "record": "1-0",
+                "era": "3.00",
+                "profile_url": "same-profile",
+            },
+            "home": {
+                "name": "Same Starter",
+                "record": "1-0",
+                "era": "3.00",
+                "profile_url": "same-profile",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        KBODataProvider,
+        "get_pitcher_details",
+        lambda url: {
+            "name": "Same Starter",
+            "throws": "R",
+            "bats": "R",
+            "record": "1-0",
+            "era": 3.00,
+            "whip": 1.10,
+            "ip": 60.0,
+            "so": 50,
+            "bb": 15,
+            "hr_allowed": 5,
+            "k_rate": 7.5,
+            "bb_rate": 2.25,
+            "hr9": 0.75,
+        },
+    )
+
+    PitcherLoader.load(game)
+
+    assert game.away.pitcher.name == "Unknown Starter"
+    assert game.home.pitcher.name == "Unknown Starter"
+    assert game.away.pitcher.data_source == "starter_mapping_unverified"
+    assert game.home.pitcher.starter_confirmed is False

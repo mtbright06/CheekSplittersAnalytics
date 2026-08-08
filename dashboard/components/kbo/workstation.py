@@ -97,16 +97,16 @@ def _metric(label: str, value: Any, *, tone: str = "", quiet: bool = False) -> s
 
 def _decision_metrics(
     *,
-    confidence: Any,
-    model_probability: Any,
+    reliability: Any,
+    model_strength: Any,
     odds_value: str,
     edge_value: str,
     edge_positive: bool,
     market_missing: bool,
 ) -> str:
     metrics = [
-        _metric("Model Strength", _number(confidence), tone="success"),
-        _metric("Model Prob.", _probability(model_probability)),
+        _metric("Model Strength", _number(model_strength), tone="success"),
+        _metric("Reliability", _number(reliability)),
     ]
 
     if market_missing:
@@ -128,13 +128,28 @@ def _decision_metrics(
     return "".join(metrics)
 
 
-def _signal_items(signals: list[dict]) -> str:
-    if not signals:
+def _signal_items(
+    signals: list[dict],
+    inactive_components: list[dict] | None = None,
+) -> str:
+    inactive_components = inactive_components or []
+    inactive_names = {
+        str(component.get("name") or "")
+        for component in inactive_components
+        if isinstance(component, dict)
+    }
+    active_signals = [
+        signal
+        for signal in signals
+        if signal.get("name") not in inactive_names
+    ]
+
+    if not active_signals and not inactive_components:
         return "<div class='kbo-workstation-muted'>No model signals available.</div>"
 
     items = []
 
-    for signal in signals[:4]:
+    for signal in active_signals[:4]:
         name = signal.get("name")
         value = signal.get("value")
 
@@ -146,7 +161,46 @@ def _signal_items(signals: list[dict]) -> str:
             "</div>"
         )
 
+    for component in inactive_components:
+        if not isinstance(component, dict):
+            continue
+
+        items.append(
+            "<div class='kbo-workstation-signal kbo-workstation-signal--inactive'>"
+            f"<span>{_esc(component.get('name'))}</span>"
+            "<strong>Not modeled</strong>"
+            f"<small>{_esc(component.get('reason'), 'Inactive')}</small>"
+            "</div>"
+        )
+
     return "".join(items)
+
+
+def _reliability_items(breakdown: dict) -> str:
+    if not isinstance(breakdown, dict):
+        return ""
+
+    concerns = []
+
+    for label, key in [
+        ("Starter identity", "starter_identity"),
+        ("Starter stats", "starter_stats"),
+        ("Offense data", "offense"),
+        ("Schedule mapping", "schedule_mapping"),
+        ("Provider quality", "provider_quality"),
+    ]:
+        try:
+            value = float(breakdown.get(key) or 0)
+        except (TypeError, ValueError):
+            value = 0.0
+
+        if value < 0:
+            concerns.append(f"{label} {value:.0f}")
+
+    if not concerns:
+        return _metric("Reliability Concerns", "None")
+
+    return _metric("Reliability Concerns", ", ".join(concerns), quiet=True)
 
 
 def _reason_items(reasons: list[Any]) -> str:
@@ -165,6 +219,7 @@ def kbo_workstation_html(game: dict) -> str:
     model = game.get("model", {})
     odds = game.get("odds", {})
     pitching = game.get("pitching", {})
+    teams = game.get("teams", {})
 
     away = _safe(matchup.get("away"), "Away")
     home = _safe(matchup.get("home"), "Home")
@@ -174,8 +229,16 @@ def kbo_workstation_html(game: dict) -> str:
     market = _safe(model.get("market") or odds.get("market"), "Moneyline")
     time = _safe(game.get("start_time"), "Time TBD")
     venue = _safe(game.get("venue"), "Venue TBD")
-    confidence = model.get("confidence")
-    model_probability = model.get("model_probability")
+    reliability = (
+        model.get("model_reliability")
+        if model.get("model_reliability") is not None
+        else model.get("confidence")
+    )
+    model_strength = (
+        model.get("model_strength")
+        if model.get("model_strength") is not None
+        else model.get("model_probability")
+    )
     edge = model.get("edge")
     moneyline = odds.get("moneyline") or odds.get("american_odds")
     sportsbook = _safe(odds.get("sportsbook"), "Unavailable")
@@ -194,6 +257,13 @@ def kbo_workstation_html(game: dict) -> str:
 
     away_pitcher = pitching.get("away", {}) or {}
     home_pitcher = pitching.get("home", {}) or {}
+    away_team = teams.get("away", {}) if isinstance(teams, dict) else {}
+    away_offense = (
+        away_team.get("offense", {})
+        if isinstance(away_team, dict)
+        else {}
+    )
+    offense_source = away_offense.get("offense_source") or "Unknown"
 
     edge_value, edge_positive = _signed_percent(edge)
     odds_value = _odds(moneyline)
@@ -232,7 +302,7 @@ def kbo_workstation_html(game: dict) -> str:
         "</div>"
         "</div>"
         "<div class='kbo-workstation-decision-metrics'>"
-        f"{_decision_metrics(confidence=confidence, model_probability=model_probability, odds_value=odds_value, edge_value=edge_value, edge_positive=edge_positive, market_missing=market_missing)}"
+        f"{_decision_metrics(reliability=reliability, model_strength=model_strength, odds_value=odds_value, edge_value=edge_value, edge_positive=edge_positive, market_missing=market_missing)}"
         "</div>"
         "</div>"
         "<div class='kbo-workstation-panels'>"
@@ -241,11 +311,13 @@ def kbo_workstation_html(game: dict) -> str:
         "<div class='kbo-workstation-grid'>"
         f"{_metric('Market', market)}"
         f"{_metric('Source', market_source, quiet=market_missing)}"
+        f"{_metric('Offense Data', offense_source, quiet=offense_source != 'LIVE_TEAM_SPLITS')}"
         f"{_metric('Quotes', _number(quotes_compared, 0, '0'), quiet=market_missing)}"
         f"{_metric('Basis', confidence_basis or 'Ordinal model score')}"
+        f"{_reliability_items(confidence_breakdown)}"
         "</div>"
         "<div class='kbo-workstation-signals'>"
-        f"{_signal_items(model.get('signals', []))}"
+        f"{_signal_items(model.get('signals', []), model.get('inactive_components', []))}"
         "</div>"
         "</div>"
         "<div class='kbo-workstation-panel'>"

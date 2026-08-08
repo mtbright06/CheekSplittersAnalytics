@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 
 class GameParser:
@@ -29,17 +30,38 @@ class GameParser:
         soup = BeautifulSoup(response.text, "html.parser")
 
         starters = cls._find_starters(soup)
+        game_date = cls._parse_game_date(soup)
 
         if len(starters) != 2:
             return {
                 "away": cls._unknown_pitcher(),
                 "home": cls._unknown_pitcher(),
+                "game_date": game_date,
             }
 
         return {
             "away": cls._parse_pitcher(starters[0]),
             "home": cls._parse_pitcher(starters[1]),
+            "game_date": game_date,
         }
+
+    @classmethod
+    def _parse_game_date(cls, soup):
+        lines = [
+            line.strip()
+            for line in soup.get_text("\n", strip=True).splitlines()
+            if line.strip()
+        ]
+
+        for line in lines:
+            for fmt in ("%B %d, %Y %I:%M%p", "%B %d, %Y %I:%M:%p"):
+                try:
+                    text = line.split("·", 1)[0].strip().replace("  ", " ")
+                    return datetime.strptime(text, fmt).date().isoformat()
+                except ValueError:
+                    continue
+
+        return None
 
     @classmethod
     def _find_starters(cls, soup):

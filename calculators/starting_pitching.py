@@ -4,20 +4,34 @@ from calculators.base import BaseCalculator
 class StartingPitchingCalculator(BaseCalculator):
 
     NAME = "Starting Pitching"
-    WEIGHT = 0.35
+    WEIGHT = 0.55
+
+    METRIC_WEIGHTS = {
+        "era": 0.45,
+        "whip": 0.30,
+        "k_minus_bb": 0.15,
+        "hr9": 0.10,
+    }
 
     def score(self, game, index):
+
+        if (
+            self._missing_starter(game.away.pitcher)
+            or self._missing_starter(game.home.pitcher)
+        ):
+            return 0.0
 
         away_score = self._pitcher_score(game.away.pitcher)
         home_score = self._pitcher_score(game.home.pitcher)
 
-        if away_score > home_score:
-            return 2
-
-        if home_score > away_score:
-            return -2
-
-        return 0
+        return round(
+            self._clamp(
+                (away_score - home_score) / 2,
+                -1.0,
+                1.0,
+            ),
+            3,
+        )
 
     def reasons(self, game, index):
 
@@ -54,56 +68,124 @@ class StartingPitchingCalculator(BaseCalculator):
 
     def _pitcher_score(self, pitcher):
 
-        if pitcher.name is None or pitcher.name == "Unknown Starter":
-            return 0
+        if self._missing_starter(pitcher):
+            return 0.0
 
-        score = 0
+        metrics = []
 
-        score += self._lower_score(pitcher.era, 3.25, 4.00, 4.50, 5.00, 2)
-        score += self._lower_score(pitcher.whip, 1.15, 1.30, 1.40, 1.50, 2)
-        score += self._higher_score(pitcher.k_rate, 9.0, 7.5, 5.5, 4.5, 1)
-        score += self._lower_score(pitcher.bb_rate, 2.2, 3.0, 4.0, 5.0, 1)
-        score += self._lower_score(pitcher.hr9, 0.7, 1.0, 1.4, 1.8, 1)
+        self._add_metric(
+            metrics,
+            "era",
+            self._lower_better(
+                pitcher.era,
+                center=self._value_or_default(pitcher.league_era, 4.50),
+                scale=1.50,
+            ),
+        )
+        self._add_metric(
+            metrics,
+            "whip",
+            self._lower_better(pitcher.whip, center=1.40, scale=0.30),
+        )
 
-        return score
+        if pitcher.k_rate is not None and pitcher.bb_rate is not None:
+            self._add_metric(
+                metrics,
+                "k_minus_bb",
+                self._higher_better(
+                    pitcher.k_rate - pitcher.bb_rate,
+                    center=4.00,
+                    scale=3.00,
+                ),
+            )
 
-    def _lower_score(self, value, elite, good, bad, awful, points):
+        self._add_metric(
+            metrics,
+            "hr9",
+            self._lower_better(pitcher.hr9, center=1.00, scale=0.75),
+        )
 
+        if not metrics:
+            return 0.0
+
+        total_weight = sum(weight for _, weight in metrics)
+        quality = sum(value * weight for value, weight in metrics) / total_weight
+
+        stabilized_quality = quality * self._sample_stabilizer(pitcher.ip)
+
+        return round(
+            self._clamp(
+                stabilized_quality + self._context_adjustment(pitcher),
+                -1.0,
+                1.0,
+            ),
+            3,
+        )
+
+    def _add_metric(self, metrics, name, value):
         if value is None:
-            return 0
+            return
 
-        if value <= elite:
-            return points
+        metrics.append((value, self.METRIC_WEIGHTS[name]))
 
-        if value <= good:
-            return max(points - 1, 1)
-
-        if value >= awful:
-            return -points
-
-        if value >= bad:
-            return -max(points - 1, 1)
-
-        return 0
-
-    def _higher_score(self, value, elite, good, bad, awful, points):
-
+    def _lower_better(self, value, *, center, scale):
         if value is None:
-            return 0
+            return None
 
-        if value >= elite:
-            return points
+        return self._clamp((center - float(value)) / scale, -1.0, 1.0)
 
-        if value >= good:
-            return max(points - 1, 1)
+    def _higher_better(self, value, *, center, scale):
+        if value is None:
+            return None
 
-        if value <= awful:
-            return -points
+        return self._clamp((float(value) - center) / scale, -1.0, 1.0)
 
-        if value <= bad:
-            return -max(points - 1, 1)
+    def _sample_stabilizer(self, innings):
+        if innings is None:
+            return 0.75
 
-        return 0
+        return self._clamp(float(innings) / 80.0, 0.25, 1.0)
+
+    def _context_adjustment(self, pitcher):
+        adjustment = 0.0
+
+        if pitcher.days_rest is not None:
+            if pitcher.days_rest <= 3:
+                adjustment -= 0.08
+            elif pitcher.days_rest >= 7:
+                adjustment += 0.03
+
+        if (
+            pitcher.previous_start_ip is not None
+            and pitcher.previous_start_ip >= 7.0
+            and pitcher.days_rest is not None
+            and pitcher.days_rest <= 4
+        ):
+            adjustment -= 0.04
+
+        return self._clamp(adjustment, -0.10, 0.05)
+
+    @staticmethod
+    def _value_or_default(value, default):
+        if value is None:
+            return default
+
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _clamp(value, minimum, maximum):
+        return max(minimum, min(maximum, value))
+
+    @staticmethod
+    def _missing_starter(pitcher):
+        return (
+            pitcher.name is None
+            or pitcher.name == "Unknown Starter"
+            or getattr(pitcher, "starter_confirmed", False) is False
+        )
 
     def _comparison_reason(
         self,

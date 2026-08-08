@@ -250,14 +250,19 @@ def starting_pitcher_breakdown(pitcher):
             missing_inputs=missing_inputs,
         )
 
-    score = sum(
+    base_score = sum(
         subcomponents[name] * weight
         for name, weight in weights.items()
         if name in subcomponents
     ) / active_weight
+    context = starter_context_adjustment(pitcher)
+    score = base_score + context["adjustment"]
 
     return {
         "starting_pitching_score": round(clamp(score), 1),
+        "starter_quality_score": round(clamp(base_score), 1),
+        "starter_context_adjustment": context["adjustment"],
+        "starter_context_reasons": context["reasons"],
         "run_prevention": round(
             subcomponents.get("run_prevention", 50.0),
             1,
@@ -289,12 +294,83 @@ def neutral_starting_pitcher_breakdown(
 ):
     return {
         "starting_pitching_score": 50.0,
+        "starter_quality_score": 50.0,
+        "starter_context_adjustment": 0.0,
+        "starter_context_reasons": [],
         "run_prevention": 50.0,
         "baserunner_control": 50.0,
         "strikeout_command": 50.0,
         "damage_suppression": 50.0,
         "active_subcomponents": [],
         "missing_inputs": missing_inputs or [],
+    }
+
+
+def starter_context_adjustment(pitcher):
+    adjustment = 0.0
+    reasons = []
+
+    days_rest = to_float(pitcher.get("days_rest"))
+    previous_ip = to_float(pitcher.get("previous_start_ip"))
+    previous_pitches = to_float(pitcher.get("previous_start_pitch_count"))
+    average_start_ip = to_float(pitcher.get("average_start_ip"))
+    role_context = pitcher.get("role_context")
+
+    if days_rest is not None:
+        if days_rest <= 4:
+            adjustment -= 3.0
+            reasons.append("short_rest")
+        elif days_rest == 7:
+            adjustment += 1.0
+            reasons.append("extra_rest")
+
+    if previous_pitches is not None:
+        if previous_pitches >= 110 and days_rest is not None and days_rest <= 5:
+            adjustment -= 2.0
+            reasons.append("heavy_previous_pitch_count")
+        elif previous_pitches >= 100 and days_rest is not None and days_rest <= 4:
+            adjustment -= 1.5
+            reasons.append("elevated_pitch_count_on_short_rest")
+
+    if (
+        previous_ip is not None
+        and previous_ip >= 7.0
+        and days_rest is not None
+        and days_rest <= 5
+    ):
+        adjustment -= 1.0
+        reasons.append("deep_previous_start")
+
+    if role_context == "opener_risk":
+        adjustment -= 4.0
+        reasons.append("opener_risk")
+    elif role_context == "short_start_role_risk":
+        adjustment -= 2.0
+        reasons.append("short_start_role_risk")
+    elif role_context == "limited_starting_role":
+        adjustment -= 1.0
+        reasons.append("limited_starting_role")
+
+    if (
+        average_start_ip is not None
+        and average_start_ip < 4.0
+        and role_context == "established_starter"
+    ):
+        adjustment -= 1.0
+        reasons.append("limited_average_start_length")
+
+    adjustment = round(
+        clamp(
+            adjustment,
+            low=-5.0,
+            high=1.5,
+        ),
+        1,
+    )
+
+    return {
+        "adjustment": adjustment,
+        "reasons": sorted(set(reasons)),
     }
 
 
@@ -307,21 +383,225 @@ def inverse_metric_score(value, *, average, half_range):
 
 
 def bullpen_score(bullpen):
+    return bullpen_breakdown(bullpen)["bullpen_score"]
+
+
+def bullpen_breakdown(bullpen):
     if not bullpen:
-        return 50
+        return neutral_bullpen_breakdown()
 
-    era = bullpen.get("era")
-    whip = bullpen.get("whip")
+    season_era = to_float(
+        first_available(
+            bullpen,
+            "season_era",
+            "era",
+        )
+    )
+    season_whip = to_float(
+        first_available(
+            bullpen,
+            "season_whip",
+            "whip",
+        )
+    )
+    recent_era = to_float(
+        first_available(
+            bullpen,
+            "last7_era",
+            "last_7_era",
+        )
+    )
+    innings_last7 = to_float(
+        first_available(
+            bullpen,
+            "innings_last7",
+            "innings_last_7",
+        )
+    )
+    innings_last3 = to_float(
+        first_available(
+            bullpen,
+            "innings_last3",
+            "innings_last_3",
+        )
+    )
 
-    score = 50
+    missing_inputs = []
+    quality_components = {}
 
-    if era is not None:
-        score += (4.25 - era) * 5
+    if season_era is not None:
+        quality_components["season_run_prevention"] = inverse_metric_score(
+            season_era,
+            average=4.10,
+            half_range=1.30,
+        )
+    else:
+        missing_inputs.append("season_era")
 
-    if whip is not None:
-        score += (1.35 - whip) * 15
+    if season_whip is not None:
+        quality_components["baserunner_control"] = inverse_metric_score(
+            season_whip,
+            average=1.30,
+            half_range=0.25,
+        )
+    else:
+        missing_inputs.append("season_whip")
 
-    return round(clamp(score), 1)
+    stabilized_recent_era = stabilize_recent_bullpen_era(
+        recent_era=recent_era,
+        season_era=season_era,
+        innings_last7=innings_last7,
+    )
+
+    if stabilized_recent_era is not None:
+        quality_components["recent_run_prevention"] = inverse_metric_score(
+            stabilized_recent_era,
+            average=4.10,
+            half_range=2.00,
+        )
+    else:
+        missing_inputs.append("last7_era")
+        if recent_era is not None and innings_last7 is None:
+            missing_inputs.append("innings_last7")
+
+    quality_weights = {
+        "season_run_prevention": 0.50,
+        "baserunner_control": 0.30,
+        "recent_run_prevention": 0.20,
+    }
+    active_quality_weight = sum(
+        weight
+        for name, weight in quality_weights.items()
+        if name in quality_components
+    )
+
+    if active_quality_weight <= 0:
+        quality_score = 50.0
+        active_subcomponents = []
+    else:
+        quality_score = sum(
+            quality_components[name] * weight
+            for name, weight in quality_weights.items()
+            if name in quality_components
+        ) / active_quality_weight
+        active_subcomponents = [
+            name
+            for name in quality_weights
+            if name in quality_components
+        ]
+
+    fatigue_penalty = bullpen_fatigue_penalty(innings_last3)
+    availability_penalty = bullpen_availability_penalty(bullpen)
+    score = quality_score - fatigue_penalty - availability_penalty
+
+    return {
+        "bullpen_score": round(clamp(score), 1),
+        "quality_score": round(clamp(quality_score), 1),
+        "season_run_prevention": round(
+            quality_components.get("season_run_prevention", 50.0),
+            1,
+        ),
+        "baserunner_control": round(
+            quality_components.get("baserunner_control", 50.0),
+            1,
+        ),
+        "recent_run_prevention": round(
+            quality_components.get("recent_run_prevention", 50.0),
+            1,
+        ),
+        "stabilized_last7_era": (
+            round(stabilized_recent_era, 2)
+            if stabilized_recent_era is not None
+            else None
+        ),
+        "last7_sample_weight": bullpen_recent_sample_weight(innings_last7),
+        "fatigue_penalty": round(fatigue_penalty, 1),
+        "availability_penalty": round(availability_penalty, 1),
+        "active_subcomponents": active_subcomponents,
+        "missing_inputs": sorted(set(missing_inputs)),
+    }
+
+
+def neutral_bullpen_breakdown():
+    return {
+        "bullpen_score": 50.0,
+        "quality_score": 50.0,
+        "season_run_prevention": 50.0,
+        "baserunner_control": 50.0,
+        "recent_run_prevention": 50.0,
+        "stabilized_last7_era": None,
+        "last7_sample_weight": 0.0,
+        "fatigue_penalty": 0.0,
+        "availability_penalty": 0.0,
+        "active_subcomponents": [],
+        "missing_inputs": [
+            "season_era",
+            "season_whip",
+            "last7_era",
+        ],
+    }
+
+
+def bullpen_fatigue_penalty(innings_last3):
+    if innings_last3 is None:
+        return 0.0
+
+    return clamp(
+        (innings_last3 - 6.0) * 0.75,
+        low=0.0,
+        high=6.0,
+    )
+
+
+def stabilize_recent_bullpen_era(
+    *,
+    recent_era,
+    season_era,
+    innings_last7,
+):
+    if recent_era is None:
+        return None
+
+    sample_weight = bullpen_recent_sample_weight(innings_last7)
+
+    if sample_weight <= 0.0:
+        return None
+
+    baseline = season_era if season_era is not None else 4.10
+
+    return baseline + sample_weight * (recent_era - baseline)
+
+
+def bullpen_recent_sample_weight(innings_last7):
+    if innings_last7 is None:
+        return 0.0
+
+    return round(
+        innings_last7 / (innings_last7 + 12.0),
+        3,
+    )
+
+
+def bullpen_availability_penalty(bullpen):
+    penalty = 0.0
+
+    if bullpen.get("closer_available") is False:
+        penalty += 4.0
+
+    if bullpen.get("setup_available") is False:
+        penalty += 2.5
+
+    return penalty
+
+
+def first_available(mapping, *keys):
+    for key in keys:
+        value = mapping.get(key)
+
+        if value is not None:
+            return value
+
+    return None
 
 
 def market_score(book_probability, model_probability):

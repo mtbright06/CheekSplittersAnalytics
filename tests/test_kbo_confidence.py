@@ -7,7 +7,16 @@ def apply_known_starter(team, name):
     team.pitcher.name = name
     team.pitcher.era = 3.50
     team.pitcher.whip = 1.20
+    team.pitcher.data_source = "starter_profile"
+    team.pitcher.starter_confirmed = True
     team.offense.runs_per_game = 4.80
+    team.bullpen.era = 3.85
+    team.bullpen.league_era = 3.85
+    team.bullpen.source = "LIVE_TEAM_SPLITS"
+    team.form.season_runs_per_game = 4.80
+    team.form.recent_runs_per_game = 4.80
+    team.form.recent_games = 10
+    team.form.source = "LIVE_TEAM_SPLITS"
 
 
 def test_unknown_starter_reduces_confidence():
@@ -54,17 +63,20 @@ def test_missing_market_uses_the_kbo_model_score_scale_without_an_edge():
 
     assert game.result.edge is None
     assert game.result.recommendation == "🔥 STRONG PLAY"
-    # 58.0 is a strong KBO ordinal score, but the documented active maximum
-    # is 59.6, so the correct mapped confidence is 90.7 rather than 100.0.
-    assert game.result.confidence == 90.7
-    assert game.result.confidence_breakdown["basis"] == "KBO ordinal model score"
+    assert game.result.confidence == 95.0
+    assert game.result.model_confidence == 95.0
+    assert game.result.legacy_model_confidence == 100.0
+    assert game.result.confidence_breakdown["basis"] == "KBO current input reliability"
 
 
 def test_no_market_kbo_model_score_recommendation_tiers():
     model = KBOModel()
 
     assert model._model_score_recommendation(58.0) == "🔥 STRONG PLAY"
-    assert model._model_score_recommendation(57.9) == "✅ PLAYABLE"
+    assert model._model_score_recommendation(57.0) == "🔥 STRONG PLAY"
+    assert model._model_score_recommendation(56.9) == "✅ PLAY"
+    assert model._model_score_recommendation(56.5) == "✅ PLAY"
+    assert model._model_score_recommendation(56.4) == "✅ PLAYABLE"
     assert model._model_score_recommendation(55.0) == "✅ PLAYABLE"
     assert model._model_score_recommendation(54.9) == "👀 LEAN"
     assert model._model_score_recommendation(52.0) == "👀 LEAN"
@@ -74,10 +86,45 @@ def test_no_market_kbo_model_score_recommendation_tiers():
 def test_kbo_model_strength_confidence_uses_the_ordinal_score_range():
     model = KBOModel()
 
-    assert model._model_strength_confidence(59.6) == 100.0
-    assert model._model_strength_confidence(55.0) == 73.3
+    assert model._model_strength_confidence(58.0) == 100.0
+    assert model._model_strength_confidence(55.0) == 81.2
     assert model._model_strength_confidence(99.0) == 100.0
     assert model._model_strength_confidence(0.0) == 0.0
+
+
+def test_kbo_reliability_is_independent_of_model_score_magnitude():
+    model = KBOModel()
+
+    strong = Game("Away", "Home", game_url="game")
+    weak = Game("Away", "Home", game_url="game")
+    for game in (strong, weak):
+        apply_known_starter(game.away, "Away Starter")
+        apply_known_starter(game.home, "Home Starter")
+
+    strong.result = type("Result", (), {
+        "model_probability": 58.0,
+        "model_strength": 58.0,
+    })()
+    weak.result = type("Result", (), {
+        "model_probability": 52.0,
+        "model_strength": 52.0,
+    })()
+
+    model.finalize([strong, weak])
+
+    assert strong.result.confidence == weak.result.confidence == 100.0
+    assert strong.result.legacy_model_confidence != weak.result.legacy_model_confidence
+
+
+def test_no_inactive_kbo_components_reduce_reliability():
+    game = Game("Away", "Home", game_url="game")
+    apply_known_starter(game.away, "Away Starter")
+    apply_known_starter(game.home, "Home Starter")
+
+    reliability, breakdown = KBOModel._input_reliability(game)
+
+    assert reliability == 100.0
+    assert breakdown["inactive_components"] == "No inactive KBO model components."
 
 
 def test_real_market_preserves_model_conviction_after_enrichment():
@@ -97,8 +144,9 @@ def test_real_market_preserves_model_conviction_after_enrichment():
 
     assert game.result.edge == 6.0
     assert game.result.recommendation == "🔥 STRONG PLAY"
-    assert game.result.confidence == 90.7
-    assert game.result.confidence_breakdown["basis"] == "KBO ordinal model score"
+    assert game.result.confidence == 95.0
+    assert game.result.legacy_model_confidence == 100.0
+    assert game.result.confidence_breakdown["basis"] == "KBO current input reliability"
 
 
 def test_kbo_recommendation_does_not_change_when_only_market_changes():
@@ -124,4 +172,4 @@ def test_kbo_recommendation_does_not_change_when_only_market_changes():
 
     assert cheap.edge != expensive.edge
     assert cheap.recommendation == expensive.recommendation == "✅ PLAYABLE"
-    assert cheap.confidence == expensive.confidence == 73.3
+    assert cheap.confidence == expensive.confidence == 95.0

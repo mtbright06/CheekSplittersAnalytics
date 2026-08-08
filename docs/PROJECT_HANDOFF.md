@@ -435,6 +435,38 @@ attention because one display path labels confidence as Model Strength while
 also showing model probability/strength separately. No production code, UI
 code, model logic, thresholds, recommendations, data, or migrations changed.
 
+Sprint 83.1 investigated MLB Totals confidence saturation in
+`docs/TOTALS_CONFIDENCE_INVESTIGATION.md`. Recommendation: WORKING BUT LOW
+INFORMATION VALUE. The displayed `78.0 / 100` totals confidence is produced by
+`confidence = clamp(40 + data_points * 4, 40, 78)` and reaches its hard cap at
+`10+` data points. The available local MLB card artifact had `15` totals games,
+all with `EXCELLENT` data quality, raw confidence `84.0`, displayed confidence
+`78.0`, standard deviation `0.0`, and no market totals loaded, so all actionable
+recommendation scores were `0.0`. This is not a confirmed implementation defect
+or UI rendering issue; it is a saturation effect in a metric that currently
+measures input completeness rather than calibrated prediction certainty. No
+production code, UI code, formulas, thresholds, recommendations, data, or
+migrations changed.
+
+Sprint 84.0 investigated MLB moneyline recommendation quality in
+`docs/RECOMMENDATION_QUALITY_INVESTIGATION.md`,
+`docs/RECOMMENDATION_FUNNEL_ANALYSIS.md`, and
+`docs/RECOMMENDATION_CHANGE_ATTRIBUTION.md`. Root cause assessment: FILTER
+STACKING DETECTED. The current local MLB slate had `15` games: `11` LEAN, `4`
+PASS, and `0` PLAYABLE/STRONG/CHEEK RIPPER. No game reached the PLAYABLE gates
+because the slate maximum model win strength was `56.0` against the `56.5`
+threshold and the maximum model confidence was `70.9` against the `74.0`
+threshold. Model win strength and model confidence had `0.9997` correlation on
+the slate because both are driven by SharpScore separation, so the current
+two-dimensional tier gate effectively asks the same core signal to clear twice.
+Hammer remains advisory and is not a hidden MLB moneyline authority gate, but
+it is moderately correlated with model strength/confidence and can add perceived
+confirmation pressure. Persisted history is post-architecture only and too
+small to prove stricter authority improved results: `242` raw snapshots, `12`
+episodes, `4` canonical grades, and only two observed graded MLB moneyline
+episodes in the read-only sample. No production code, UI code, thresholds,
+weights, recommendation logic, data, or migrations changed.
+
 **Sprint 68.1 — Application Shell:** implemented and awaiting review. The
 dashboard now has a dedicated `dashboard/shell/` boundary that owns one route
 configuration, compact sidebar navigation, slim top bar, and shell session

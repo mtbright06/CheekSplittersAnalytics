@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Callable
 
 import requests
@@ -40,6 +40,7 @@ class PitcherGameLogCache:
 def fetch_pitcher_stats(
     person_id,
     *,
+    as_of=None,
     game_log_cache: PitcherGameLogCache | None = None,
 ):
     """
@@ -56,6 +57,7 @@ def fetch_pitcher_stats(
 
     starter_profile = fetch_starter_only_profile(
         person_id,
+        as_of=as_of,
         game_log_cache=game_log_cache,
     )
 
@@ -68,6 +70,7 @@ def fetch_pitcher_stats(
 def fetch_starter_only_profile(
     person_id,
     *,
+    as_of=None,
     game_log_cache: PitcherGameLogCache | None = None,
     season: int | None = None,
     game_type: str = "R",
@@ -94,7 +97,10 @@ def fetch_starter_only_profile(
     if not starter_splits:
         return {}
 
-    return aggregate_starter_splits(starter_splits)
+    return aggregate_starter_splits(
+        starter_splits,
+        as_of=as_of,
+    )
 
 
 def fetch_pitcher_game_log(
@@ -148,7 +154,27 @@ def fetch_pitcher_game_log(
     )
 
 
-def aggregate_starter_splits(starter_splits):
+def aggregate_starter_splits(starter_splits, *, as_of=None):
+    reference_date = parse_game_date(as_of)
+    sorted_starts = sorted(
+        starter_splits,
+        key=lambda split: (
+            split_date(split) or date.min
+        ),
+    )
+    completed_starts = [
+        split
+        for split in sorted_starts
+        if (
+            reference_date is None
+            or split_date(split) is None
+            or split_date(split) < reference_date
+        )
+    ]
+
+    if completed_starts:
+        starter_splits = completed_starts
+
     totals = {
         "starts": 0,
         "outs": 0,
@@ -297,6 +323,10 @@ def aggregate_starter_splits(starter_splits):
         totals["hits"],
         totals["at_bats"],
     )
+    context = starter_context_from_splits(
+        starter_splits,
+        reference_date=reference_date,
+    )
 
     return {
         "record": (
@@ -330,8 +360,174 @@ def aggregate_starter_splits(starter_splits):
             opponent_avg,
             3,
         ),
+        **context,
         "data_source": "starter_game_log",
     }
+
+
+def starter_context_from_splits(
+    starter_splits,
+    *,
+    reference_date: date | None,
+):
+    dated_starts = [
+        split
+        for split in starter_splits
+        if split_date(split) is not None
+    ]
+    dated_starts.sort(
+        key=lambda split: split_date(split) or date.min
+    )
+
+    previous_start = dated_starts[-1] if dated_starts else None
+    previous_start_date = (
+        split_date(previous_start)
+        if previous_start is not None
+        else None
+    )
+    previous_stat = (
+        previous_start.get("stat", {})
+        if isinstance(previous_start, dict)
+        else {}
+    )
+    previous_outs = (
+        extract_outs(previous_stat)
+        if previous_start is not None
+        else None
+    )
+    previous_ip = (
+        previous_outs / 3
+        if previous_outs is not None
+        else None
+    )
+    previous_pitch_count = (
+        to_int(previous_stat.get("numberOfPitches"))
+        if previous_start is not None
+        else None
+    )
+    last_two = dated_starts[-2:]
+    last_two_outs = sum(
+        extract_outs(start.get("stat", {}))
+        for start in last_two
+    )
+    last_two_pitches = sum(
+        to_int(start.get("stat", {}).get("numberOfPitches")) or 0
+        for start in last_two
+    )
+
+    last14_starts = []
+    if reference_date is not None:
+        for start in dated_starts:
+            start_date = split_date(start)
+            if start_date is None:
+                continue
+            days_before = (reference_date - start_date).days
+            if 0 < days_before <= 14:
+                last14_starts.append(start)
+
+    last14_outs = sum(
+        extract_outs(start.get("stat", {}))
+        for start in last14_starts
+    )
+
+    days_rest = None
+    if reference_date is not None and previous_start_date is not None:
+        days_rest = (reference_date - previous_start_date).days
+
+    starts = len(starter_splits)
+    average_start_ip = (
+        round(
+            sum(
+                extract_outs(start.get("stat", {}))
+                for start in starter_splits
+            )
+            / starts
+            / 3,
+            1,
+        )
+        if starts
+        else None
+    )
+
+    return {
+        "previous_start_date": (
+            previous_start_date.isoformat()
+            if previous_start_date is not None
+            else None
+        ),
+        "days_rest": days_rest,
+        "previous_start_ip": (
+            rounded(previous_ip, 1)
+            if previous_ip is not None
+            else None
+        ),
+        "previous_start_pitch_count": previous_pitch_count,
+        "last_two_starts_ip": rounded(last_two_outs / 3, 1),
+        "last_two_starts_pitch_count": last_two_pitches or None,
+        "last14_start_ip": rounded(last14_outs / 3, 1),
+        "average_start_ip": average_start_ip,
+        "role_context": starter_role_context(
+            starts=starts,
+            average_start_ip=average_start_ip,
+        ),
+    }
+
+
+def starter_role_context(*, starts, average_start_ip):
+    if starts <= 0:
+        return "no_prior_starts"
+
+    if starts <= 2:
+        return "limited_starting_role"
+
+    if average_start_ip is not None and average_start_ip <= 3.0:
+        return "opener_risk"
+
+    if average_start_ip is not None and average_start_ip <= 4.0:
+        return "short_start_role_risk"
+
+    return "established_starter"
+
+
+def split_date(split):
+    if not isinstance(split, dict):
+        return None
+
+    value = (
+        split.get("date")
+        or split.get("gameDate")
+        or split.get("game", {}).get("gameDate")
+    )
+
+    return parse_game_date(value)
+
+
+def parse_game_date(value):
+    if value in (None, ""):
+        return None
+
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+
+    if isinstance(value, datetime):
+        return value.date()
+
+    text = str(value).strip()
+
+    if not text:
+        return None
+
+    try:
+        return datetime.fromisoformat(
+            text.replace("Z", "+00:00")
+        ).date()
+    except ValueError:
+        pass
+
+    try:
+        return date.fromisoformat(text[:10])
+    except ValueError:
+        return None
 
 
 def fetch_season_pitching_profile(person_id):

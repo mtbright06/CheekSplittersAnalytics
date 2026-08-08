@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from engine.mlb.game_builder import build_mlb_card
-from engine.mlb.game_builder import TeamProfileCache, team_profile
+from engine.mlb.game_builder import TeamProfileCache, pitcher_from_team, team_profile
 from engine.mlb.pitchers import (
     PitcherGameLogCache,
     fetch_pitcher_game_log,
@@ -27,6 +27,7 @@ def game_log_payload():
             {
                 "splits": [
                     {
+                        "date": "2026-08-01",
                         "stat": {
                             "gamesStarted": 1,
                             "outs": 18,
@@ -94,7 +95,7 @@ def test_cache_does_not_change_starter_profile_output():
     with patch(
         "engine.mlb.pitchers.requests.get",
         return_value=Response(game_log_payload()),
-    ):
+    ) as request:
         uncached = fetch_starter_only_profile(42, season=2026)
         cached = fetch_starter_only_profile(
             42,
@@ -138,7 +139,117 @@ def test_empty_game_log_is_cached_as_an_empty_successful_result():
 
     assert first == []
     assert second == []
+
+
+def test_starter_profile_preserves_previous_start_context():
+    payload = {
+        "stats": [
+            {
+                "splits": [
+                    {
+                        "date": "2026-07-25",
+                        "stat": {
+                            "gamesStarted": 1,
+                            "outs": 15,
+                            "earnedRuns": 2,
+                            "hits": 4,
+                            "strikeOuts": 5,
+                            "baseOnBalls": 1,
+                            "homeRuns": 0,
+                            "battersFaced": 20,
+                            "numberOfPitches": 86,
+                        },
+                    },
+                    {
+                        "date": "2026-07-31",
+                        "stat": {
+                            "gamesStarted": 1,
+                            "outs": 22,
+                            "earnedRuns": 1,
+                            "hits": 5,
+                            "strikeOuts": 8,
+                            "baseOnBalls": 1,
+                            "homeRuns": 1,
+                            "battersFaced": 28,
+                            "numberOfPitches": 108,
+                        },
+                    },
+                    {
+                        "date": "2026-08-07",
+                        "stat": {
+                            "gamesStarted": 1,
+                            "outs": 18,
+                            "earnedRuns": 3,
+                            "hits": 6,
+                            "strikeOuts": 4,
+                            "baseOnBalls": 2,
+                            "homeRuns": 1,
+                            "battersFaced": 25,
+                            "numberOfPitches": 92,
+                        },
+                    },
+                ]
+            }
+        ]
+    }
+
+    with patch(
+        "engine.mlb.pitchers.requests.get",
+        return_value=Response(payload),
+    ) as request:
+        starter = fetch_starter_only_profile(
+            42,
+            season=2026,
+            as_of="2026-08-06T19:05:00Z",
+        )
+
+    assert starter["previous_start_date"] == "2026-07-31"
+    assert starter["days_rest"] == 6
+    assert starter["previous_start_ip"] == 7.3
+    assert starter["previous_start_pitch_count"] == 108
+    assert starter["last_two_starts_pitch_count"] == 194
+    assert starter["role_context"] == "limited_starting_role"
     assert request.call_count == 1
+
+
+def test_game_builder_pitcher_payload_preserves_starter_context():
+    team_blob = {
+        "probablePitcher": {
+            "id": 42,
+            "fullName": "Context Starter",
+            "pitchHand": {"code": "R"},
+        }
+    }
+    stats = {
+        "era": 3.40,
+        "whip": 1.12,
+        "ip": 100.0,
+        "starts": 18,
+        "previous_start_date": "2026-07-31",
+        "days_rest": 5,
+        "previous_start_ip": 7.0,
+        "previous_start_pitch_count": 104,
+        "last_two_starts_ip": 13.0,
+        "last_two_starts_pitch_count": 198,
+        "last14_start_ip": 13.0,
+        "average_start_ip": 5.6,
+        "role_context": "established_starter",
+        "data_source": "starter_game_log",
+    }
+
+    with patch(
+        "engine.mlb.game_builder.fetch_pitcher_stats",
+        return_value=stats,
+    ):
+        pitcher = pitcher_from_team(
+            team_blob,
+            game_date="2026-08-05T19:05:00Z",
+        )
+
+    assert pitcher["previous_start_date"] == "2026-07-31"
+    assert pitcher["days_rest"] == 5
+    assert pitcher["previous_start_pitch_count"] == 104
+    assert pitcher["role_context"] == "established_starter"
 
 
 def test_cached_game_log_failure_remains_a_failure_and_uses_existing_fallback():

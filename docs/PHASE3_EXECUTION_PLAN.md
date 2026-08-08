@@ -40,6 +40,20 @@ Output:
 - missing-field report
 - sample-size readiness labels
 
+Sprint 81.2 readiness resolution:
+
+- Treat pre-Sprint 79 actionable snapshots without episode links as legacy
+  stability-only records, not canonical episode history.
+- Treat PASS snapshots without active episode links as intentional persisted
+  evidence, not attachment failures.
+- Treat ACTIVE episodes without locked canonical snapshots as transitional;
+  they may appear as `UNSPECIFIED` in analytics until lock time.
+- Do not use explanation-text parsing as the trusted source for totals
+  projected-run error. Projection-error validation should wait for structured
+  projected-total persistence or an approved extraction contract.
+- Group historical comparisons by model run and git commit before relying on
+  semantic Registry version labels.
+
 Why first: no calibration or threshold report is trustworthy if canonical
 sample identity, result joins, or field coverage is incomplete.
 
@@ -139,6 +153,12 @@ Output:
 - projection error report
 - bias by market/team/date/model version
 
+Readiness requirement: MLB totals projected total must be available as a
+structured numeric field before official projection-error conclusions are
+published. Current persisted totals rows preserve market line, separation,
+confidence, and explanatory projection text, but not a first-class
+`projected_total` value.
+
 Why fifth: projection error is distinct from recommendation hit rate and must
 be understood before tuning totals thresholds.
 
@@ -226,6 +246,10 @@ Goal: assess repeated-build recommendation stability before lock.
 Tasks:
 
 - Use raw snapshots attached to episodes.
+- Exclude pre-lifecycle unlinked actionable snapshots from episode-timeline
+  stability metrics; analyze them only as legacy raw snapshot distributions.
+- Include PASS snapshots as withdrawal evidence only when they are attached to
+  an episode.
 - Measure selection flips, tier changes, confidence deltas, and PASS/actionable
   transitions.
 - Compare changes by time before start and by market-line movement.

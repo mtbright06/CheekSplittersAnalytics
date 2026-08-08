@@ -125,7 +125,16 @@ def normalize_model(model):
     model_confidence = (
         get_value(model, "model_confidence")
         if get_value(model, "model_confidence") is not None
-        else get_value(model, "confidence")
+        else first_present(
+            get_value(model, "model_reliability"),
+            get_value(model, "reliability"),
+            get_value(model, "confidence"),
+        )
+    )
+    model_reliability = first_present(
+        get_value(model, "model_reliability"),
+        get_value(model, "reliability"),
+        model_confidence,
     )
 
     return {
@@ -133,10 +142,20 @@ def normalize_model(model):
         "market": get_value(model, "market") or "Moneyline",
         "play": get_value(model, "play") or "No Play",
         "model_win_strength": model_win_strength,
+        "model_strength": first_present(
+            get_value(model, "model_strength"),
+            model_win_strength,
+        ),
         "model_probability": model_win_strength,
         "edge": get_value(model, "edge"),
+        "model_reliability": model_reliability,
+        "reliability": model_reliability,
         "model_confidence": model_confidence,
         "confidence": model_confidence,
+        "legacy_model_confidence": get_value(
+            model,
+            "legacy_model_confidence",
+        ),
         "confidence_breakdown": get_value(
             model,
             "confidence_breakdown",
@@ -172,6 +191,28 @@ def normalize_pitcher(pitcher):
 def normalize_offense(offense):
     return {
         "runs_per_game": get_value(offense, "runs_per_game"),
+        "league_runs_per_game": get_value(
+            offense,
+            "league_runs_per_game",
+        ),
+        "offense_source": get_value(offense, "offense_source"),
+        "runs_allowed_per_game": get_value(
+            offense,
+            "runs_allowed_per_game",
+        ),
+        "home_runs_per_game": get_value(
+            offense,
+            "home_runs_per_game",
+        ),
+        "away_runs_per_game": get_value(
+            offense,
+            "away_runs_per_game",
+        ),
+        "home_games": get_value(offense, "home_games"),
+        "away_games": get_value(offense, "away_games"),
+        "source_url": get_value(offense, "source_url"),
+        "retrieved_at": get_value(offense, "retrieved_at"),
+        "source_row": get_value(offense, "source_row"),
         "avg": get_value(offense, "avg"),
         "obp": get_value(offense, "obp"),
         "slg": get_value(offense, "slg"),

@@ -99,6 +99,104 @@ def test_market_fields_cannot_affect_starter_score():
     assert with_market == baseline
 
 
+def test_missing_starter_context_is_neutral():
+    baseline = starting_pitcher_breakdown(BASE_PITCHER)
+    missing_context = starting_pitcher_breakdown(
+        {
+            **BASE_PITCHER,
+            "days_rest": None,
+            "previous_start_ip": None,
+            "previous_start_pitch_count": None,
+        }
+    )
+
+    assert missing_context["starter_quality_score"] == baseline["starter_quality_score"]
+    assert missing_context["starter_context_adjustment"] == 0.0
+    assert missing_context["starting_pitching_score"] == baseline["starting_pitching_score"]
+
+
+def test_short_rest_reduces_context_without_changing_quality_score():
+    normal = starting_pitcher_breakdown(
+        {
+            **BASE_PITCHER,
+            "days_rest": 5,
+        }
+    )
+    short = starting_pitcher_breakdown(
+        {
+            **BASE_PITCHER,
+            "days_rest": 4,
+        }
+    )
+
+    assert short["starter_quality_score"] == normal["starter_quality_score"]
+    assert short["starter_context_adjustment"] == -3.0
+    assert short["starting_pitching_score"] < normal["starting_pitching_score"]
+    assert "short_rest" in short["starter_context_reasons"]
+
+
+def test_previous_workload_combined_with_short_rest_is_bounded():
+    heavy = starting_pitcher_breakdown(
+        {
+            **BASE_PITCHER,
+            "days_rest": 4,
+            "previous_start_ip": 7.1,
+            "previous_start_pitch_count": 112,
+        }
+    )
+
+    assert heavy["starter_context_adjustment"] == -5.0
+    assert "heavy_previous_pitch_count" in heavy["starter_context_reasons"]
+    assert "deep_previous_start" in heavy["starter_context_reasons"]
+
+
+def test_unknown_rest_does_not_create_workload_strength_penalty():
+    heavy_unknown_rest = starting_pitcher_breakdown(
+        {
+            **BASE_PITCHER,
+            "days_rest": None,
+            "previous_start_ip": 7.1,
+            "previous_start_pitch_count": 112,
+        }
+    )
+
+    assert heavy_unknown_rest["starter_context_adjustment"] == 0.0
+    assert heavy_unknown_rest["starter_context_reasons"] == []
+
+
+def test_opener_role_risk_reduces_authority_but_keeps_core_quality():
+    normal = starting_pitcher_breakdown(BASE_PITCHER)
+    opener = starting_pitcher_breakdown(
+        {
+            **BASE_PITCHER,
+            "average_start_ip": 2.4,
+            "role_context": "opener_risk",
+        }
+    )
+
+    assert opener["starter_quality_score"] == normal["starter_quality_score"]
+    assert opener["starter_context_adjustment"] == -4.0
+    assert "opener_risk" in opener["starter_context_reasons"]
+
+
+def test_extra_rest_gets_only_modest_positive_context_and_extended_rest_is_neutral():
+    extra_rest = starting_pitcher_breakdown(
+        {
+            **BASE_PITCHER,
+            "days_rest": 7,
+        }
+    )
+    extended_rest = starting_pitcher_breakdown(
+        {
+            **BASE_PITCHER,
+            "days_rest": 9,
+        }
+    )
+
+    assert extra_rest["starter_context_adjustment"] == 1.0
+    assert extended_rest["starter_context_adjustment"] == 0.0
+
+
 def test_score_remains_bounded():
     extreme = starting_pitcher_score(
         {
@@ -157,9 +255,9 @@ def test_offense_component_remains_unchanged():
 
 def test_weights_and_thresholds_are_unchanged():
     assert WEIGHTS == {
-        "offense": 0.40,
-        "starting_pitching": 0.45,
-        "bullpen": 0.10,
+        "offense": 0.42,
+        "starting_pitching": 0.38,
+        "bullpen": 0.15,
         "home_field": 0.05,
     }
     assert MLB_MONEYLINE_V2_CANDIDATE_TIERS == (
@@ -168,6 +266,72 @@ def test_weights_and_thresholds_are_unchanged():
         ("PLAYABLE", 3.0),
         ("LEAN", 1.0),
     )
+
+
+def test_starter_role_uncertainty_reduces_reliability_only_not_selection():
+    away = {
+        **BASE_PITCHER,
+        "name": "Away Starter",
+        "era": 3.10,
+        "whip": 1.05,
+        "k_bb_pct": 24.0,
+        "hr9": 0.75,
+        "average_start_ip": 2.5,
+        "role_context": "opener_risk",
+    }
+    home = {
+        **BASE_PITCHER,
+        "name": "Home Starter",
+        "era": 5.60,
+        "whip": 1.55,
+        "k_bb_pct": 5.0,
+        "hr9": 1.75,
+    }
+
+    result = build_sharpscore_decision(
+        "Away Club",
+        "Home Club",
+        {"offense": BASE_OFFENSE, "bullpen": {"era": 4.1, "whip": 1.3}},
+        {"offense": BASE_OFFENSE, "bullpen": {"era": 4.1, "whip": 1.3}},
+        away,
+        home,
+        None,
+        None,
+    )
+
+    model = result["model"]
+    assert model["play"] == "Away Club"
+    assert "starter_role_uncertainty" in model["reliability_breakdown"]["concerns"]
+    assert model["reliability_breakdown"]["tier_cap"] == "PLAYABLE"
+
+
+def test_missing_starter_rest_context_reduces_reliability_not_strength():
+    away = {
+        **BASE_PITCHER,
+        "name": "Away Starter",
+        "previous_start_date": None,
+        "data_source": "starter_game_log",
+    }
+    home = {
+        **BASE_PITCHER,
+        "name": "Home Starter",
+        "previous_start_date": "2026-08-01",
+        "data_source": "starter_game_log",
+    }
+
+    result = build_sharpscore_decision(
+        "Away Club",
+        "Home Club",
+        {"offense": BASE_OFFENSE, "bullpen": {"era": 4.1, "whip": 1.3}},
+        {"offense": BASE_OFFENSE, "bullpen": {"era": 4.1, "whip": 1.3}},
+        away,
+        home,
+        None,
+        None,
+    )
+
+    assert starting_pitcher_breakdown(away)["starter_context_adjustment"] == 0.0
+    assert "missing_starter_rest_context" in result["model"]["reliability_breakdown"]["concerns"]
 
 
 def test_winner_first_behavior_remains_deterministic():

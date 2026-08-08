@@ -19,6 +19,7 @@ def test_adapter_accepts_nested_canonical_kbo_card():
                     "play": "Away Club",
                     "market": "Moneyline",
                     "model_probability": 54.5,
+                    "model_reliability": 100.0,
                     "confidence": 42.0,
                     "recommendation": "❌ NO PLAY",
                     "reasons": ["Model-only fixture."],
@@ -40,6 +41,8 @@ def test_adapter_accepts_nested_canonical_kbo_card():
     assert recommendation.selection == "Away Club"
     assert recommendation.matchup == "Away Club @ Home Club"
     assert recommendation.model_probability == 0.545
+    assert recommendation.hammer_score == 0.0
+    assert recommendation.model_confidence == 100.0
     assert recommendation.real_market_loaded is False
 
 

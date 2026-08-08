@@ -47,10 +47,18 @@ class PitcherParser:
             "k_rate": None,
             "bb_rate": None,
             "hr9": None,
+            "games": None,
+            "games_started": None,
+            "last_role": None,
+            "previous_appearance_date": None,
+            "previous_start_date": None,
+            "previous_start_ip": None,
+            "previous_start_pitch_count": None,
         }
 
         cls._parse_name_and_hands(soup, data)
         cls._parse_season_table(soup, data)
+        cls._parse_game_log(soup, data)
         cls._calculate_rates(data)
 
         return data
@@ -116,8 +124,58 @@ class PitcherParser:
             data["so"] = cls._to_int(stat_map.get("SO"))
             data["bb"] = cls._to_int(stat_map.get("BB"))
             data["hr_allowed"] = cls._to_int(stat_map.get("HR"))
+            data["games"] = cls._to_int(stat_map.get("G"))
+            data["games_started"] = cls._to_int(stat_map.get("GS"))
 
             return
+
+    @classmethod
+    def _parse_game_log(cls, soup, data):
+        for table in soup.find_all("table"):
+            rows = table.find_all("tr")
+
+            if len(rows) < 2:
+                continue
+
+            headers = [
+                cell.get_text(strip=True)
+                for cell in rows[0].find_all(["th", "td"])
+            ]
+
+            required = {"Date", "Role", "IP"}
+
+            if not required.issubset(set(headers)):
+                continue
+
+            for row in rows[1:]:
+                values = [
+                    cell.get_text(strip=True)
+                    for cell in row.find_all(["th", "td"])
+                ]
+
+                if len(values) < len(headers):
+                    continue
+
+                stat_map = dict(zip(headers, values))
+                date = stat_map.get("Date")
+                role = stat_map.get("Role")
+
+                if not date:
+                    continue
+
+                if data["previous_appearance_date"] is None:
+                    data["previous_appearance_date"] = date
+                    data["last_role"] = role
+
+                if role == "SP" and data["previous_start_date"] is None:
+                    data["previous_start_date"] = date
+                    data["previous_start_ip"] = cls._innings_to_float(
+                        stat_map.get("IP")
+                    )
+                    data["previous_start_pitch_count"] = cls._to_int(
+                        stat_map.get("NP")
+                    )
+                    return
 
     @classmethod
     def _calculate_rates(cls, data):

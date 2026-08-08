@@ -2,7 +2,7 @@ from engine.model.component_scores import (
     offense_score,
     offense_breakdown,
     starting_pitcher_breakdown,
-    bullpen_score,
+    bullpen_breakdown,
     home_field_score,
 )
 from engine.model.confidence import calculate_confidence
@@ -17,9 +17,9 @@ from engine.odds.market_edge import calculate_market_edge, market_edge_to_dict
 
 
 WEIGHTS = {
-    "offense": 0.40,
-    "starting_pitching": 0.45,
-    "bullpen": 0.10,
+    "offense": 0.42,
+    "starting_pitching": 0.38,
+    "bullpen": 0.15,
     "home_field": 0.05,
 }
 
@@ -32,13 +32,15 @@ def calculate_team_score(
 ):
     offense_details = offense_breakdown(offense)
     starter_details = starting_pitcher_breakdown(pitcher)
+    bullpen_details = bullpen_breakdown(bullpen)
     components = {
         "offense": offense_details["offense_score"],
         "starting_pitching": starter_details["starting_pitching_score"],
-        "bullpen": bullpen_score(bullpen),
+        "bullpen": bullpen_details["bullpen_score"],
         "home_field": home_field_score(is_home),
         "offense_breakdown": offense_details,
         "starting_pitcher_breakdown": starter_details,
+        "bullpen_breakdown": bullpen_details,
     }
 
     total = (
@@ -311,6 +313,37 @@ def mlb_moneyline_v2_reliability(
     if any(value is None for value in starter_fields):
         concerns.append("missing_core_starter_data")
 
+    role_contexts = [
+        pitcher.get("role_context")
+        for pitcher in (away_pitcher, home_pitcher)
+        if pitcher
+    ]
+    if any(
+        role in {
+            "no_prior_starts",
+            "limited_starting_role",
+            "opener_risk",
+            "short_start_role_risk",
+        }
+        for role in role_contexts
+    ):
+        concerns.append("starter_role_uncertainty")
+
+    if any(
+        pitcher
+        and pitcher.get("data_source") == "season_fallback"
+        for pitcher in (away_pitcher, home_pitcher)
+    ):
+        concerns.append("starter_profile_fallback")
+
+    if any(
+        pitcher
+        and pitcher.get("data_source") == "starter_game_log"
+        and pitcher.get("previous_start_date") is None
+        for pitcher in (away_pitcher, home_pitcher)
+    ):
+        concerns.append("missing_starter_rest_context")
+
     if not away_bullpen or not home_bullpen:
         concerns.append("missing_bullpen_data")
 
@@ -322,7 +355,11 @@ def mlb_moneyline_v2_reliability(
         or "missing_core_starter_data" in concerns
     ):
         tier_cap = "LEAN"
-    elif unknown_starters or "missing_bullpen_data" in concerns:
+    elif (
+        unknown_starters
+        or "missing_bullpen_data" in concerns
+        or "starter_role_uncertainty" in concerns
+    ):
         tier_cap = "PLAYABLE"
     else:
         tier_cap = "STRONG PLAY"
@@ -338,6 +375,12 @@ def mlb_moneyline_v2_reliability(
             score -= 25.0
         if "unknown_starter" in concerns:
             score -= 20.0
+        if "starter_role_uncertainty" in concerns:
+            score -= 8.0
+        if "starter_profile_fallback" in concerns:
+            score -= 6.0
+        if "missing_starter_rest_context" in concerns:
+            score -= 4.0
         if "missing_bullpen_data" in concerns:
             score -= 10.0
 

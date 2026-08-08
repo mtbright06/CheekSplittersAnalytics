@@ -9,6 +9,7 @@ class BullpenSnapshot:
     season_whip: float | None
 
     last7_era: float | None
+    innings_last7: float
 
     innings_last3: float
 

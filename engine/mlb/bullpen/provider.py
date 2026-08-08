@@ -1253,6 +1253,7 @@ def build_bullpen_snapshot(
         season_era=era_from_totals(season),
         season_whip=whip_from_totals(season),
         last7_era=era_from_totals(last7),
+        innings_last7=round(last7["outs"] / 3, 1),
         innings_last3=round(last3["outs"] / 3, 1),
         appearances_last3=last3["appearances"],
         # The existing contract requires booleans. Unknown availability stays
@@ -1278,6 +1279,7 @@ def serialize_bullpen_snapshot(
         "season_era": snapshot.season_era,
         "season_whip": snapshot.season_whip,
         "last7_era": snapshot.last7_era,
+        "innings_last7": snapshot.innings_last7,
         "innings_last3": snapshot.innings_last3,
         "appearances_last3": snapshot.appearances_last3,
         "closer_available": snapshot.closer_available,
@@ -1309,6 +1311,7 @@ def unavailable_bullpen_profile(
         season_era=None,
         season_whip=None,
         last7_era=None,
+        innings_last7=0.0,
         innings_last3=0.0,
         appearances_last3=0,
         closer_available=True,

@@ -15,6 +15,7 @@ from engine.lineups.models import (
 )
 from engine.bomb_lab.statcast_contract import statcast_barrel_flag
 from engine.mlb import offense
+from engine.hitters.team_abbreviations import statcast_team_abbreviations
 
 
 HITTER_BARREL_CENTER = 0.04
@@ -144,7 +145,8 @@ def build_hitter_profiles(statcast_df, team_abbr, roster_players):
 
     df = statcast_df.copy()
     df["batting_team"] = df.apply(batting_team, axis=1)
-    df = df[df["batting_team"] == team_abbr].copy()
+    team_abbrs = statcast_team_abbreviations(team_abbr)
+    df = df[df["batting_team"].isin(team_abbrs)].copy()
 
     if df.empty:
         return []

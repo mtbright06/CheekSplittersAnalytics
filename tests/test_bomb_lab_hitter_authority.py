@@ -2,11 +2,13 @@ from unittest.mock import patch
 
 from engine.hitters.target_hitters import (
     attach_target_hitters_to_pitchers,
+    build_hitter_profiles,
     hitter_hr_ability_score,
     hitter_sample_reliability,
     hr_opportunity_score,
     side_matches,
 )
+from engine.hitters.team_abbreviations import statcast_team_abbreviations
 
 
 POWER_HITTER = {
@@ -182,6 +184,140 @@ def test_bomb_squad_display_order_uses_descending_target_score():
 
     assert target_scores == sorted(target_scores, reverse=True)
     assert item["recommended_hitter"] == item["top_hitters"][0]["name"]
+
+
+def test_arizona_statcast_alias_resolves_to_az():
+    assert statcast_team_abbreviations("ARI") == ("ARI", "AZ")
+
+
+def test_arizona_active_hitter_survives_statcast_team_alias():
+    import pandas as pd
+
+    df = pd.DataFrame(
+        [
+            {
+                "batter": 682998,
+                "stand": "L",
+                "p_throws": "R",
+                "events": "home_run",
+                "launch_speed": 101.0,
+                "launch_angle": 28.0,
+                "launch_speed_angle": 6,
+                "game_date": "2026-08-08",
+                "inning_topbot": "Bot",
+                "away_team": "LAD",
+                "home_team": "AZ",
+            }
+        ]
+    )
+
+    hitters = build_hitter_profiles(
+        statcast_df=df,
+        team_abbr="ARI",
+        roster_players=[
+            {
+                "player_id": 682998,
+                "name": "Corbin Carroll",
+                "position": "OF",
+            }
+        ],
+    )
+
+    assert len(hitters) == 1
+    assert hitters[0]["name"] == "Corbin Carroll"
+
+
+def test_not_posted_lineup_does_not_erase_arizona_candidates():
+    hitters = [
+        {
+            "batter_id": 682998,
+            "name": "Corbin Carroll",
+            "position": "OF",
+            "bat_side": "L",
+            "pa": 200,
+            "bbe": 150,
+            "hard_hit_pct": 0.09,
+            "barrel_pct": 0.04,
+            "avg_ev": 84.0,
+            "hr": 10,
+            "hr_vs_lhp": 3,
+            "hr_vs_rhp": 10,
+        }
+    ]
+
+    class TeamLineup:
+        from engine.lineups.models import GameLineupStatus
+
+        status = GameLineupStatus.NOT_POSTED
+        concerns = ()
+        starters = ()
+        bench = ()
+
+        def player_status(self, player_id):
+            from engine.lineups.models import LineupPlayer, PlayerLineupStatus
+
+            return LineupPlayer(
+                player_id=player_id,
+                player_name=None,
+                team_id=109,
+                team_name="Arizona Diamondbacks",
+                side="home",
+                lineup_status=PlayerLineupStatus.UNKNOWN,
+            )
+
+    class LineupState:
+        status = type("Status", (), {"value": "NOT_POSTED"})()
+        game_status = "Scheduled"
+        source = "test"
+        concerns = ()
+        retrieved_at = type(
+            "RetrievedAt",
+            (),
+            {"isoformat": lambda self: "2026-08-08T00:00:00+00:00"},
+        )()
+        freshness_seconds = 0.0
+        is_stale = False
+        away_lineup = None
+        home_lineup = TeamLineup()
+
+        def team_lineup(self, team_id):
+            return self.home_lineup if team_id == 109 else None
+
+    class Service:
+        def get_game_lineup(self, game_id):
+            return LineupState()
+
+    with (
+        patch(
+            "engine.hitters.target_hitters.fetch_active_roster",
+            lambda team_id: [{"player_id": 682998}],
+        ),
+        patch(
+            "engine.hitters.target_hitters.build_hitter_profiles",
+            lambda **kwargs: hitters,
+        ),
+    ):
+        [item] = attach_target_hitters_to_pitchers(
+            [
+                {
+                    "game_pk": 1,
+                    "opponent": "Arizona Diamondbacks",
+                    "opponent_team_id": 109,
+                    "opponent_abbr": "ARI",
+                    "target_side": "R",
+                    "pitcher_throw": "R",
+                    "bomb_score": 50.0,
+                    "pitcher_vulnerability": 80.0,
+                    "environment_score": 50.0,
+                    "bomb_reliability": 95.0,
+                }
+            ],
+            season_statcast_df=object(),
+            lineup_service=Service(),
+        )
+
+    assert item["top_hitters"][0]["name"] == "Corbin Carroll"
+    assert item["top_hitters"][0]["lineup_actionability"] == "PENDING_LINEUP"
 
 
 if __name__ == "__main__":

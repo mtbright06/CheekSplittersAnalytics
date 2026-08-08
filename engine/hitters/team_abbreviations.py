@@ -31,3 +31,15 @@ TEAM_ABBR = {
     "Toronto Blue Jays": "TOR",
     "Washington Nationals": "WSH",
 }
+
+
+STATCAST_TEAM_ABBR_ALIASES = {
+    "ARI": ("ARI", "AZ"),
+}
+
+
+def statcast_team_abbreviations(team_abbr):
+    team_abbr = str(team_abbr or "").upper()
+    if not team_abbr:
+        return ()
+    return STATCAST_TEAM_ABBR_ALIASES.get(team_abbr, (team_abbr,))

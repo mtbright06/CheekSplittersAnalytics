@@ -3,6 +3,7 @@ from engine.first5.first5_model import (
     build_reliability,
     moneyline_recommendation,
     project_team_f5_runs,
+    starter_context_adjustment,
 )
 
 
@@ -21,6 +22,12 @@ def pitcher(
     whip=1.28,
     hr9=1.15,
     k_minus_bb9=5.0,
+    days_rest=5,
+    previous_start_ip=6.0,
+    previous_start_pitch_count=92,
+    average_start_ip=5.8,
+    role_context="established_starter",
+    data_source="starter_game_log",
 ):
     return {
         "available": available,
@@ -29,6 +36,13 @@ def pitcher(
         "whip": whip,
         "hr9": hr9,
         "k_minus_bb9": k_minus_bb9,
+        "days_rest": days_rest,
+        "previous_start_ip": previous_start_ip,
+        "previous_start_pitch_count": previous_start_pitch_count,
+        "average_start_ip": average_start_ip,
+        "role_context": role_context,
+        "previous_start_date": "2026-08-01" if days_rest is not None else None,
+        "data_source": data_source,
     }
 
 
@@ -235,6 +249,67 @@ def test_projected_runs_have_expected_runs_shape():
     assert strong_projection > weak_projection
 
 
+def test_unknown_starter_context_is_strength_neutral():
+    baseline = pitcher()
+    unknown = pitcher(
+        days_rest=None,
+        previous_start_ip=None,
+        previous_start_pitch_count=None,
+    )
+
+    assert starter_context_adjustment(unknown)["adjustment"] == 0.0
+    assert project_team_f5_runs(offense(), unknown, 1.0) == project_team_f5_runs(
+        offense(),
+        baseline,
+        1.0,
+    )
+
+
+def test_short_rest_and_workload_increase_first5_run_projection():
+    normal = pitcher(days_rest=5, previous_start_ip=6.0, previous_start_pitch_count=92)
+    taxed = pitcher(days_rest=3, previous_start_ip=7.0, previous_start_pitch_count=112)
+
+    assert starter_context_adjustment(taxed)["adjustment"] > 0
+    assert project_team_f5_runs(offense(), taxed, 1.0) > project_team_f5_runs(
+        offense(),
+        normal,
+        1.0,
+    )
+
+
+def test_opener_risk_has_first5_authority_but_remains_bounded():
+    normal = pitcher(role_context="established_starter", average_start_ip=5.8)
+    opener = pitcher(role_context="opener_risk", average_start_ip=2.5)
+    context = starter_context_adjustment(opener)
+
+    assert context["adjustment"] == 0.1
+    assert "opener_risk" in context["reasons"]
+    assert project_team_f5_runs(offense(), opener, 1.0) > project_team_f5_runs(
+        offense(),
+        normal,
+        1.0,
+    )
+
+
+def test_missing_starter_context_reduces_reliability_not_strength():
+    missing = pitcher(
+        days_rest=None,
+        previous_start_ip=None,
+        previous_start_pitch_count=None,
+    )
+    reliability = build_reliability(
+        away_pitcher=missing,
+        home_pitcher=pitcher(days_rest=5, previous_start_ip=6.0, previous_start_pitch_count=92),
+        away_offense=offense(),
+        home_offense=offense(),
+        park_factor=1.0,
+    )
+
+    assert starter_context_adjustment(missing)["adjustment"] == 0.0
+    assert "away_missing_starter_rest_context" in reliability["active_concerns"]
+    assert "away_missing_starter_workload_context" in reliability["active_concerns"]
+
+
 def test_decision_builder_uses_projected_margin_not_removed_decision_score():
     game = {
         "away": {"team": "Away", "projected_f5_runs": 2.0},
@@ -249,3 +324,9 @@ def test_decision_builder_uses_projected_margin_not_removed_decision_score():
 
     assert first5_score_for_team(game, "Home") == 78
     assert first5_score_for_team(game, "Away") == 22
+
+
+if __name__ == "__main__":
+    for name, fn in list(globals().items()):
+        if name.startswith("test_") and callable(fn):
+            fn()

@@ -8,6 +8,10 @@ import requests
 
 from engine.bomb_lab.constants import PARK_FACTORS
 from engine.mlb.schedule import fetch_mlb_schedule
+from engine.mlb.pitchers import (
+    PitcherGameLogCache,
+    fetch_pitcher_stats,
+)
 from engine.model.pitcher_stabilization import (
     stabilize_pitcher_metrics,
 )
@@ -177,9 +181,23 @@ def fetch_team_hitting(team_id: int | None) -> dict:
     }
 
 
-def fetch_pitcher_metrics(pitcher_id: int | None) -> dict:
+def fetch_pitcher_metrics(
+    pitcher_id: int | None,
+    *,
+    as_of=None,
+    game_log_cache: PitcherGameLogCache | None = None,
+) -> dict:
     if not pitcher_id:
         return DEFAULT_PITCHER_METRICS.copy()
+
+    profile = fetch_pitcher_stats(
+        pitcher_id,
+        as_of=as_of,
+        game_log_cache=game_log_cache,
+    )
+
+    if profile:
+        return pitcher_metrics_from_starter_profile(profile)
 
     year = datetime.now().year
     url = f"{MLB_API}/people/{pitcher_id}/stats"
@@ -227,6 +245,7 @@ def fetch_pitcher_metrics(pitcher_id: int | None) -> dict:
         "hr9": round(hr9, 2),
         "k_minus_bb9": round(k9 - bb9, 2),
         "available": True,
+        "data_source": "season_pitching_profile",
     }
 
     if innings <= 0:
@@ -259,6 +278,45 @@ def fetch_pitcher_metrics(pitcher_id: int | None) -> dict:
     )
 
     return metrics
+
+
+def pitcher_metrics_from_starter_profile(profile: dict) -> dict:
+    innings = safe_float(
+        profile.get("ip"),
+        0.0,
+    )
+    k9 = safe_float(
+        profile.get("k_rate"),
+        DEFAULT_PITCHER_METRICS["k9"],
+    )
+    bb9 = safe_float(
+        profile.get("bb_rate"),
+        DEFAULT_PITCHER_METRICS["bb9"],
+    )
+
+    return {
+        "era": safe_float(profile.get("era"), DEFAULT_PITCHER_METRICS["era"]),
+        "whip": safe_float(profile.get("whip"), DEFAULT_PITCHER_METRICS["whip"]),
+        "innings": innings,
+        "strikeouts": safe_int(profile.get("so")),
+        "walks": safe_int(profile.get("bb")),
+        "home_runs": safe_int(profile.get("hr_allowed")),
+        "k9": k9,
+        "bb9": bb9,
+        "hr9": safe_float(profile.get("hr9"), DEFAULT_PITCHER_METRICS["hr9"]),
+        "k_minus_bb9": round(k9 - bb9, 2),
+        "available": True,
+        "previous_start_date": profile.get("previous_start_date"),
+        "days_rest": profile.get("days_rest"),
+        "previous_start_ip": profile.get("previous_start_ip"),
+        "previous_start_pitch_count": profile.get("previous_start_pitch_count"),
+        "last_two_starts_ip": profile.get("last_two_starts_ip"),
+        "last_two_starts_pitch_count": profile.get("last_two_starts_pitch_count"),
+        "last14_start_ip": profile.get("last14_start_ip"),
+        "average_start_ip": profile.get("average_start_ip"),
+        "role_context": profile.get("role_context"),
+        "data_source": profile.get("data_source", "starter_game_log"),
+    }
 
 
 def offense_factor(stats: dict) -> float:
@@ -350,6 +408,79 @@ def starter_run_factor(
     )
 
 
+def starter_context_adjustment(
+    pitcher: dict,
+) -> dict:
+    adjustment = 0.0
+    reasons = []
+
+    days_rest = safe_float(pitcher.get("days_rest"), None)
+    previous_ip = safe_float(pitcher.get("previous_start_ip"), None)
+    previous_pitches = safe_float(pitcher.get("previous_start_pitch_count"), None)
+    average_start_ip = safe_float(pitcher.get("average_start_ip"), None)
+    role_context = pitcher.get("role_context")
+
+    if days_rest is not None:
+        if days_rest <= 3:
+            adjustment += 0.035
+            reasons.append("very_short_rest")
+        elif days_rest == 4:
+            adjustment += 0.02
+            reasons.append("short_rest")
+        elif days_rest == 7:
+            adjustment -= 0.01
+            reasons.append("extra_rest")
+
+    if previous_pitches is not None and days_rest is not None:
+        if previous_pitches >= 110 and days_rest <= 5:
+            adjustment += 0.025
+            reasons.append("heavy_previous_pitch_count")
+        elif previous_pitches >= 100 and days_rest <= 4:
+            adjustment += 0.015
+            reasons.append("elevated_pitch_count_on_short_rest")
+
+    if (
+        previous_ip is not None
+        and previous_ip >= 7.0
+        and days_rest is not None
+        and days_rest <= 5
+    ):
+        adjustment += 0.015
+        reasons.append("deep_previous_start")
+
+    if role_context == "opener_risk":
+        adjustment += 0.10
+        reasons.append("opener_risk")
+    elif role_context == "short_start_role_risk":
+        adjustment += 0.065
+        reasons.append("short_start_role_risk")
+    elif role_context == "limited_starting_role":
+        adjustment += 0.035
+        reasons.append("limited_starting_role")
+
+    if (
+        average_start_ip is not None
+        and average_start_ip < 4.0
+        and role_context == "established_starter"
+    ):
+        adjustment += 0.03
+        reasons.append("limited_average_start_length")
+
+    adjustment = round(
+        max(
+            -0.02,
+            min(0.12, adjustment),
+        ),
+        3,
+    )
+
+    return {
+        "adjustment": adjustment,
+        "factor": round(1.0 + adjustment, 3),
+        "reasons": sorted(set(reasons)),
+    }
+
+
 def project_team_f5_runs(
     offense_stats: dict,
     opposing_pitcher: dict,
@@ -364,6 +495,7 @@ def project_team_f5_runs(
         LEAGUE_F5_TEAM_RUNS
         * offense_factor(offense_stats)
         * starter_run_factor(opposing_pitcher)
+        * starter_context_adjustment(opposing_pitcher)["factor"]
         * park_multiplier
         * home_multiplier
     )
@@ -405,6 +537,36 @@ def build_reliability(
         elif innings < 45:
             score -= 12
             concerns.append(f"{side}_starter_limited_sample")
+
+        if pitcher.get("data_source") not in (None, "starter_game_log"):
+            score -= 8
+            concerns.append(f"{side}_starter_profile_fallback")
+
+        if (
+            pitcher.get("data_source") == "starter_game_log"
+            and pitcher.get("previous_start_date") is None
+        ):
+            score -= 5
+            concerns.append(f"{side}_missing_starter_rest_context")
+
+        if (
+            pitcher.get("data_source") == "starter_game_log"
+            and (
+                pitcher.get("previous_start_ip") is None
+                or pitcher.get("previous_start_pitch_count") is None
+            )
+        ):
+            score -= 5
+            concerns.append(f"{side}_missing_starter_workload_context")
+
+        role_context = pitcher.get("role_context")
+        if role_context in {
+            "opener_risk",
+            "short_start_role_risk",
+            "limited_starting_role",
+        }:
+            score -= 8
+            concerns.append(f"{side}_{role_context}")
 
     for side, offense in (
         ("away", away_offense),
@@ -548,6 +710,8 @@ def build_reasons(
     f5_total: dict,
     park_factor: float,
     reliability: dict,
+    away_pitcher_context: dict | None = None,
+    home_pitcher_context: dict | None = None,
 ) -> list[str]:
     reasons = []
 
@@ -582,6 +746,18 @@ def build_reasons(
         reasons.append("The venue provides a positive run-scoring adjustment.")
     elif park_factor <= 0.95:
         reasons.append("The venue provides a run-suppressing adjustment.")
+
+    if home_pitcher_context and home_pitcher_context.get("adjustment", 0) > 0:
+        reasons.append(
+            f"{home_pitcher_name}'s starter context increases projected "
+            f"first-five scoring for {away_team}."
+        )
+
+    if away_pitcher_context and away_pitcher_context.get("adjustment", 0) > 0:
+        reasons.append(
+            f"{away_pitcher_name}'s starter context increases projected "
+            f"first-five scoring for {home_team}."
+        )
 
     if f5_ml["lean"] != "PASS":
         reasons.append(
@@ -655,6 +831,7 @@ def build_first5_card() -> dict:
 
     team_cache: dict[int, dict] = {}
     pitcher_cache: dict[int, dict] = {}
+    game_log_cache = PitcherGameLogCache()
     game_cards = []
 
     for game in schedule_games:
@@ -671,12 +848,16 @@ def build_first5_card() -> dict:
 
         if away_pitcher_id not in pitcher_cache:
             pitcher_cache[away_pitcher_id] = fetch_pitcher_metrics(
-                away_pitcher_id
+                away_pitcher_id,
+                as_of=game.get("game_date"),
+                game_log_cache=game_log_cache,
             )
 
         if home_pitcher_id not in pitcher_cache:
             pitcher_cache[home_pitcher_id] = fetch_pitcher_metrics(
-                home_pitcher_id
+                home_pitcher_id,
+                as_of=game.get("game_date"),
+                game_log_cache=game_log_cache,
             )
 
         away_offense = team_cache[away_team_id]
@@ -688,6 +869,8 @@ def build_first5_card() -> dict:
         home_offense_rating = offense_score(home_offense)
         away_pitcher_rating = pitcher_quality_score(away_pitcher)
         home_pitcher_rating = pitcher_quality_score(home_pitcher)
+        away_pitcher_context = starter_context_adjustment(away_pitcher)
+        home_pitcher_context = starter_context_adjustment(home_pitcher)
 
         park_factor = park_factor_for_game(game.get("home_team"))
 
@@ -741,6 +924,8 @@ def build_first5_card() -> dict:
             f5_total=f5_total,
             park_factor=park_factor,
             reliability=reliability,
+            away_pitcher_context=away_pitcher_context,
+            home_pitcher_context=home_pitcher_context,
         )
 
         game_cards.append(
@@ -756,6 +941,7 @@ def build_first5_card() -> dict:
                     "pitcher": {
                         "name": game["away_pitcher"],
                         "quality_score": away_pitcher_rating,
+                        "starter_context": away_pitcher_context,
                         **away_pitcher,
                     },
                 },
@@ -767,6 +953,7 @@ def build_first5_card() -> dict:
                     "pitcher": {
                         "name": game["home_pitcher"],
                         "quality_score": home_pitcher_rating,
+                        "starter_context": home_pitcher_context,
                         **home_pitcher,
                     },
                 },

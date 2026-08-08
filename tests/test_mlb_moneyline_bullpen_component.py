@@ -1,7 +1,9 @@
 from engine.model.component_scores import (
     bullpen_breakdown,
     bullpen_score,
+    offense_breakdown,
     offense_score,
+    starting_pitcher_breakdown,
     starting_pitcher_score,
 )
 from engine.model.recommendations import MLB_MONEYLINE_V2_CANDIDATE_TIERS
@@ -197,6 +199,74 @@ def test_sharpscore_consumes_rebuilt_bullpen_score_and_breakdown():
 def test_offense_and_starter_components_remain_unchanged():
     assert offense_score(BASE_OFFENSE) == 50.0
     assert starting_pitcher_score(BASE_PITCHER) == 50.0
+
+
+def test_dynamic_offense_center_changes_center_not_scale():
+    dynamic = offense_breakdown(
+        BASE_OFFENSE,
+        league_baselines={
+            "offense": {
+                "runs_per_game": 4.8,
+                "ops": 0.750,
+                "iso": 0.180,
+                "hr_per_game": 1.30,
+                "bb_minus_k_rate": -12.0,
+            },
+        },
+    )
+    static = offense_breakdown(BASE_OFFENSE)
+
+    assert static["offense_score"] == 50.0
+    assert dynamic["offense_score"] < static["offense_score"]
+    assert dynamic["baselines"]["ops"] == 0.75
+    assert dynamic["baselines"]["runs_per_game"] == 4.8
+
+
+def test_dynamic_starter_center_is_supported_with_static_fallback():
+    dynamic = starting_pitcher_breakdown(
+        BASE_PITCHER,
+        league_baselines={
+            "starter": {
+                "era": 4.20,
+                "whip": 1.25,
+                "hr9": 1.05,
+                "k_bb_pct": 16.0,
+            },
+        },
+    )
+    static = starting_pitcher_breakdown(BASE_PITCHER)
+
+    assert static["starting_pitching_score"] == 50.0
+    assert dynamic["starting_pitching_score"] < static["starting_pitching_score"]
+    assert dynamic["baselines"]["era"] == 4.2
+    assert dynamic["baselines"]["whip"] == 1.25
+
+
+def test_dynamic_bullpen_center_changes_center_not_scale():
+    dynamic = bullpen_breakdown(
+        BASE_BULLPEN,
+        league_baselines={
+            "bullpen": {
+                "era": 3.80,
+                "whip": 1.20,
+            },
+        },
+    )
+    static = bullpen_breakdown(BASE_BULLPEN)
+
+    assert static["bullpen_score"] == 50.0
+    assert dynamic["bullpen_score"] < static["bullpen_score"]
+    assert dynamic["baselines"]["era"] == 3.8
+    assert dynamic["baselines"]["whip"] == 1.2
+
+
+def test_missing_dynamic_baselines_fall_back_to_static_centers():
+    assert offense_score(BASE_OFFENSE, league_baselines={}) == offense_score(BASE_OFFENSE)
+    assert starting_pitcher_score(
+        BASE_PITCHER,
+        league_baselines={},
+    ) == starting_pitcher_score(BASE_PITCHER)
+    assert bullpen_score(BASE_BULLPEN, league_baselines={}) == bullpen_score(BASE_BULLPEN)
 
 
 def test_weights_and_thresholds_are_unchanged():

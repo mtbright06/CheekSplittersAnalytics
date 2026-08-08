@@ -32,6 +32,12 @@ COMPLETE_HOME_PITCHER = {
     "era": 4.0,
     "whip": 1.3,
 }
+COMPLETE_BULLPEN_PROFILE = {
+    "season_era": 3.8,
+    "season_whip": 1.25,
+    "source_quality": "COMPLETE",
+    "source_detail": "active_roster_game_logs",
+}
 
 
 def test_mlb_moneyline_conviction_tiers():
@@ -237,6 +243,155 @@ def test_mlb_reliability_is_current_input_quality_not_sharpscore_gap():
     assert missing_bullpen["tier_cap"] == "PLAYABLE"
     assert missing_starter["score"] == 55.0
     assert missing_starter["tier_cap"] == "LEAN"
+
+
+def test_mlb_reliability_reports_starter_fallback_without_changing_authority():
+    baseline = mlb_moneyline_v2_reliability(
+        away_offense=COMPLETE_AWAY_PROFILE["offense"],
+        home_offense=COMPLETE_HOME_PROFILE["offense"],
+        away_pitcher=COMPLETE_AWAY_PITCHER,
+        home_pitcher=COMPLETE_HOME_PITCHER,
+        away_bullpen=COMPLETE_BULLPEN_PROFILE,
+        home_bullpen=COMPLETE_BULLPEN_PROFILE,
+    )
+    fallback = mlb_moneyline_v2_reliability(
+        away_offense=COMPLETE_AWAY_PROFILE["offense"],
+        home_offense=COMPLETE_HOME_PROFILE["offense"],
+        away_pitcher={
+            **COMPLETE_AWAY_PITCHER,
+            "data_source": "season_fallback",
+        },
+        home_pitcher=COMPLETE_HOME_PITCHER,
+        away_bullpen=COMPLETE_BULLPEN_PROFILE,
+        home_bullpen=COMPLETE_BULLPEN_PROFILE,
+    )
+
+    assert baseline["score"] == 100.0
+    assert fallback["score"] == 94.0
+    assert fallback["tier_cap"] == "STRONG PLAY"
+    assert "starter_profile_fallback" in fallback["concerns"]
+    assert fallback["concern_details"][0]["source"] == "starter"
+
+
+def test_mlb_reliability_reports_missing_workload_without_strength_penalty():
+    result = mlb_moneyline_v2_reliability(
+        away_offense=COMPLETE_AWAY_PROFILE["offense"],
+        home_offense=COMPLETE_HOME_PROFILE["offense"],
+        away_pitcher={
+            **COMPLETE_AWAY_PITCHER,
+            "data_source": "starter_game_log",
+            "previous_start_date": "2026-08-01",
+            "previous_start_ip": None,
+            "previous_start_pitch_count": 92,
+        },
+        home_pitcher=COMPLETE_HOME_PITCHER,
+        away_bullpen=COMPLETE_BULLPEN_PROFILE,
+        home_bullpen=COMPLETE_BULLPEN_PROFILE,
+    )
+
+    assert result["score"] == 97.0
+    assert result["tier_cap"] == "STRONG PLAY"
+    assert "missing_starter_workload_context" in result["concerns"]
+
+
+def test_mlb_reliability_reports_partial_and_unavailable_bullpen_sources():
+    partial = mlb_moneyline_v2_reliability(
+        away_offense=COMPLETE_AWAY_PROFILE["offense"],
+        home_offense=COMPLETE_HOME_PROFILE["offense"],
+        away_pitcher=COMPLETE_AWAY_PITCHER,
+        home_pitcher=COMPLETE_HOME_PITCHER,
+        away_bullpen={
+            **COMPLETE_BULLPEN_PROFILE,
+            "source_quality": "PARTIAL",
+        },
+        home_bullpen=COMPLETE_BULLPEN_PROFILE,
+    )
+    unavailable = mlb_moneyline_v2_reliability(
+        away_offense=COMPLETE_AWAY_PROFILE["offense"],
+        home_offense=COMPLETE_HOME_PROFILE["offense"],
+        away_pitcher=COMPLETE_AWAY_PITCHER,
+        home_pitcher=COMPLETE_HOME_PITCHER,
+        away_bullpen={
+            **COMPLETE_BULLPEN_PROFILE,
+            "season_era": None,
+            "season_whip": None,
+            "source_quality": "UNAVAILABLE",
+        },
+        home_bullpen=COMPLETE_BULLPEN_PROFILE,
+    )
+
+    assert partial["score"] == 94.0
+    assert partial["tier_cap"] == "STRONG PLAY"
+    assert "partial_bullpen_source" in partial["concerns"]
+    assert unavailable["score"] == 90.0
+    assert unavailable["tier_cap"] == "STRONG PLAY"
+    assert "degraded_bullpen_source" in unavailable["concerns"]
+
+
+def test_mlb_reliability_contract_excludes_market_and_derived_strength():
+    result = mlb_moneyline_v2_reliability(
+        away_offense=COMPLETE_AWAY_PROFILE["offense"],
+        home_offense=COMPLETE_HOME_PROFILE["offense"],
+        away_pitcher=COMPLETE_AWAY_PITCHER,
+        home_pitcher=COMPLETE_HOME_PITCHER,
+        away_bullpen=COMPLETE_BULLPEN_PROFILE,
+        home_bullpen=COMPLETE_BULLPEN_PROFILE,
+    )
+
+    assert result["definition"].startswith("Reliability measures trust")
+    assert "SharpScore gap" in result["input_groups"]["excluded_inputs"]
+    assert "edge" in result["input_groups"]["excluded_inputs"]
+    assert "team offense OPS" in result["input_groups"]["strength_inputs"]
+    assert "bullpen source quality" in result["input_groups"]["reliability_inputs"]
+
+
+def test_mlb_reliability_changes_do_not_change_sharpscore_or_recommendation():
+    components = {"offense": 60, "starting_pitching": 60, "bullpen": 60, "home_field": 50}
+
+    with patch(
+        "engine.model.sharpscore.calculate_team_score",
+        side_effect=[(58.7, components), (50.0, components)],
+    ):
+        baseline = build_sharpscore_decision(
+            "Away Club",
+            "Home Club",
+            {"offense": {"ops": .750}, "bullpen": COMPLETE_BULLPEN_PROFILE},
+            {"offense": {"ops": .700}, "bullpen": COMPLETE_BULLPEN_PROFILE},
+            COMPLETE_AWAY_PITCHER,
+            COMPLETE_HOME_PITCHER,
+            None,
+            None,
+        )
+
+    with patch(
+        "engine.model.sharpscore.calculate_team_score",
+        side_effect=[(58.7, components), (50.0, components)],
+    ):
+        degraded = build_sharpscore_decision(
+            "Away Club",
+            "Home Club",
+            {"offense": {"ops": .750}, "bullpen": COMPLETE_BULLPEN_PROFILE},
+            {
+                "offense": {"ops": .700},
+                "bullpen": {
+                    **COMPLETE_BULLPEN_PROFILE,
+                    "source_quality": "PARTIAL",
+                },
+            },
+            {
+                **COMPLETE_AWAY_PITCHER,
+                "data_source": "season_fallback",
+            },
+            COMPLETE_HOME_PITCHER,
+            None,
+            None,
+        )
+
+    assert baseline["model"]["model_strength"] == degraded["model"]["model_strength"]
+    assert baseline["model"]["recommendation"] == degraded["model"]["recommendation"]
+    assert baseline["model"]["model_reliability"] > degraded["model"]["model_reliability"]
+    assert "starter_profile_fallback" in degraded["model"]["reliability_breakdown"]["concerns"]
+    assert "partial_bullpen_source" in degraded["model"]["reliability_breakdown"]["concerns"]
 
 
 def test_mlb_reliability_aliases_do_not_change_with_sharpscore_gap():

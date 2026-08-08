@@ -321,6 +321,154 @@ def team_profile(
     }
 
 
+def build_moneyline_league_baselines(
+    profiles: list[dict[str, Any]],
+) -> dict[str, Any]:
+    unique_profiles = {
+        profile.get("id"): profile
+        for profile in profiles
+        if profile.get("id")
+    }
+
+    offense = build_offense_league_baselines(
+        [
+            profile.get("offense", {})
+            for profile in unique_profiles.values()
+        ]
+    )
+    bullpen = build_bullpen_league_baselines(
+        [
+            profile.get("bullpen", {})
+            for profile in unique_profiles.values()
+        ]
+    )
+
+    baselines: dict[str, Any] = {
+        "source": "current_build_team_season_profiles",
+    }
+
+    if offense:
+        baselines["offense"] = offense
+
+    if bullpen:
+        baselines["bullpen"] = bullpen
+
+    return baselines
+
+
+def build_offense_league_baselines(
+    offenses: list[dict[str, Any]],
+) -> dict[str, Any]:
+    eligible = [
+        offense
+        for offense in offenses
+        if offense.get("source_quality") == "COMPLETE"
+    ]
+
+    baselines = {
+        "runs_per_game": average_metric(
+            eligible,
+            "runs_per_game",
+        ),
+        "ops": average_metric(
+            eligible,
+            "ops",
+        ),
+        "iso": average_metric(
+            eligible,
+            "iso",
+        ),
+        "hr_per_game": average_metric(
+            eligible,
+            "hr_per_game",
+        ),
+    }
+
+    discipline_values = [
+        offense.get("bb_rate") - offense.get("k_rate")
+        for offense in eligible
+        if offense.get("bb_rate") is not None
+        and offense.get("k_rate") is not None
+    ]
+    if discipline_values:
+        baselines["bb_minus_k_rate"] = round(
+            sum(discipline_values) / len(discipline_values),
+            3,
+        )
+
+    return with_baseline_metadata(
+        baselines,
+        source="mlb_statsapi_team_hitting_season",
+        sample_size=len(eligible),
+    )
+
+
+def build_bullpen_league_baselines(
+    bullpens: list[dict[str, Any]],
+) -> dict[str, Any]:
+    eligible = [
+        bullpen
+        for bullpen in bullpens
+        if bullpen.get("source_quality") == "COMPLETE"
+    ]
+
+    baselines = {
+        "era": average_metric(
+            eligible,
+            "season_era",
+        ),
+        "whip": average_metric(
+            eligible,
+            "season_whip",
+        ),
+    }
+
+    return with_baseline_metadata(
+        baselines,
+        source="active_roster_reliever_game_logs",
+        sample_size=len(eligible),
+    )
+
+
+def with_baseline_metadata(
+    baselines: dict[str, Any],
+    *,
+    source: str,
+    sample_size: int,
+) -> dict[str, Any]:
+    values = {
+        key: value
+        for key, value in baselines.items()
+        if value is not None
+    }
+
+    if sample_size < 10 or not values:
+        return {}
+
+    values["source"] = source
+    values["sample_size"] = sample_size
+    return values
+
+
+def average_metric(
+    rows: list[dict[str, Any]],
+    key: str,
+) -> float | None:
+    values = [
+        float(row[key])
+        for row in rows
+        if row.get(key) is not None
+    ]
+
+    if not values:
+        return None
+
+    return round(
+        sum(values) / len(values),
+        3,
+    )
+
+
 def unavailable_total_dict() -> dict:
     return {
         "line": None,
@@ -1171,8 +1319,10 @@ def build_mlb_card(
     games: list[dict] = []
     game_log_cache = PitcherGameLogCache()
     team_profile_cache = TeamProfileCache()
+    profile_contexts: dict[int, dict[str, Any]] = {}
+    league_baselines: dict[str, Any] = {}
 
-    for raw in raw_games:
+    for index, raw in enumerate(raw_games):
         teams = raw.get(
             "teams",
             {},
@@ -1195,6 +1345,54 @@ def build_mlb_card(
         )
 
         home_profile = team_profile(
+            home_blob,
+            game_log_cache=game_log_cache,
+            team_profile_cache=team_profile_cache,
+        )
+
+        profile_contexts[index] = {
+            "away": away_profile,
+            "home": home_profile,
+        }
+
+    league_baselines = build_moneyline_league_baselines(
+        [
+            profile
+            for context in profile_contexts.values()
+            for profile in (
+                context["away"],
+                context["home"],
+            )
+        ]
+    )
+
+    for index, raw in enumerate(raw_games):
+        teams = raw.get(
+            "teams",
+            {},
+        )
+
+        away_blob = teams.get(
+            "away",
+            {},
+        )
+
+        home_blob = teams.get(
+            "home",
+            {},
+        )
+
+        context = profile_contexts.get(
+            index,
+            {},
+        )
+        away_profile = context.get("away") or team_profile(
+            away_blob,
+            game_log_cache=game_log_cache,
+            team_profile_cache=team_profile_cache,
+        )
+
+        home_profile = context.get("home") or team_profile(
             home_blob,
             game_log_cache=game_log_cache,
             team_profile_cache=team_profile_cache,
@@ -1276,6 +1474,7 @@ def build_mlb_card(
                 home_pitcher,
                 quote_object(away_reference.reference_quote),
                 quote_object(home_reference.reference_quote),
+                league_baselines=league_baselines,
             )
         )
 

@@ -58,6 +58,8 @@ def fetch_team_batting_stats(team_id):
         "iso": round((slg or 0) - (avg or 0), 3) if slg is not None and avg is not None else None,
         "woba": None,
         "wrc_plus": None,
+        "data_source": "mlb_statsapi_team_hitting_season",
+        "source_quality": "COMPLETE",
     }
 
 
@@ -77,6 +79,8 @@ def empty_offense():
         "iso": None,
         "woba": None,
         "wrc_plus": None,
+        "data_source": "unavailable",
+        "source_quality": "UNAVAILABLE",
     }
 
 

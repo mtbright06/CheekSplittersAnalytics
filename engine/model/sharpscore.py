@@ -29,10 +29,21 @@ def calculate_team_score(
     pitcher,
     bullpen,
     is_home,
+    *,
+    league_baselines=None,
 ):
-    offense_details = offense_breakdown(offense)
-    starter_details = starting_pitcher_breakdown(pitcher)
-    bullpen_details = bullpen_breakdown(bullpen)
+    offense_details = offense_breakdown(
+        offense,
+        league_baselines=league_baselines,
+    )
+    starter_details = starting_pitcher_breakdown(
+        pitcher,
+        league_baselines=league_baselines,
+    )
+    bullpen_details = bullpen_breakdown(
+        bullpen,
+        league_baselines=league_baselines,
+    )
     components = {
         "offense": offense_details["offense_score"],
         "starting_pitching": starter_details["starting_pitching_score"],
@@ -80,6 +91,7 @@ def build_sharpscore_decision(
     home_pitcher,
     away_quote,
     home_quote,
+    league_baselines=None,
 ):
     away_offense = away_profile.get("offense", {})
     home_offense = home_profile.get("offense", {})
@@ -92,6 +104,7 @@ def build_sharpscore_decision(
         away_pitcher,
         away_bullpen,
         False,
+        league_baselines=league_baselines,
     )
 
     home_score, home_components = calculate_team_score(
@@ -99,6 +112,7 @@ def build_sharpscore_decision(
         home_pitcher,
         home_bullpen,
         True,
+        league_baselines=league_baselines,
     )
 
     play = choose_side(away_name, home_name, away_score, home_score)
@@ -247,6 +261,7 @@ def build_sharpscore_decision(
             "selected_total": selected_score,
             "opponent_total": opponent_score,
             "sharpscore_gap": sharpscore_gap,
+            "league_baselines": league_baselines,
         },
     }
 
@@ -274,6 +289,30 @@ def mlb_moneyline_v2_reliability(
     home_bullpen,
 ):
     concerns = []
+    concern_details = []
+
+    def add_concern(
+        code,
+        *,
+        deduction,
+        severity,
+        source,
+        message,
+        visibility="user",
+    ):
+        if code in concerns:
+            return
+        concerns.append(code)
+        concern_details.append(
+            {
+                "code": code,
+                "deduction": deduction,
+                "severity": severity,
+                "source": source,
+                "message": message,
+                "visibility": visibility,
+            }
+        )
 
     core_values = [
         away_pitcher.get("era"),
@@ -299,10 +338,40 @@ def mlb_moneyline_v2_reliability(
             unknown_starters.append("Unknown Starter")
 
     if unknown_starters:
-        concerns.append("unknown_starter")
+        add_concern(
+            "unknown_starter",
+            deduction=20.0,
+            severity="high",
+            source="starter",
+            message="One or more probable starters are unknown.",
+        )
 
     if away_offense.get("ops") is None or home_offense.get("ops") is None:
-        concerns.append("missing_core_offense")
+        add_concern(
+            "missing_core_offense",
+            deduction=25.0,
+            severity="high",
+            source="offense",
+            message="Required team offense OPS is missing.",
+        )
+
+    offense_source_qualities = [
+        offense.get("source_quality")
+        for offense in (away_offense, home_offense)
+        if offense and offense.get("source_quality") is not None
+    ]
+    if (
+        offense_source_qualities
+        and any(quality != "COMPLETE" for quality in offense_source_qualities)
+        and "missing_core_offense" not in concerns
+    ):
+        add_concern(
+            "degraded_offense_source",
+            deduction=8.0,
+            severity="medium",
+            source="offense",
+            message="Team offense source quality is degraded.",
+        )
 
     starter_fields = [
         away_pitcher.get("era"),
@@ -311,7 +380,13 @@ def mlb_moneyline_v2_reliability(
         home_pitcher.get("whip"),
     ]
     if any(value is None for value in starter_fields):
-        concerns.append("missing_core_starter_data")
+        add_concern(
+            "missing_core_starter_data",
+            deduction=25.0,
+            severity="high",
+            source="starter",
+            message="Required starter ERA or WHIP is missing.",
+        )
 
     role_contexts = [
         pitcher.get("role_context")
@@ -327,14 +402,26 @@ def mlb_moneyline_v2_reliability(
         }
         for role in role_contexts
     ):
-        concerns.append("starter_role_uncertainty")
+        add_concern(
+            "starter_role_uncertainty",
+            deduction=8.0,
+            severity="medium",
+            source="starter",
+            message="Starter role profile is uncertain or abbreviated.",
+        )
 
     if any(
         pitcher
         and pitcher.get("data_source") == "season_fallback"
         for pitcher in (away_pitcher, home_pitcher)
     ):
-        concerns.append("starter_profile_fallback")
+        add_concern(
+            "starter_profile_fallback",
+            deduction=6.0,
+            severity="medium",
+            source="starter",
+            message="Starter profile fell back to season-level pitcher data.",
+        )
 
     if any(
         pitcher
@@ -342,14 +429,80 @@ def mlb_moneyline_v2_reliability(
         and pitcher.get("previous_start_date") is None
         for pitcher in (away_pitcher, home_pitcher)
     ):
-        concerns.append("missing_starter_rest_context")
+        add_concern(
+            "missing_starter_rest_context",
+            deduction=4.0,
+            severity="low",
+            source="starter",
+            message="Starter rest context is missing.",
+        )
+
+    if any(
+        pitcher
+        and pitcher.get("data_source") == "starter_game_log"
+        and pitcher.get("previous_start_date") is not None
+        and (
+            pitcher.get("previous_start_ip") is None
+            or pitcher.get("previous_start_pitch_count") is None
+        )
+        for pitcher in (away_pitcher, home_pitcher)
+    ):
+        add_concern(
+            "missing_starter_workload_context",
+            deduction=3.0,
+            severity="low",
+            source="starter",
+            message="Previous starter workload context is incomplete.",
+        )
 
     if not away_bullpen or not home_bullpen:
-        concerns.append("missing_bullpen_data")
+        add_concern(
+            "missing_bullpen_data",
+            deduction=10.0,
+            severity="medium",
+            source="bullpen",
+            message="Bullpen profile is missing.",
+        )
+
+    bullpen_source_qualities = [
+        bullpen.get("source_quality")
+        for bullpen in (away_bullpen, home_bullpen)
+        if bullpen and bullpen.get("source_quality") is not None
+    ]
+    if (
+        bullpen_source_qualities
+        and any(quality == "UNAVAILABLE" for quality in bullpen_source_qualities)
+        and "missing_bullpen_data" not in concerns
+    ):
+        add_concern(
+            "degraded_bullpen_source",
+            deduction=10.0,
+            severity="medium",
+            source="bullpen",
+            message="Bullpen source returned an unavailable profile.",
+        )
+    elif (
+        bullpen_source_qualities
+        and any(quality in {"PARTIAL", "EMPTY"} for quality in bullpen_source_qualities)
+        and "missing_bullpen_data" not in concerns
+    ):
+        add_concern(
+            "partial_bullpen_source",
+            deduction=6.0,
+            severity="low",
+            source="bullpen",
+            message="Bullpen source is partial or lacks active relief appearances.",
+        )
 
     if present_core < 4:
         tier_cap = "PASS"
-        concerns.append("severe_data_incompleteness")
+        add_concern(
+            "severe_data_incompleteness",
+            deduction=65.0,
+            severity="critical",
+            source="core",
+            message="Too few required model inputs are present.",
+        )
     elif (
         "missing_core_offense" in concerns
         or "missing_core_starter_data" in concerns
@@ -369,20 +522,10 @@ def mlb_moneyline_v2_reliability(
     if "severe_data_incompleteness" in concerns:
         score = 35.0
     else:
-        if "missing_core_offense" in concerns:
-            score -= 25.0
-        if "missing_core_starter_data" in concerns:
-            score -= 25.0
-        if "unknown_starter" in concerns:
-            score -= 20.0
-        if "starter_role_uncertainty" in concerns:
-            score -= 8.0
-        if "starter_profile_fallback" in concerns:
-            score -= 6.0
-        if "missing_starter_rest_context" in concerns:
-            score -= 4.0
-        if "missing_bullpen_data" in concerns:
-            score -= 10.0
+        score -= sum(
+            detail["deduction"]
+            for detail in concern_details
+        )
 
     score = round(max(0.0, min(100.0, score)), 1)
 
@@ -391,7 +534,40 @@ def mlb_moneyline_v2_reliability(
         "core_fields_present": present_core,
         "core_fields_total": len(core_values),
         "concerns": concerns,
+        "concern_details": concern_details,
         "tier_cap": tier_cap,
+        "definition": "Reliability measures trust in current production inputs only; it does not measure SharpScore strength, win probability, market agreement, edge, EV, odds, or Hammer.",
+        "input_groups": {
+            "strength_inputs": [
+                "team offense OPS",
+                "starter ERA",
+                "starter WHIP",
+                "bullpen season ERA",
+                "bullpen season WHIP",
+                "home field",
+            ],
+            "reliability_inputs": [
+                "probable starter availability",
+                "starter stat completeness",
+                "starter role context",
+                "starter profile source",
+                "starter rest context",
+                "starter workload context",
+                "team offense source quality",
+                "bullpen profile presence",
+                "bullpen source quality",
+            ],
+            "excluded_inputs": [
+                "SharpScore gap",
+                "model win strength",
+                "Hammer",
+                "edge",
+                "EV",
+                "odds",
+                "implied probability",
+                "sportsbook",
+            ],
+        },
     }
 
 

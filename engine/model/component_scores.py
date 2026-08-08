@@ -4,15 +4,49 @@ from engine.model.pitcher_stabilization import (
 )
 
 
+STATIC_OFFENSE_BASELINES = {
+    "runs_per_game": 4.4,
+    "ops": 0.710,
+    "iso": 0.160,
+    "hr_per_game": 1.10,
+    "bb_minus_k_rate": -14.0,
+}
+
+STATIC_BULLPEN_BASELINES = {
+    "era": 4.10,
+    "whip": 1.30,
+}
+
+
 def clamp(value, low=0, high=100):
     return max(low, min(high, value))
 
 
-def offense_score(offense):
-    return offense_breakdown(offense)["offense_score"]
+def offense_score(offense, *, league_baselines=None):
+    return offense_breakdown(
+        offense,
+        league_baselines=league_baselines,
+    )["offense_score"]
 
 
-def offense_breakdown(offense):
+def offense_breakdown(offense, *, league_baselines=None):
+    offense_baselines = (league_baselines or {}).get("offense", {})
+    rpg_average = to_float(
+        offense_baselines.get("runs_per_game")
+    ) or STATIC_OFFENSE_BASELINES["runs_per_game"]
+    ops_average = to_float(
+        offense_baselines.get("ops")
+    ) or STATIC_OFFENSE_BASELINES["ops"]
+    iso_average = to_float(
+        offense_baselines.get("iso")
+    ) or STATIC_OFFENSE_BASELINES["iso"]
+    hrpg_average = to_float(
+        offense_baselines.get("hr_per_game")
+    ) or STATIC_OFFENSE_BASELINES["hr_per_game"]
+    discipline_average = to_float(
+        offense_baselines.get("bb_minus_k_rate")
+    ) or STATIC_OFFENSE_BASELINES["bb_minus_k_rate"]
+
     if not offense:
         return {
             "offense_score": 50.0,
@@ -42,14 +76,14 @@ def offense_breakdown(offense):
 
     if rpg is not None:
         run_creation_inputs.append(
-            normalize_metric(rpg, average=4.4, half_range=1.0)
+            normalize_metric(rpg, average=rpg_average, half_range=1.0)
         )
     else:
         missing_inputs.append("runs_per_game")
 
     if ops is not None:
         run_creation_inputs.append(
-            normalize_metric(ops, average=0.710, half_range=0.080)
+            normalize_metric(ops, average=ops_average, half_range=0.080)
         )
     else:
         missing_inputs.append("ops")
@@ -57,10 +91,10 @@ def offense_breakdown(offense):
     run_creation = active_average(run_creation_inputs)
 
     if iso is not None:
-        power = normalize_metric(iso, average=0.160, half_range=0.040)
+        power = normalize_metric(iso, average=iso_average, half_range=0.040)
         power_source = "iso"
     elif hrpg is not None:
-        power = normalize_metric(hrpg, average=1.10, half_range=0.30)
+        power = normalize_metric(hrpg, average=hrpg_average, half_range=0.30)
         power_source = "hr_per_game"
         missing_inputs.append("iso")
     else:
@@ -71,7 +105,7 @@ def offense_breakdown(offense):
     if bb_rate is not None and k_rate is not None:
         plate_discipline = normalize_metric(
             bb_rate - k_rate,
-            average=-14.0,
+            average=discipline_average,
             half_range=6.0,
         )
     else:
@@ -128,6 +162,13 @@ def offense_breakdown(offense):
         ),
         "active_subcomponents": active_subcomponents,
         "missing_inputs": sorted(set(missing_inputs)),
+        "baselines": {
+            "runs_per_game": round(rpg_average, 3),
+            "ops": round(ops_average, 3),
+            "iso": round(iso_average, 3),
+            "hr_per_game": round(hrpg_average, 3),
+            "bb_minus_k_rate": round(discipline_average, 3),
+        },
     }
 
 
@@ -157,11 +198,14 @@ def to_float(value):
         return None
 
 
-def starting_pitcher_score(pitcher):
-    return starting_pitcher_breakdown(pitcher)["starting_pitching_score"]
+def starting_pitcher_score(pitcher, *, league_baselines=None):
+    return starting_pitcher_breakdown(
+        pitcher,
+        league_baselines=league_baselines,
+    )["starting_pitching_score"]
 
 
-def starting_pitcher_breakdown(pitcher):
+def starting_pitcher_breakdown(pitcher, *, league_baselines=None):
     """Build a cleaner starter-quality score from non-duplicative buckets."""
     if not pitcher or pitcher.get("name") == "Unknown Starter":
         return neutral_starting_pitcher_breakdown()
@@ -173,25 +217,33 @@ def starting_pitcher_breakdown(pitcher):
             missing_inputs=["ip"],
         )
 
+    starter_baselines = {
+        **PITCHER_BASELINES,
+        **(
+            (league_baselines or {}).get("starter")
+            or {}
+        ),
+    }
+
     era = stabilize_pitcher_stat(
         observed_value=pitcher.get("era"),
         innings_pitched=innings_pitched,
-        league_average=PITCHER_BASELINES["era"],
+        league_average=starter_baselines["era"],
     )
     whip = stabilize_pitcher_stat(
         observed_value=pitcher.get("whip"),
         innings_pitched=innings_pitched,
-        league_average=PITCHER_BASELINES["whip"],
+        league_average=starter_baselines["whip"],
     )
     hr9 = stabilize_pitcher_stat(
         observed_value=pitcher.get("hr9"),
         innings_pitched=innings_pitched,
-        league_average=PITCHER_BASELINES["hr9"],
+        league_average=starter_baselines["hr9"],
     )
     k_bb_pct = stabilize_pitcher_stat(
         observed_value=pitcher.get("k_bb_pct"),
         innings_pitched=innings_pitched,
-        league_average=PITCHER_BASELINES["k_bb_pct"],
+        league_average=starter_baselines["k_bb_pct"],
     )
 
     missing_inputs = []
@@ -200,7 +252,7 @@ def starting_pitcher_breakdown(pitcher):
     if era is not None:
         subcomponents["run_prevention"] = inverse_metric_score(
             era,
-            average=PITCHER_BASELINES["era"],
+            average=starter_baselines["era"],
             half_range=1.75,
         )
     else:
@@ -209,7 +261,7 @@ def starting_pitcher_breakdown(pitcher):
     if whip is not None:
         subcomponents["baserunner_control"] = inverse_metric_score(
             whip,
-            average=PITCHER_BASELINES["whip"],
+            average=starter_baselines["whip"],
             half_range=0.35,
         )
     else:
@@ -218,7 +270,7 @@ def starting_pitcher_breakdown(pitcher):
     if k_bb_pct is not None:
         subcomponents["strikeout_command"] = normalize_metric(
             k_bb_pct,
-            average=PITCHER_BASELINES["k_bb_pct"],
+            average=starter_baselines["k_bb_pct"],
             half_range=12.0,
         )
     else:
@@ -227,7 +279,7 @@ def starting_pitcher_breakdown(pitcher):
     if hr9 is not None:
         subcomponents["damage_suppression"] = inverse_metric_score(
             hr9,
-            average=PITCHER_BASELINES["hr9"],
+            average=starter_baselines["hr9"],
             half_range=0.70,
         )
     else:
@@ -285,6 +337,12 @@ def starting_pitcher_breakdown(pitcher):
             if name in subcomponents
         ],
         "missing_inputs": sorted(set(missing_inputs)),
+        "baselines": {
+            "era": round(starter_baselines["era"], 3),
+            "whip": round(starter_baselines["whip"], 3),
+            "hr9": round(starter_baselines["hr9"], 3),
+            "k_bb_pct": round(starter_baselines["k_bb_pct"], 3),
+        },
     }
 
 
@@ -382,11 +440,22 @@ def inverse_metric_score(value, *, average, half_range):
     )
 
 
-def bullpen_score(bullpen):
-    return bullpen_breakdown(bullpen)["bullpen_score"]
+def bullpen_score(bullpen, *, league_baselines=None):
+    return bullpen_breakdown(
+        bullpen,
+        league_baselines=league_baselines,
+    )["bullpen_score"]
 
 
-def bullpen_breakdown(bullpen):
+def bullpen_breakdown(bullpen, *, league_baselines=None):
+    bullpen_baselines = (league_baselines or {}).get("bullpen", {})
+    era_average = to_float(
+        bullpen_baselines.get("era")
+    ) or STATIC_BULLPEN_BASELINES["era"]
+    whip_average = to_float(
+        bullpen_baselines.get("whip")
+    ) or STATIC_BULLPEN_BASELINES["whip"]
+
     if not bullpen:
         return neutral_bullpen_breakdown()
 
@@ -432,7 +501,7 @@ def bullpen_breakdown(bullpen):
     if season_era is not None:
         quality_components["season_run_prevention"] = inverse_metric_score(
             season_era,
-            average=4.10,
+            average=era_average,
             half_range=1.30,
         )
     else:
@@ -441,7 +510,7 @@ def bullpen_breakdown(bullpen):
     if season_whip is not None:
         quality_components["baserunner_control"] = inverse_metric_score(
             season_whip,
-            average=1.30,
+            average=whip_average,
             half_range=0.25,
         )
     else:
@@ -456,7 +525,7 @@ def bullpen_breakdown(bullpen):
     if stabilized_recent_era is not None:
         quality_components["recent_run_prevention"] = inverse_metric_score(
             stabilized_recent_era,
-            average=4.10,
+            average=era_average,
             half_range=2.00,
         )
     else:
@@ -519,6 +588,10 @@ def bullpen_breakdown(bullpen):
         "availability_penalty": round(availability_penalty, 1),
         "active_subcomponents": active_subcomponents,
         "missing_inputs": sorted(set(missing_inputs)),
+        "baselines": {
+            "era": round(era_average, 3),
+            "whip": round(whip_average, 3),
+        },
     }
 
 
@@ -567,7 +640,7 @@ def stabilize_recent_bullpen_era(
     if sample_weight <= 0.0:
         return None
 
-    baseline = season_era if season_era is not None else 4.10
+    baseline = season_era if season_era is not None else STATIC_BULLPEN_BASELINES["era"]
 
     return baseline + sample_weight * (recent_era - baseline)
 

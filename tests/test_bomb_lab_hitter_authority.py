@@ -1,4 +1,7 @@
+from unittest.mock import patch
+
 from engine.hitters.target_hitters import (
+    attach_target_hitters_to_pitchers,
     hitter_hr_ability_score,
     hitter_sample_reliability,
     hr_opportunity_score,
@@ -114,3 +117,74 @@ def test_park_context_cannot_change_hitter_ability():
         environment_score=40.0,
     )
     assert hitter_hr_ability_score(POWER_HITTER, "R") == ability
+
+
+def test_bomb_squad_display_order_uses_descending_target_score():
+    hitters = [
+        {
+            "batter_id": 1,
+            "name": "Higher Opportunity",
+            "position": "OF",
+            "bat_side": "L",
+            "pa": 200,
+            "bbe": 150,
+            "hard_hit_pct": 0.09,
+            "barrel_pct": 0.04,
+            "avg_ev": 84.0,
+            "hr": 10,
+            "hr_vs_lhp": 0,
+            "hr_vs_rhp": 1,
+        },
+        {
+            "batter_id": 2,
+            "name": "Higher Target",
+            "position": "OF",
+            "bat_side": "R",
+            "pa": 200,
+            "bbe": 150,
+            "hard_hit_pct": 0.09,
+            "barrel_pct": 0.04,
+            "avg_ev": 84.0,
+            "hr": 10,
+            "hr_vs_lhp": 0,
+            "hr_vs_rhp": 20,
+        },
+    ]
+
+    with (
+        patch(
+            "engine.hitters.target_hitters.fetch_active_roster",
+            lambda team_id: [{"player_id": 1}, {"player_id": 2}],
+        ),
+        patch(
+            "engine.hitters.target_hitters.build_hitter_profiles",
+            lambda **kwargs: hitters,
+        ),
+    ):
+        [item] = attach_target_hitters_to_pitchers(
+            [
+                {
+                    "opponent": "Test Team",
+                    "opponent_team_id": 1,
+                    "opponent_abbr": "TST",
+                    "target_side": "R",
+                    "pitcher_throw": "R",
+                    "bomb_score": 50.0,
+                    "pitcher_vulnerability": 80.0,
+                    "environment_score": 50.0,
+                    "bomb_reliability": 95.0,
+                }
+            ],
+            season_statcast_df=object(),
+        )
+
+    target_scores = [hitter["target_score"] for hitter in item["top_hitters"]]
+
+    assert target_scores == sorted(target_scores, reverse=True)
+    assert item["recommended_hitter"] == item["top_hitters"][0]["name"]
+
+
+if __name__ == "__main__":
+    for name, fn in list(globals().items()):
+        if name.startswith("test_") and callable(fn):
+            fn()

@@ -7,6 +7,7 @@ from pybaseball import statcast
 from engine.bomb_lab.constants import PARK_FACTORS
 from engine.bomb_lab.statcast_contract import statcast_barrel_flag
 from engine.hitters.target_hitters import attach_target_hitters_to_pitchers
+from engine.lineups.service import MLBLineupService
 from engine.mlb.schedule import fetch_mlb_schedule
 
 
@@ -401,6 +402,7 @@ def build_bomb_lab_card():
 
         item = {
             "stand": row.get("stand") or "ANY",
+            "game_pk": row.get("game_pk"),
             "pitcher": row.get("pitcher"),
             "pitching_team": row.get("pitching_team"),
             "pitching_team_abbr": row.get("pitching_team_abbr"),
@@ -471,7 +473,12 @@ def build_bomb_lab_card():
         grouped.append(best)
 
     grouped = sorted(grouped, key=lambda x: x["bomb_score"], reverse=True)
-    grouped = attach_target_hitters_to_pitchers(grouped, season_raw)
+    lineup_service = MLBLineupService()
+    grouped = attach_target_hitters_to_pitchers(
+        grouped,
+        season_raw,
+        lineup_service=lineup_service,
+    )
     for item in grouped:
         if item.get("hr_opportunity_score") is not None:
             item["tier"] = tier(
@@ -498,6 +505,20 @@ def build_bomb_lab_card():
             "opportunity_reliability": x.get("opportunity_reliability"),
             "reliability_concerns": x["reliability_concerns"],
             "recommended_hitter": x.get("recommended_hitter"),
+            "recommended_hitter_position": x.get(
+                "recommended_hitter_position"
+            ),
+            "lineup_state": x.get("lineup_state"),
+            "lineup_status": x.get("lineup_status"),
+            "lineup_actionability": x.get("lineup_actionability"),
+            "batting_order": x.get("batting_order"),
+            "lineup_concerns": x.get("lineup_concerns"),
+            "recommended_hitter_lineup_concerns": x.get(
+                "recommended_hitter_lineup_concerns",
+            ),
+            "away_lineup_starters": x.get("away_lineup_starters"),
+            "home_lineup_starters": x.get("home_lineup_starters"),
+            "game_pk": x.get("game_pk"),
             "pitcher": x["pitcher"],
             "pitching_team": x["pitching_team"],
             "target_offense": x["opponent"],

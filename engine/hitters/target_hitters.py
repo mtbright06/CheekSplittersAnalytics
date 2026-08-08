@@ -8,6 +8,11 @@ from engine.lineups.mlb_roster import (
     roster_name_map,
     roster_position_map,
 )
+from engine.lineups.models import (
+    GameLineupStatus,
+    LineupActionability,
+    PlayerLineupStatus,
+)
 from engine.bomb_lab.statcast_contract import statcast_barrel_flag
 from engine.mlb import offense
 
@@ -347,6 +352,49 @@ def hr_opportunity_score(
     return round(clamp_score(score), 1)
 
 
+def hitter_lineup_actionability(hitter, team_lineup):
+    if team_lineup is None:
+        return {
+            "lineup_status": PlayerLineupStatus.UNKNOWN.value,
+            "actionability": LineupActionability.SOURCE_UNKNOWN.value,
+            "batting_order": None,
+            "position": hitter.get("position"),
+            "concerns": ["lineup_source_unknown"],
+            "official_candidate": True,
+        }
+
+    lineup_player = team_lineup.player_status(hitter.get("batter_id"))
+    concerns = []
+
+    if lineup_player.lineup_status == PlayerLineupStatus.CONFIRMED_STARTER:
+        actionability = LineupActionability.ACTIONABLE
+        official_candidate = True
+    elif lineup_player.lineup_status in {
+        PlayerLineupStatus.BENCH,
+        PlayerLineupStatus.NOT_LISTED,
+    }:
+        actionability = LineupActionability.NOT_STARTING
+        official_candidate = False
+        concerns.append("hitter_not_in_confirmed_lineup")
+    elif team_lineup.status == GameLineupStatus.NOT_POSTED:
+        actionability = LineupActionability.PENDING_LINEUP
+        official_candidate = True
+        concerns.append("lineup_not_posted")
+    else:
+        actionability = LineupActionability.SOURCE_UNKNOWN
+        official_candidate = True
+        concerns.append("lineup_status_unknown")
+
+    return {
+        "lineup_status": lineup_player.lineup_status.value,
+        "actionability": actionability.value,
+        "batting_order": lineup_player.batting_order,
+        "position": lineup_player.position or hitter.get("position"),
+        "concerns": concerns,
+        "official_candidate": official_candidate,
+    }
+
+
 def build_target_score(hitter, attack_side, pitcher_throw, opportunity_score):
     barrel = safe_num(hitter.get("barrel_pct")) * 100
     hard_hit = safe_num(hitter.get("hard_hit_pct")) * 100
@@ -367,7 +415,11 @@ def build_target_score(hitter, attack_side, pitcher_throw, opportunity_score):
     return round(max(0, min(100, score)), 1)
 
 
-def attach_target_hitters_to_pitchers(pitchers, season_statcast_df=None):
+def attach_target_hitters_to_pitchers(
+    pitchers,
+    season_statcast_df=None,
+    lineup_service=None,
+):
     enriched = []
 
     roster_cache = {}
@@ -380,6 +432,17 @@ def attach_target_hitters_to_pitchers(pitchers, season_statcast_df=None):
         attack_side = item.get("target_side")
         pitcher_throw = item.get("pitcher_throw")
         opportunity_score = item.get("bomb_score") or 0
+        game_id = item.get("game_pk")
+        lineup_state = (
+            lineup_service.get_game_lineup(game_id)
+            if lineup_service and game_id
+            else None
+        )
+        team_lineup = (
+            lineup_state.team_lineup(team_id)
+            if lineup_state is not None
+            else None
+        )
 
         if team_id not in roster_cache:
             roster_cache[team_id] = fetch_active_roster(team_id)
@@ -417,6 +480,20 @@ def attach_target_hitters_to_pitchers(pitchers, season_statcast_df=None):
                 safe_num(item.get("bomb_reliability"), 100.0),
                 hitter["hitter_reliability"],
             )
+            lineup_actionability = hitter_lineup_actionability(
+                hitter,
+                team_lineup,
+            )
+            hitter["lineup_status"] = lineup_actionability["lineup_status"]
+            hitter["lineup_actionability"] = lineup_actionability[
+                "actionability"
+            ]
+            hitter["batting_order"] = lineup_actionability["batting_order"]
+            hitter["position"] = lineup_actionability["position"]
+            hitter["lineup_concerns"] = lineup_actionability["concerns"]
+            hitter["official_candidate"] = lineup_actionability[
+                "official_candidate"
+            ]
             hitter["target_score"] = build_target_score(
                 hitter=hitter,
                 attack_side=attack_side,
@@ -425,7 +502,7 @@ def attach_target_hitters_to_pitchers(pitchers, season_statcast_df=None):
             )
             hitter["stars"] = star_rating(hitter["target_score"])
 
-        item["top_hitters"] = sorted(
+        ranked_hitters = sorted(
             hitters,
             key=lambda x: (
                 x["hr_opportunity_score"],
@@ -433,7 +510,51 @@ def attach_target_hitters_to_pitchers(pitchers, season_statcast_df=None):
                 x["target_score"],
             ),
             reverse=True,
-        )[:5]
+        )
+        target_ranked_hitters = sorted(
+            hitters,
+            key=lambda x: (
+                x["target_score"],
+                x["hr_opportunity_score"],
+                x["hitter_hr_ability"],
+            ),
+            reverse=True,
+        )
+
+        item["diagnostic_hitters"] = ranked_hitters[:5]
+        item["top_hitters"] = [
+            hitter
+            for hitter in target_ranked_hitters
+            if hitter.get("official_candidate", True)
+        ][:5]
+
+        if lineup_state is not None:
+            item["lineup_state"] = lineup_state.status.value
+            item["lineup_game_status"] = lineup_state.game_status
+            item["lineup_source"] = lineup_state.source
+            item["lineup_retrieved_at"] = lineup_state.retrieved_at.isoformat()
+            item["lineup_freshness_seconds"] = round(
+                lineup_state.freshness_seconds,
+                1,
+            )
+            item["lineup_is_stale"] = lineup_state.is_stale
+            item["lineup_concerns"] = list(
+                lineup_state.concerns
+                + ((team_lineup.concerns if team_lineup else ()) or ())
+            )
+            item["away_lineup_starters"] = (
+                len(lineup_state.away_lineup.starters)
+                if lineup_state.away_lineup
+                else 0
+            )
+            item["home_lineup_starters"] = (
+                len(lineup_state.home_lineup.starters)
+                if lineup_state.home_lineup
+                else 0
+            )
+        else:
+            item["lineup_state"] = GameLineupStatus.UNKNOWN.value
+            item["lineup_concerns"] = ["lineup_service_unavailable"]
 
         if item["top_hitters"]:
             best_hitter = item["top_hitters"][0]
@@ -451,7 +572,19 @@ def attach_target_hitters_to_pitchers(pitchers, season_statcast_df=None):
                 "hitter_reliability_concerns",
                 [],
             )
+            item["lineup_status"] = best_hitter.get("lineup_status")
+            item["lineup_actionability"] = best_hitter.get(
+                "lineup_actionability"
+            )
+            item["batting_order"] = best_hitter.get("batting_order")
+            item["recommended_hitter_position"] = best_hitter.get("position")
+            item["recommended_hitter_lineup_concerns"] = best_hitter.get(
+                "lineup_concerns",
+                [],
+            )
             item["bomb_score"] = best_hitter["hr_opportunity_score"]
+        elif ranked_hitters:
+            item["lineup_actionability"] = LineupActionability.NOT_STARTING.value
 
         enriched.append(item)
 

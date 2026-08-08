@@ -80,7 +80,7 @@ def test_hard_hit_threshold_is_inclusive_at_95_mph():
     assert stats["recent_hard_hit_pct"] == 0.5
 
 
-def test_air_ball_definition_counts_fly_line_and_popup_only():
+def test_fly_ball_definition_counts_true_fly_balls_only():
     df = pd.DataFrame(
         [
             {
@@ -128,7 +128,8 @@ def test_air_ball_definition_counts_fly_line_and_popup_only():
 
     stats = build_split_stats(df, "recent").iloc[0]
 
-    assert stats["recent_air_pct"] == 0.75
+    assert stats["recent_fly_ball_pct"] == 0.25
+    assert stats["recent_fly_ball_ev"] == 90.0
 
 
 def test_missing_exit_velocity_is_excluded_from_batted_ball_strength():
@@ -185,7 +186,7 @@ def test_recent_and_season_windows_use_identical_feature_definitions():
 
     assert recent["recent_barrel_pct"] == season["season_barrel_pct"]
     assert recent["recent_hard_hit_pct"] == season["season_hard_hit_pct"]
-    assert recent["recent_air_pct"] == season["season_air_pct"]
+    assert recent["recent_fly_ball_pct"] == season["season_fly_ball_pct"]
     assert recent["recent_hr_per_bbe"] == season["season_hr_per_bbe"]
 
 

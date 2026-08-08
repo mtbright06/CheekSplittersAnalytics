@@ -186,6 +186,134 @@ def test_bomb_squad_display_order_uses_descending_target_score():
     assert item["recommended_hitter"] == item["top_hitters"][0]["name"]
 
 
+def test_confirmed_nonstarter_is_excluded_and_next_starter_is_promoted():
+    from engine.lineups.models import (
+        GameLineupStatus,
+        LineupPlayer,
+        PlayerLineupStatus,
+        TeamLineup,
+    )
+
+    hitters = [
+        {
+            "batter_id": 1,
+            "name": "Bench Power",
+            "position": "OF",
+            "bat_side": "R",
+            "pa": 250,
+            "bbe": 180,
+            "hard_hit_pct": 0.55,
+            "barrel_pct": 0.18,
+            "avg_ev": 96.0,
+            "hr": 20,
+            "hr_vs_lhp": 8,
+            "hr_vs_rhp": 22,
+        },
+        {
+            "batter_id": 2,
+            "name": "Starting Power",
+            "position": "1B",
+            "bat_side": "R",
+            "pa": 250,
+            "bbe": 180,
+            "hard_hit_pct": 0.42,
+            "barrel_pct": 0.10,
+            "avg_ev": 91.0,
+            "hr": 16,
+            "hr_vs_lhp": 6,
+            "hr_vs_rhp": 16,
+        },
+    ]
+
+    team_lineup = TeamLineup(
+        team_id=1,
+        team_name="Test Team",
+        side="away",
+        status=GameLineupStatus.CONFIRMED,
+        starters=(
+            LineupPlayer(
+                player_id=2,
+                player_name="Starting Power",
+                team_id=1,
+                team_name="Test Team",
+                side="away",
+                lineup_status=PlayerLineupStatus.CONFIRMED_STARTER,
+                batting_order=4,
+                position="1B",
+            ),
+        ),
+        bench=(
+            LineupPlayer(
+                player_id=1,
+                player_name="Bench Power",
+                team_id=1,
+                team_name="Test Team",
+                side="away",
+                lineup_status=PlayerLineupStatus.BENCH,
+                position="OF",
+            ),
+        ),
+    )
+
+    class LineupState:
+        def __init__(self, team_lineup):
+            self.status = GameLineupStatus.CONFIRMED
+            self.game_status = "Pre-Game"
+            self.source = "test"
+            self.concerns = ()
+            self.retrieved_at = type(
+                "RetrievedAt",
+                (),
+                {"isoformat": lambda self: "2026-08-08T00:00:00+00:00"},
+            )()
+            self.freshness_seconds = 0.0
+            self.is_stale = False
+            self.away_lineup = team_lineup
+            self.home_lineup = None
+
+        def team_lineup(self, team_id):
+            return self.away_lineup if team_id == 1 else None
+
+    class Service:
+        def get_game_lineup(self, game_id):
+            return LineupState(team_lineup)
+
+    with (
+        patch(
+            "engine.hitters.target_hitters.fetch_active_roster",
+            lambda team_id: [{"player_id": 1}, {"player_id": 2}],
+        ),
+        patch(
+            "engine.hitters.target_hitters.build_hitter_profiles",
+            lambda **kwargs: hitters,
+        ),
+    ):
+        [item] = attach_target_hitters_to_pitchers(
+            [
+                {
+                    "game_pk": 1,
+                    "opponent": "Test Team",
+                    "opponent_team_id": 1,
+                    "opponent_abbr": "TST",
+                    "target_side": "R",
+                    "pitcher_throw": "R",
+                    "bomb_score": 50.0,
+                    "pitcher_vulnerability": 80.0,
+                    "environment_score": 50.0,
+                    "bomb_reliability": 95.0,
+                }
+            ],
+            season_statcast_df=object(),
+            lineup_service=Service(),
+        )
+
+    assert item["recommended_hitter"] == "Starting Power"
+    assert [hitter["name"] for hitter in item["top_hitters"]] == [
+        "Starting Power"
+    ]
+    assert item["top_hitters"][0]["lineup_actionability"] == "ACTIONABLE"
+
+
 def test_arizona_statcast_alias_resolves_to_az():
     assert statcast_team_abbreviations("ARI") == ("ARI", "AZ")
 

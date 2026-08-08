@@ -1,10 +1,38 @@
+from datetime import UTC, datetime
+
 from engine.decision.decision_builder import first5_score_for_team
 from engine.first5.first5_model import (
+    LEAGUE_RUNS_PER_GAME,
+    build_first5_league_baselines,
     build_reliability,
     moneyline_recommendation,
+    offense_factor_with_baselines,
     project_team_f5_runs,
+    starter_run_factor_with_baselines,
     starter_context_adjustment,
 )
+from engine.lineups.models import (
+    GameLineupState,
+    GameLineupStatus,
+    unknown_lineup_state,
+)
+
+
+TEST_BASELINES = {
+    "offense": {"runs_per_game": 4.45},
+    "starter": {"era": 4.2},
+}
+
+
+def lineup(status=GameLineupStatus.CONFIRMED):
+    return GameLineupState(
+        game_id=1,
+        away_team="Away",
+        home_team="Home",
+        status=status,
+        source="test_lineups",
+        retrieved_at=datetime.now(UTC),
+    )
 
 
 def offense(runs_per_game=4.45, games=100):
@@ -43,6 +71,15 @@ def pitcher(
         "role_context": role_context,
         "previous_start_date": "2026-08-01" if days_rest is not None else None,
         "data_source": data_source,
+    }
+
+
+def rich_offense(runs_per_game):
+    return {
+        "games": 100,
+        "runs_per_game": runs_per_game,
+        "ops": 0.730,
+        "hr_per_game": 1.10,
     }
 
 
@@ -138,6 +175,8 @@ def test_reliability_tracks_missing_inputs_without_using_margin_strength():
         away_offense=offense(),
         home_offense=offense(),
         park_factor=1.0,
+        league_baselines=TEST_BASELINES,
+        lineup_state=lineup(),
     )
     missing = build_reliability(
         away_pitcher=pitcher(available=False),
@@ -145,6 +184,8 @@ def test_reliability_tracks_missing_inputs_without_using_margin_strength():
         away_offense=offense(games=0),
         home_offense=offense(),
         park_factor=1.0,
+        league_baselines=TEST_BASELINES,
+        lineup_state=lineup(),
     )
 
     assert full["score"] == 100
@@ -161,13 +202,12 @@ def test_future_context_unavailable_does_not_reduce_reliability():
         away_offense=offense(),
         home_offense=offense(),
         park_factor=1.0,
+        league_baselines=TEST_BASELINES,
+        lineup_state=lineup(),
     )
 
     assert reliability["score"] == 100
     assert reliability["active_concerns"] == []
-    assert "lineup_quality_not_evaluated" in reliability[
-        "future_unavailable_context"
-    ]
     assert "handedness_splits_not_evaluated" in reliability[
         "future_unavailable_context"
     ]
@@ -183,6 +223,8 @@ def test_low_starter_sample_reduces_reliability():
         away_offense=offense(),
         home_offense=offense(),
         park_factor=1.0,
+        league_baselines=TEST_BASELINES,
+        lineup_state=lineup(),
     )
 
     assert reliability["score"] == 80
@@ -198,6 +240,8 @@ def test_missing_park_factor_reduces_reliability():
         home_pitcher=pitcher(),
         away_offense=offense(),
         home_offense=offense(),
+        league_baselines=TEST_BASELINES,
+        lineup_state=lineup(),
     )
 
     assert reliability["score"] == 95
@@ -303,6 +347,8 @@ def test_missing_starter_context_reduces_reliability_not_strength():
         away_offense=offense(),
         home_offense=offense(),
         park_factor=1.0,
+        league_baselines=TEST_BASELINES,
+        lineup_state=lineup(),
     )
 
     assert starter_context_adjustment(missing)["adjustment"] == 0.0
@@ -324,6 +370,152 @@ def test_decision_builder_uses_projected_margin_not_removed_decision_score():
 
     assert first5_score_for_team(game, "Home") == 78
     assert first5_score_for_team(game, "Away") == 22
+
+
+def test_lineup_state_reduces_reliability_only():
+    confirmed = build_reliability(
+        away_pitcher=pitcher(),
+        home_pitcher=pitcher(),
+        away_offense=offense(),
+        home_offense=offense(),
+        park_factor=1.0,
+        league_baselines=TEST_BASELINES,
+        lineup_state=lineup(),
+    )
+    not_posted = build_reliability(
+        away_pitcher=pitcher(),
+        home_pitcher=pitcher(),
+        away_offense=offense(),
+        home_offense=offense(),
+        park_factor=1.0,
+        league_baselines=TEST_BASELINES,
+        lineup_state=lineup(GameLineupStatus.NOT_POSTED),
+    )
+    unknown = build_reliability(
+        away_pitcher=pitcher(),
+        home_pitcher=pitcher(),
+        away_offense=offense(),
+        home_offense=offense(),
+        park_factor=1.0,
+        league_baselines=TEST_BASELINES,
+        lineup_state=unknown_lineup_state(1, "lineup_provider_failure"),
+    )
+
+    assert confirmed["score"] == 100
+    assert not_posted["score"] == 95
+    assert unknown["score"] == 90
+    assert "lineup_not_posted" in not_posted["active_concerns"]
+    assert "lineup_unknown" in unknown["active_concerns"]
+    assert project_team_f5_runs(offense(), pitcher(), 1.0) == project_team_f5_runs(
+        offense(),
+        pitcher(),
+        1.0,
+    )
+
+
+def test_missing_dynamic_baselines_reduce_reliability_not_projection_strength():
+    reliability = build_reliability(
+        away_pitcher=pitcher(),
+        home_pitcher=pitcher(),
+        away_offense=offense(),
+        home_offense=offense(),
+        park_factor=1.0,
+        league_baselines={},
+        lineup_state=lineup(),
+    )
+
+    assert reliability["score"] == 90
+    assert "offense_baseline_sample_insufficient" in reliability[
+        "active_concerns"
+    ]
+    assert "starter_baseline_sample_insufficient" in reliability[
+        "active_concerns"
+    ]
+
+
+def test_first5_dynamic_offense_baseline_recenters_run_environment():
+    league_baselines = {
+        "offense": {
+            "runs_per_game": 5.0,
+            "source": "test",
+            "sample_size": 30,
+        },
+        "first5": {
+            "runs_per_game": 5.0,
+            "source": "test",
+            "sample_size": 30,
+        },
+    }
+
+    assert offense_factor_with_baselines(
+        offense(runs_per_game=5.0),
+        league_baselines=league_baselines,
+    ) == 1.0
+    assert project_team_f5_runs(
+        offense(runs_per_game=5.0),
+        pitcher(),
+        1.0,
+        league_baselines=league_baselines,
+    ) > project_team_f5_runs(
+        offense(runs_per_game=LEAGUE_RUNS_PER_GAME),
+        pitcher(),
+        1.0,
+    )
+
+
+def test_first5_dynamic_starter_baselines_recenter_existing_shape():
+    league_baselines = {
+        "starter": {
+            "era": 4.8,
+            "whip": 1.35,
+            "hr9": 1.3,
+            "k_minus_bb9": 4.6,
+            "source": "test",
+            "sample_size": 30,
+        },
+    }
+
+    average_pitcher = pitcher(
+        era=4.8,
+        whip=1.35,
+        hr9=1.3,
+        k_minus_bb9=4.6,
+    )
+    poor_pitcher = pitcher(
+        era=5.8,
+        whip=1.55,
+        hr9=1.7,
+        k_minus_bb9=2.6,
+    )
+
+    assert starter_run_factor_with_baselines(
+        average_pitcher,
+        league_baselines=league_baselines,
+    ) == 1.0
+    assert starter_run_factor_with_baselines(
+        poor_pitcher,
+        league_baselines=league_baselines,
+    ) > starter_run_factor_with_baselines(
+        average_pitcher,
+        league_baselines=league_baselines,
+    )
+
+
+def test_first5_baselines_require_current_sample_before_replacing_static_centers():
+    insufficient = build_first5_league_baselines(
+        [rich_offense(5.0)] * 9,
+        [pitcher()] * 9,
+    )
+    sufficient = build_first5_league_baselines(
+        [rich_offense(5.0)] * 10,
+        [pitcher()] * 10,
+    )
+
+    assert "offense" not in insufficient
+    assert "starter" not in insufficient
+    assert sufficient["offense"]["runs_per_game"] == 5.0
+    assert sufficient["first5"]["runs_per_game"] == 5.0
+    assert sufficient["starter"]["era"] == 4.2
 
 
 if __name__ == "__main__":

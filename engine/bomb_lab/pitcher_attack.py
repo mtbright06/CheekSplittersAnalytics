@@ -25,7 +25,7 @@ PITCHER_BARREL_WEIGHT = 220.0
 PITCHER_HR_PER_BBE_WEIGHT = 180.0
 PITCHER_AVG_EV_BASELINE = 84.0
 PITCHER_AVG_EV_WEIGHT = 3.0
-PITCHER_AIR_BALL_WEIGHT = 18.0
+PITCHER_FLY_BALL_WEIGHT = 18.0
 
 
 def clamp(value, low=0, high=100):
@@ -120,9 +120,10 @@ def build_split_stats(statcast_df, prefix):
     else:
         df["barrel"] = 0
 
-    df["air_ball"] = df["bb_type"].isin(
-        ["fly_ball", "line_drive", "popup"]
-    ).astype(int)
+    df["fly_ball"] = (df["bb_type"] == "fly_ball").astype(int)
+    df["fly_ball_ev"] = df["launch_speed"].where(
+        df["bb_type"] == "fly_ball",
+    )
 
     grouped = (
         df.groupby(["pitcher", "stand"])
@@ -132,7 +133,8 @@ def build_split_stats(statcast_df, prefix):
             avg_ev=("launch_speed", "mean"),
             hrs_allowed=("events", lambda x: (x == "home_run").sum()),
             batted_balls=("launch_speed", "count"),
-            air_pct=("air_ball", "mean"),
+            fly_ball_pct=("fly_ball", "mean"),
+            fly_ball_ev=("fly_ball_ev", "mean"),
             pitcher_throw=("p_throws", lambda x: x.mode().iloc[0] if not x.mode().empty else None),
         )
         .reset_index()
@@ -151,21 +153,22 @@ def build_split_stats(statcast_df, prefix):
             "avg_ev",
             "hrs_allowed",
             "batted_balls",
-            "air_pct",
+            "fly_ball_pct",
+            "fly_ball_ev",
             "hr_per_bbe",
         ]
     }
 
     return grouped.rename(columns=rename)
 
-def pitcher_risk(hh, barrel, ev, hr_rate, air):
+def pitcher_risk(hh, barrel, ev, hr_rate, fly_ball):
     score = (
         safe_num(hh) * PITCHER_HARD_HIT_WEIGHT
         + safe_num(barrel) * PITCHER_BARREL_WEIGHT
         + safe_num(hr_rate) * PITCHER_HR_PER_BBE_WEIGHT
         + max(safe_num(ev) - PITCHER_AVG_EV_BASELINE, 0)
         * PITCHER_AVG_EV_WEIGHT
-        + safe_num(air) * PITCHER_AIR_BALL_WEIGHT
+        + safe_num(fly_ball) * PITCHER_FLY_BALL_WEIGHT
     )
 
     return round(clamp(score), 1)
@@ -320,6 +323,11 @@ def build_why(row):
             f"Recent HR per batted ball is flashing ({row['recent_hr_per_bbe']:.1%})."
         )
 
+    if row.get("recent_fly_ball_pct", 0) >= 0.36:
+        why.append(
+            f"Recent fly-ball rate allowed is elevated ({row['recent_fly_ball_pct']:.1%})."
+        )
+
     if row.get("park_factor", 1.0) > 1.05:
         why.append("Park environment boosts home run upside.")
 
@@ -356,7 +364,8 @@ def build_bomb_lab_card():
             "season_avg_ev",
             "season_hrs_allowed",
             "season_batted_balls",
-            "season_air_pct",
+            "season_fly_ball_pct",
+            "season_fly_ball_ev",
             "season_hr_per_bbe",
         ]:
             merged[col] = 0
@@ -375,7 +384,7 @@ def build_bomb_lab_card():
             row.get("recent_barrel_pct"),
             row.get("recent_avg_ev"),
             row.get("recent_hr_per_bbe"),
-            row.get("recent_air_pct"),
+            row.get("recent_fly_ball_pct"),
         )
 
         season_risk = pitcher_risk(
@@ -383,7 +392,7 @@ def build_bomb_lab_card():
             row.get("season_barrel_pct"),
             row.get("season_avg_ev"),
             row.get("season_hr_per_bbe"),
-            row.get("season_air_pct"),
+            row.get("season_fly_ball_pct"),
         )
 
         pitcher_score = round((recent_risk * 0.65) + (season_risk * 0.35), 1)
@@ -437,11 +446,15 @@ def build_bomb_lab_card():
             "recent_barrel_pct": round(safe_num(row.get("recent_barrel_pct")), 3),
             "recent_avg_ev": round(safe_num(row.get("recent_avg_ev")), 1),
             "recent_hr_per_bbe": round(safe_num(row.get("recent_hr_per_bbe")), 3),
+            "recent_fly_ball_pct": round(safe_num(row.get("recent_fly_ball_pct")), 3),
+            "recent_fly_ball_ev": round(safe_num(row.get("recent_fly_ball_ev")), 1),
             "recent_batted_balls": int(safe_num(row.get("recent_batted_balls"))),
             "season_hard_hit_pct": round(safe_num(row.get("season_hard_hit_pct")), 3),
             "season_barrel_pct": round(safe_num(row.get("season_barrel_pct")), 3),
             "season_avg_ev": round(safe_num(row.get("season_avg_ev")), 1),
             "season_hr_per_bbe": round(safe_num(row.get("season_hr_per_bbe")), 3),
+            "season_fly_ball_pct": round(safe_num(row.get("season_fly_ball_pct")), 3),
+            "season_fly_ball_ev": round(safe_num(row.get("season_fly_ball_ev")), 1),
             "season_batted_balls": int(safe_num(row.get("season_batted_balls"))),
             "park_factor": park_factor,
         }
@@ -528,6 +541,8 @@ def build_bomb_lab_card():
             "barrel_pct": x["recent_barrel_pct"],
             "hard_hit_pct": x["recent_hard_hit_pct"],
             "hr_per_bbe": x["recent_hr_per_bbe"],
+            "fly_ball_pct": x["recent_fly_ball_pct"],
+            "fly_ball_ev": x["recent_fly_ball_ev"],
             "park": x["environment"],
             "bbe": x["recent_batted_balls"],
         }

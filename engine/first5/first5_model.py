@@ -7,6 +7,8 @@ from typing import Any
 import requests
 
 from engine.bomb_lab.constants import PARK_FACTORS
+from engine.lineups.models import GameLineupStatus
+from engine.lineups.service import MLBLineupService
 from engine.mlb.schedule import fetch_mlb_schedule
 from engine.mlb.pitchers import (
     PitcherGameLogCache,
@@ -25,6 +27,7 @@ LEAGUE_ERA = 4.20
 LEAGUE_WHIP = 1.28
 LEAGUE_HR9 = 1.15
 LEAGUE_K_MINUS_BB9 = 5.0
+MIN_BASELINE_SAMPLE_SIZE = 10
 
 DEFAULT_TEAM_METRICS = {
     "games": 0,
@@ -320,13 +323,32 @@ def pitcher_metrics_from_starter_profile(profile: dict) -> dict:
 
 
 def offense_factor(stats: dict) -> float:
+    return offense_factor_with_baselines(
+        stats,
+        league_baselines=None,
+    )
+
+
+def offense_factor_with_baselines(
+    stats: dict,
+    *,
+    league_baselines: dict | None = None,
+) -> float:
+    offense_baselines = (league_baselines or {}).get("offense", {})
+    league_runs_per_game = safe_float(
+        offense_baselines.get("runs_per_game"),
+        LEAGUE_RUNS_PER_GAME,
+    )
+    if league_runs_per_game <= 0:
+        league_runs_per_game = LEAGUE_RUNS_PER_GAME
+
     runs_per_game = safe_float(
         stats.get("runs_per_game"),
-        LEAGUE_RUNS_PER_GAME,
+        league_runs_per_game,
     )
 
     return clamp(
-        runs_per_game / LEAGUE_RUNS_PER_GAME,
+        runs_per_game / league_runs_per_game,
         0.78,
         1.24,
     )
@@ -377,28 +399,47 @@ def park_factor_for_game(home_team: str | None) -> float:
 def starter_run_factor(
     pitcher: dict,
 ) -> float:
+    return starter_run_factor_with_baselines(
+        pitcher,
+        league_baselines=None,
+    )
+
+
+def starter_run_factor_with_baselines(
+    pitcher: dict,
+    *,
+    league_baselines: dict | None = None,
+) -> float:
+    starter_baselines = (league_baselines or {}).get("starter", {})
+    league_era = safe_float(starter_baselines.get("era"), LEAGUE_ERA)
+    league_whip = safe_float(starter_baselines.get("whip"), LEAGUE_WHIP)
+    league_hr9 = safe_float(starter_baselines.get("hr9"), LEAGUE_HR9)
+    league_k_minus_bb9 = safe_float(
+        starter_baselines.get("k_minus_bb9"),
+        LEAGUE_K_MINUS_BB9,
+    )
     era = safe_float(
         pitcher.get("era"),
-        LEAGUE_ERA,
+        league_era,
     )
     whip = safe_float(
         pitcher.get("whip"),
-        LEAGUE_WHIP,
+        league_whip,
     )
     hr9 = safe_float(
         pitcher.get("hr9"),
-        LEAGUE_HR9,
+        league_hr9,
     )
     k_minus_bb9 = safe_float(
         pitcher.get("k_minus_bb9"),
-        LEAGUE_K_MINUS_BB9,
+        league_k_minus_bb9,
     )
 
     log_factor = (
-        ((era - LEAGUE_ERA) * 0.045)
-        + ((whip - LEAGUE_WHIP) * 0.13)
-        + ((hr9 - LEAGUE_HR9) * 0.055)
-        - ((k_minus_bb9 - LEAGUE_K_MINUS_BB9) * 0.014)
+        ((era - league_era) * 0.045)
+        + ((whip - league_whip) * 0.13)
+        + ((hr9 - league_hr9) * 0.055)
+        - ((k_minus_bb9 - league_k_minus_bb9) * 0.014)
     )
 
     return clamp(
@@ -487,20 +528,141 @@ def project_team_f5_runs(
     park_factor: float,
     *,
     is_home: bool = False,
+    league_baselines: dict | None = None,
 ) -> float:
     park_multiplier = 1.0 + ((park_factor - 1.0) * 0.55)
     home_multiplier = 1.018 if is_home else 1.0
+    first5_baselines = (league_baselines or {}).get("first5", {})
+    league_runs_per_game = safe_float(
+        first5_baselines.get("runs_per_game"),
+        LEAGUE_RUNS_PER_GAME,
+    )
+    if league_runs_per_game <= 0:
+        league_runs_per_game = LEAGUE_RUNS_PER_GAME
+
+    league_f5_team_runs = league_runs_per_game * (5 / 9)
 
     projected = (
-        LEAGUE_F5_TEAM_RUNS
-        * offense_factor(offense_stats)
-        * starter_run_factor(opposing_pitcher)
+        league_f5_team_runs
+        * offense_factor_with_baselines(
+            offense_stats,
+            league_baselines=league_baselines,
+        )
+        * starter_run_factor_with_baselines(
+            opposing_pitcher,
+            league_baselines=league_baselines,
+        )
         * starter_context_adjustment(opposing_pitcher)["factor"]
         * park_multiplier
         * home_multiplier
     )
 
     return round(clamp(projected, 0.5, 6.5), 2)
+
+
+def build_first5_league_baselines(
+    offenses: list[dict],
+    pitchers: list[dict],
+) -> dict:
+    offense = build_offense_baselines(offenses)
+    starter = build_starter_baselines(pitchers)
+    baselines = {
+        "source": "current_build_team_and_starter_profiles",
+    }
+
+    if offense:
+        baselines["offense"] = offense
+        baselines["first5"] = {
+            "runs_per_game": offense["runs_per_game"],
+            "source": offense["source"],
+            "sample_size": offense["sample_size"],
+        }
+
+    if starter:
+        baselines["starter"] = starter
+
+    return baselines
+
+
+def build_offense_baselines(
+    offenses: list[dict],
+) -> dict:
+    eligible = [
+        offense
+        for offense in offenses
+        if safe_int(offense.get("games")) > 0
+    ]
+    values = {
+        "runs_per_game": average_metric(eligible, "runs_per_game"),
+        "ops": average_metric(eligible, "ops"),
+        "hr_per_game": average_metric(eligible, "hr_per_game"),
+    }
+
+    return with_baseline_metadata(
+        values,
+        source="mlb_statsapi_team_hitting_season",
+        sample_size=len(eligible),
+    )
+
+
+def build_starter_baselines(
+    pitchers: list[dict],
+) -> dict:
+    eligible = [
+        pitcher
+        for pitcher in pitchers
+        if pitcher.get("available")
+        and safe_float(pitcher.get("innings"), 0.0) > 0
+    ]
+    values = {
+        "era": average_metric(eligible, "era"),
+        "whip": average_metric(eligible, "whip"),
+        "hr9": average_metric(eligible, "hr9"),
+        "k_minus_bb9": average_metric(eligible, "k_minus_bb9"),
+    }
+
+    return with_baseline_metadata(
+        values,
+        source="mlb_statsapi_starter_game_logs",
+        sample_size=len(eligible),
+    )
+
+
+def with_baseline_metadata(
+    baselines: dict,
+    *,
+    source: str,
+    sample_size: int,
+) -> dict:
+    values = {
+        key: value
+        for key, value in baselines.items()
+        if value is not None
+    }
+
+    if sample_size < MIN_BASELINE_SAMPLE_SIZE or not values:
+        return {}
+
+    values["source"] = source
+    values["sample_size"] = sample_size
+    return values
+
+
+def average_metric(
+    rows: list[dict],
+    key: str,
+) -> float | None:
+    values = [
+        safe_float(row.get(key), None)
+        for row in rows
+        if safe_float(row.get(key), None) is not None
+        and safe_float(row.get(key), None) > 0
+    ]
+
+    if not values:
+        return None
+
+    return round(sum(values) / len(values), 3)
 
 
 def build_reliability(
@@ -510,14 +672,37 @@ def build_reliability(
     home_offense: dict,
     *,
     park_factor: float | None = None,
+    league_baselines: dict | None = None,
+    lineup_state=None,
 ) -> dict:
     score = 100.0
     concerns: list[str] = []
+    deductions: list[dict] = []
     future_unavailable_context = [
-        "lineup_quality_not_evaluated",
         "handedness_splits_not_evaluated",
         "expected_workload_not_evaluated",
     ]
+
+    def deduct(
+        concern: str,
+        points: float,
+        *,
+        source: str,
+        severity: str,
+        reason: str,
+    ) -> None:
+        nonlocal score
+        score -= points
+        concerns.append(concern)
+        deductions.append(
+            {
+                "concern": concern,
+                "points": points,
+                "source": source,
+                "severity": severity,
+                "reason": reason,
+            }
+        )
 
     for side, pitcher in (
         ("away", away_pitcher),
@@ -529,25 +714,50 @@ def build_reliability(
         )
 
         if not pitcher.get("available"):
-            score -= 30
-            concerns.append(f"{side}_starter_unconfirmed")
+            deduct(
+                f"{side}_starter_unconfirmed",
+                30,
+                source="probable_starter",
+                severity="high",
+                reason="Probable starter is unavailable or unconfirmed.",
+            )
         elif innings < 20:
-            score -= 20
-            concerns.append(f"{side}_starter_very_limited_sample")
+            deduct(
+                f"{side}_starter_very_limited_sample",
+                20,
+                source="starter_profile",
+                severity="high",
+                reason="Starter profile exists but has a very limited innings sample.",
+            )
         elif innings < 45:
-            score -= 12
-            concerns.append(f"{side}_starter_limited_sample")
+            deduct(
+                f"{side}_starter_limited_sample",
+                12,
+                source="starter_profile",
+                severity="medium",
+                reason="Starter profile exists but sample size is still limited.",
+            )
 
         if pitcher.get("data_source") not in (None, "starter_game_log"):
-            score -= 8
-            concerns.append(f"{side}_starter_profile_fallback")
+            deduct(
+                f"{side}_starter_profile_fallback",
+                8,
+                source="starter_profile",
+                severity="medium",
+                reason="Starter profile used a fallback source instead of game-log context.",
+            )
 
         if (
             pitcher.get("data_source") == "starter_game_log"
             and pitcher.get("previous_start_date") is None
         ):
-            score -= 5
-            concerns.append(f"{side}_missing_starter_rest_context")
+            deduct(
+                f"{side}_missing_starter_rest_context",
+                5,
+                source="starter_context",
+                severity="low",
+                reason="Starter rest context is missing and therefore cannot be trusted.",
+            )
 
         if (
             pitcher.get("data_source") == "starter_game_log"
@@ -556,8 +766,13 @@ def build_reliability(
                 or pitcher.get("previous_start_pitch_count") is None
             )
         ):
-            score -= 5
-            concerns.append(f"{side}_missing_starter_workload_context")
+            deduct(
+                f"{side}_missing_starter_workload_context",
+                5,
+                source="starter_context",
+                severity="low",
+                reason="Previous-start workload context is missing.",
+            )
 
         role_context = pitcher.get("role_context")
         if role_context in {
@@ -565,20 +780,88 @@ def build_reliability(
             "short_start_role_risk",
             "limited_starting_role",
         }:
-            score -= 8
-            concerns.append(f"{side}_{role_context}")
+            deduct(
+                f"{side}_{role_context}",
+                8,
+                source="starter_context",
+                severity="medium",
+                reason="Starter role creates first-five usage uncertainty.",
+            )
 
     for side, offense in (
         ("away", away_offense),
         ("home", home_offense),
     ):
         if safe_int(offense.get("games")) <= 0:
-            score -= 25
-            concerns.append(f"{side}_core_offense_unavailable")
+            deduct(
+                f"{side}_core_offense_unavailable",
+                25,
+                source="offense_profile",
+                severity="high",
+                reason="Current team offense profile is unavailable.",
+            )
 
     if park_factor is None:
-        score -= 5
-        concerns.append("park_factor_unavailable")
+        deduct(
+            "park_factor_unavailable",
+            5,
+            source="park_factor",
+            severity="low",
+            reason="Park factor source is unavailable.",
+        )
+
+    baseline_sources = (
+        ("offense", "offense_baseline_sample_insufficient"),
+        ("starter", "starter_baseline_sample_insufficient"),
+    )
+    for baseline_key, concern in baseline_sources:
+        baseline = (league_baselines or {}).get(baseline_key)
+        if not baseline:
+            deduct(
+                concern,
+                5,
+                source="dynamic_league_baselines",
+                severity="low",
+                reason=(
+                    "Dynamic league baseline was unavailable; static "
+                    "reference center remained in use."
+                ),
+            )
+
+    if lineup_state is None:
+        deduct(
+            "lineup_unknown",
+            10,
+            source="lineup_service",
+            severity="medium",
+            reason="Lineup state was not retrieved.",
+        )
+    else:
+        status = lineup_state.status
+        if status == GameLineupStatus.UNKNOWN:
+            deduct(
+                "lineup_unknown",
+                10,
+                source=lineup_state.source,
+                severity="medium",
+                reason="Lineup provider could not determine lineup state.",
+            )
+        elif status == GameLineupStatus.PARTIAL:
+            deduct(
+                "lineup_partial",
+                7,
+                source=lineup_state.source,
+                severity="medium",
+                reason="Lineup is partially posted but not fully confirmed.",
+            )
+        elif status == GameLineupStatus.NOT_POSTED:
+            deduct(
+                "lineup_not_posted",
+                5,
+                source=lineup_state.source,
+                severity="low",
+                reason="Lineups are not posted yet.",
+            )
 
     reliability = round(clamp(score, 35, 100), 1)
 
@@ -598,6 +881,7 @@ def build_reliability(
         "tier_cap": tier_cap,
         "active_concerns": concerns,
         "concerns": concerns,
+        "deductions": deductions,
         "future_unavailable_context": future_unavailable_context,
     }
 
@@ -823,6 +1107,34 @@ def parse_schedule_games() -> list[dict]:
     return games
 
 
+def serialize_lineup_state(lineup_state) -> dict:
+    if lineup_state is None:
+        return {
+            "status": "UNKNOWN",
+            "source": None,
+            "concerns": ["lineup_state_not_retrieved"],
+        }
+
+    return {
+        "game_id": lineup_state.game_id,
+        "status": str(lineup_state.status),
+        "source": lineup_state.source,
+        "game_status": lineup_state.game_status,
+        "source_timestamp": lineup_state.source_timestamp,
+        "concerns": list(lineup_state.concerns),
+        "away_status": (
+            str(lineup_state.away_lineup.status)
+            if lineup_state.away_lineup
+            else "UNKNOWN"
+        ),
+        "home_status": (
+            str(lineup_state.home_lineup.status)
+            if lineup_state.home_lineup
+            else "UNKNOWN"
+        ),
+    }
+
+
 def build_first5_card() -> dict:
     schedule_games = parse_schedule_games()
 
@@ -831,7 +1143,9 @@ def build_first5_card() -> dict:
 
     team_cache: dict[int, dict] = {}
     pitcher_cache: dict[int, dict] = {}
+    lineup_cache: dict[int, Any] = {}
     game_log_cache = PitcherGameLogCache()
+    lineup_service = MLBLineupService()
     game_cards = []
 
     for game in schedule_games:
@@ -860,10 +1174,27 @@ def build_first5_card() -> dict:
                 game_log_cache=game_log_cache,
             )
 
+        game_pk = game.get("game_pk")
+        if game_pk not in lineup_cache:
+            lineup_cache[game_pk] = lineup_service.get_game_lineup(game_pk)
+
+    league_baselines = build_first5_league_baselines(
+        list(team_cache.values()),
+        list(pitcher_cache.values()),
+    )
+
+    for game in schedule_games:
+        away_team_id = game.get("away_team_id")
+        home_team_id = game.get("home_team_id")
+        away_pitcher_id = game.get("away_pitcher_id")
+        home_pitcher_id = game.get("home_pitcher_id")
+        game_pk = game.get("game_pk")
+
         away_offense = team_cache[away_team_id]
         home_offense = team_cache[home_team_id]
         away_pitcher = pitcher_cache[away_pitcher_id]
         home_pitcher = pitcher_cache[home_pitcher_id]
+        lineup_state = lineup_cache.get(game_pk)
 
         away_offense_rating = offense_score(away_offense)
         home_offense_rating = offense_score(home_offense)
@@ -879,6 +1210,7 @@ def build_first5_card() -> dict:
             opposing_pitcher=home_pitcher,
             park_factor=park_factor,
             is_home=False,
+            league_baselines=league_baselines,
         )
 
         home_projected_runs = project_team_f5_runs(
@@ -886,6 +1218,7 @@ def build_first5_card() -> dict:
             opposing_pitcher=away_pitcher,
             park_factor=park_factor,
             is_home=True,
+            league_baselines=league_baselines,
         )
 
         projected_total = round(
@@ -899,6 +1232,8 @@ def build_first5_card() -> dict:
             away_offense=away_offense,
             home_offense=home_offense,
             park_factor=park_factor,
+            league_baselines=league_baselines,
+            lineup_state=lineup_state,
         )
 
         f5_ml = moneyline_recommendation(
@@ -959,10 +1294,13 @@ def build_first5_card() -> dict:
                 },
                 "f5_ml": f5_ml,
                 "f5_total": f5_total,
+                "league_baselines": league_baselines,
+                "lineup_state": serialize_lineup_state(lineup_state),
                 "model_strength": f5_ml["model_strength"],
                 "reliability": reliability["score"],
                 "reliability_tier_cap": reliability["tier_cap"],
                 "reliability_concerns": reliability["concerns"],
+                "reliability_deductions": reliability["deductions"],
                 "active_reliability_concerns": reliability[
                     "active_concerns"
                 ],
@@ -1040,6 +1378,7 @@ def build_first5_card() -> dict:
                 else "PASS"
             ),
         },
+        "league_baselines": league_baselines,
         "games": game_cards,
     }
 

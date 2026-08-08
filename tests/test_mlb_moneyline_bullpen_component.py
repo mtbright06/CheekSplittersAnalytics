@@ -38,6 +38,24 @@ BASE_BULLPEN = {
 }
 
 
+def high_leverage_entry(role, confidence="HIGH", status="OBSERVED_WORKLOAD_CONCERN"):
+    return {
+        "source_quality": "COMPLETE",
+        "availability_evidence": {
+            "status": status,
+            "source_quality": "COMPLETE",
+        },
+        "role_evidence": {
+            "candidate_roles": [
+                {
+                    "role": role,
+                    "confidence": confidence,
+                }
+            ],
+        },
+    }
+
+
 def test_stronger_bullpen_inputs_increase_score():
     strong = bullpen_score(
         {
@@ -89,6 +107,97 @@ def test_fatigue_and_availability_are_counted_once():
 
     assert tired == rested - 4.5
     assert unavailable == rested - 6.5
+
+
+def test_high_leverage_workload_evidence_affects_availability_penalty():
+    rested = bullpen_score(BASE_BULLPEN)
+    closer_workload = bullpen_breakdown(
+        {
+            **BASE_BULLPEN,
+            "evidence_ledger": [
+                high_leverage_entry("CLOSER"),
+            ],
+        }
+    )
+    setup_workload = bullpen_breakdown(
+        {
+            **BASE_BULLPEN,
+            "evidence_ledger": [
+                high_leverage_entry("SETUP"),
+            ],
+        }
+    )
+
+    assert closer_workload["bullpen_score"] == rested - 2.0
+    assert closer_workload["availability_penalty"] == 2.0
+    assert closer_workload["availability_penalty_reasons"] == [
+        "closer_observed_workload_concern"
+    ]
+    assert setup_workload["bullpen_score"] == rested - 1.2
+    assert setup_workload["availability_penalty"] == 1.2
+    assert setup_workload["availability_penalty_reasons"] == [
+        "setup_observed_workload_concern"
+    ]
+
+
+def test_partial_or_low_confidence_evidence_does_not_create_strength():
+    rested = bullpen_score(BASE_BULLPEN)
+    partial = bullpen_score(
+        {
+            **BASE_BULLPEN,
+            "evidence_ledger": [
+                {
+                    **high_leverage_entry("CLOSER"),
+                    "availability_evidence": {
+                        "status": "OBSERVED_WORKLOAD_CONCERN",
+                        "source_quality": "PARTIAL",
+                    },
+                }
+            ],
+        }
+    )
+    low_confidence = bullpen_score(
+        {
+            **BASE_BULLPEN,
+            "evidence_ledger": [
+                high_leverage_entry("CLOSER", confidence="LOW"),
+            ],
+        }
+    )
+    no_concern = bullpen_score(
+        {
+            **BASE_BULLPEN,
+            "evidence_ledger": [
+                high_leverage_entry("CLOSER", status="NO_OBSERVED_CONCERN"),
+            ],
+        }
+    )
+
+    assert partial == rested
+    assert low_confidence == rested
+    assert no_concern == rested
+
+
+def test_availability_penalty_is_capped_against_double_counting():
+    result = bullpen_breakdown(
+        {
+            **BASE_BULLPEN,
+            "closer_available": False,
+            "setup_available": False,
+            "evidence_ledger": [
+                high_leverage_entry("CLOSER"),
+                high_leverage_entry("SETUP"),
+            ],
+        }
+    )
+
+    assert result["availability_penalty"] == 6.5
+    assert result["availability_penalty_reasons"] == [
+        "closer_observed_workload_concern",
+        "closer_unavailable",
+        "setup_observed_workload_concern",
+        "setup_unavailable",
+    ]
 
 
 def test_last7_era_is_sample_stabilized():
@@ -271,11 +380,12 @@ def test_missing_dynamic_baselines_fall_back_to_static_centers():
 
 def test_weights_and_thresholds_are_unchanged():
     assert WEIGHTS == {
-        "offense": 0.42,
-        "starting_pitching": 0.38,
+        "offense": 0.40,
+        "starting_pitching": 0.40,
         "bullpen": 0.15,
         "home_field": 0.05,
     }
+    assert sum(WEIGHTS.values()) == 1.0
     assert MLB_MONEYLINE_V2_CANDIDATE_TIERS == (
         ("STRONG PLAY", 8.0),
         ("PLAY", 6.0),

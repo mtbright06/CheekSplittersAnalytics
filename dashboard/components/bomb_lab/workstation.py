@@ -128,7 +128,15 @@ def _summary_metrics(item: dict, top_hitter: dict) -> str:
     sportsbook = item.get("sportsbook") or item.get("book")
     metrics = [
         _metric("Bomb Score", _number(item.get("bomb_score")), tone="success"),
-        _metric("HR Confidence", _number(item.get("sample_confidence"), 0)),
+        _metric(
+            "Reliability",
+            _number(
+                item.get("bomb_reliability")
+                or item.get("reliability")
+                or item.get("sample_confidence"),
+                0,
+            ),
+        ),
     ]
 
     if top_hitter:

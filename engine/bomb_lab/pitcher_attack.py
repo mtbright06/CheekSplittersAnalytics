@@ -5,12 +5,26 @@ import pandas as pd
 from pybaseball import statcast
 
 from engine.bomb_lab.constants import PARK_FACTORS
+from engine.bomb_lab.statcast_contract import statcast_barrel_flag
 from engine.hitters.target_hitters import attach_target_hitters_to_pitchers
 from engine.mlb.schedule import fetch_mlb_schedule
 
 
 RECENT_DAYS = 30
 SEASON_DAYS = 120
+
+WATCH_THRESHOLD = 52.5
+STRONG_THRESHOLD = 57.5
+ELITE_THRESHOLD = 65.0
+WATCH_RELIABILITY_MIN = 55.0
+STRONG_RELIABILITY_MIN = 70.0
+
+PITCHER_HARD_HIT_WEIGHT = 70.0
+PITCHER_BARREL_WEIGHT = 220.0
+PITCHER_HR_PER_BBE_WEIGHT = 180.0
+PITCHER_AVG_EV_BASELINE = 84.0
+PITCHER_AVG_EV_WEIGHT = 3.0
+PITCHER_AIR_BALL_WEIGHT = 18.0
 
 
 def clamp(value, low=0, high=100):
@@ -100,10 +114,10 @@ def build_split_stats(statcast_df, prefix):
 
     df["hard_hit"] = (df["launch_speed"] >= 95).astype(int)
 
-    df["barrel"] = (
-        ((df["launch_speed"] >= 98) & (df["launch_angle"].between(26, 30)))
-        | ((df["launch_speed"] >= 95) & (df["launch_angle"].between(8, 50)))
-    ).astype(int)
+    if "launch_speed_angle" in df.columns:
+        df["barrel"] = df.apply(statcast_barrel_flag, axis=1)
+    else:
+        df["barrel"] = 0
 
     df["air_ball"] = df["bb_type"].isin(
         ["fly_ball", "line_drive", "popup"]
@@ -145,11 +159,12 @@ def build_split_stats(statcast_df, prefix):
 
 def pitcher_risk(hh, barrel, ev, hr_rate, air):
     score = (
-        safe_num(hh) * 32
-        + safe_num(barrel) * 44
-        + safe_num(hr_rate) * 140
-        + max(safe_num(ev) - 87, 0) * 2.0
-        + safe_num(air) * 10
+        safe_num(hh) * PITCHER_HARD_HIT_WEIGHT
+        + safe_num(barrel) * PITCHER_BARREL_WEIGHT
+        + safe_num(hr_rate) * PITCHER_HR_PER_BBE_WEIGHT
+        + max(safe_num(ev) - PITCHER_AVG_EV_BASELINE, 0)
+        * PITCHER_AVG_EV_WEIGHT
+        + safe_num(air) * PITCHER_AIR_BALL_WEIGHT
     )
 
     return round(clamp(score), 1)
@@ -180,6 +195,46 @@ def sample_confidence(recent_bbe, season_bbe):
     return round(clamp(score, 30, 95), 1)
 
 
+def bomb_authority_score(pitcher_score, park):
+    """Score HR vulnerability from strength inputs only."""
+    return round(
+        clamp(
+            safe_num(pitcher_score) * 0.80
+            + safe_num(park) * 0.20
+        ),
+        1,
+    )
+
+
+def bomb_reliability(recent_bbe, season_bbe):
+    """Measure trust in today's Bomb Lab inputs, not HR probability."""
+    reliability = sample_confidence(recent_bbe, season_bbe)
+    concerns = []
+
+    recent_bbe = safe_num(recent_bbe)
+    season_bbe = safe_num(season_bbe)
+
+    if recent_bbe <= 0:
+        concerns.append("recent_statcast_sample_missing")
+    elif recent_bbe < 20:
+        concerns.append("recent_statcast_sample_thin")
+
+    if season_bbe <= 0:
+        concerns.append("season_statcast_sample_missing")
+    elif season_bbe < 60:
+        concerns.append("season_statcast_sample_thin")
+
+    return {
+        "score": reliability,
+        "concerns": concerns,
+        "definition": (
+            "Bomb Lab Reliability measures trust in today's available "
+            "Statcast sample inputs only; it is not HR probability or "
+            "Bomb Score strength."
+        ),
+    }
+
+
 def park_score(team_name):
     factor = PARK_FACTORS.get(team_name, 1.0)
     return round(clamp(50 + ((factor - 1.0) * 180)), 1)
@@ -195,13 +250,23 @@ def environment_label(score):
     return "NEUTRAL"
 
 
-def tier(score):
-    if score >= 80:
+def tier(score, reliability=None):
+    if reliability is not None and safe_num(reliability) < WATCH_RELIABILITY_MIN:
+        return "PASS"
+
+    if score >= ELITE_THRESHOLD:
+        if reliability is not None and safe_num(reliability) < STRONG_RELIABILITY_MIN:
+            return "👀 WATCH"
         return "🔥 ELITE"
-    if score >= 70:
+
+    if score >= STRONG_THRESHOLD:
+        if reliability is not None and safe_num(reliability) < STRONG_RELIABILITY_MIN:
+            return "👀 WATCH"
         return "💣 STRONG"
-    if score >= 60:
+
+    if score >= WATCH_THRESHOLD:
         return "👀 WATCH"
+
     return "PASS"
 
 
@@ -322,18 +387,14 @@ def build_bomb_lab_card():
 
         pitcher_score = round((recent_risk * 0.65) + (season_risk * 0.35), 1)
         park = park_score(row.get("opponent"))
-        confidence = sample_confidence(
+        reliability = bomb_reliability(
             row.get("recent_batted_balls"),
             row.get("season_batted_balls"),
         )
 
-        score = round(
-            clamp(
-                pitcher_score * 0.72
-                + park * 0.18
-                + confidence * 0.10
-            ),
-            1,
+        score = bomb_authority_score(
+            pitcher_score,
+            park,
         )
 
         park_factor = PARK_FACTORS.get(row.get("opponent"), 1.0)
@@ -352,13 +413,24 @@ def build_bomb_lab_card():
             "commence_time": row.get("commence_time"),
             "target_side": row.get("stand") or "ANY",
             "bomb_score": score,
-            "tier": tier(score),
+            "tier": tier(score, reliability["score"]),
+            "pitcher_throw": (
+                row.get("pitcher_throw")
+                or row.get("pitcher_throw_x")
+                or row.get("pitcher_throw_y")
+            ),
+            "pitcher_vulnerability": pitcher_score,
+            "environment_score": park,
             "pitcher_risk": pitcher_score,
             "recent_risk": recent_risk,
             "season_risk": season_risk,
             "park_score": park,
             "environment": environment_label(park),
-            "sample_confidence": confidence,
+            "bomb_reliability": reliability["score"],
+            "reliability": reliability["score"],
+            "reliability_concerns": reliability["concerns"],
+            "reliability_definition": reliability["definition"],
+            "sample_confidence": reliability["score"],
             "recent_hard_hit_pct": round(safe_num(row.get("recent_hard_hit_pct")), 3),
             "recent_barrel_pct": round(safe_num(row.get("recent_barrel_pct")), 3),
             "recent_avg_ev": round(safe_num(row.get("recent_avg_ev")), 1),
@@ -400,12 +472,32 @@ def build_bomb_lab_card():
 
     grouped = sorted(grouped, key=lambda x: x["bomb_score"], reverse=True)
     grouped = attach_target_hitters_to_pitchers(grouped, season_raw)
+    for item in grouped:
+        if item.get("hr_opportunity_score") is not None:
+            item["tier"] = tier(
+                item["hr_opportunity_score"],
+                item.get("opportunity_reliability"),
+            )
+            item["bomb_score"] = item["hr_opportunity_score"]
+
+    grouped = sorted(
+        grouped,
+        key=lambda x: x.get("hr_opportunity_score") or x["bomb_score"],
+        reverse=True,
+    )
 
     table = [
         {
             "tier": x["tier"],
             "bomb_score": x["bomb_score"],
+            "hr_opportunity_score": x.get("hr_opportunity_score"),
+            "hitter_hr_ability": x.get("hitter_hr_ability"),
+            "pitcher_vulnerability": x.get("pitcher_vulnerability"),
             "confidence": x["sample_confidence"],
+            "reliability": x["bomb_reliability"],
+            "opportunity_reliability": x.get("opportunity_reliability"),
+            "reliability_concerns": x["reliability_concerns"],
+            "recommended_hitter": x.get("recommended_hitter"),
             "pitcher": x["pitcher"],
             "pitching_team": x["pitching_team"],
             "target_offense": x["opponent"],
@@ -427,9 +519,9 @@ def build_bomb_lab_card():
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "summary": {
             "pitchers_loaded": len(grouped),
-            "elite": len([x for x in grouped if x["bomb_score"] >= 80]),
-            "strong": len([x for x in grouped if 70 <= x["bomb_score"] < 80]),
-            "watch": len([x for x in grouped if 60 <= x["bomb_score"] < 70]),
+            "elite": len([x for x in grouped if x["tier"] == "🔥 ELITE"]),
+            "strong": len([x for x in grouped if x["tier"] == "💣 STRONG"]),
+            "watch": len([x for x in grouped if x["tier"] == "👀 WATCH"]),
         },
         "table": table,
         "pitchers": grouped,

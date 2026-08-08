@@ -560,7 +560,8 @@ def bullpen_breakdown(bullpen, *, league_baselines=None):
         ]
 
     fatigue_penalty = bullpen_fatigue_penalty(innings_last3)
-    availability_penalty = bullpen_availability_penalty(bullpen)
+    availability = bullpen_availability_penalty(bullpen)
+    availability_penalty = availability["penalty"]
     score = quality_score - fatigue_penalty - availability_penalty
 
     return {
@@ -586,6 +587,7 @@ def bullpen_breakdown(bullpen, *, league_baselines=None):
         "last7_sample_weight": bullpen_recent_sample_weight(innings_last7),
         "fatigue_penalty": round(fatigue_penalty, 1),
         "availability_penalty": round(availability_penalty, 1),
+        "availability_penalty_reasons": availability["reasons"],
         "active_subcomponents": active_subcomponents,
         "missing_inputs": sorted(set(missing_inputs)),
         "baselines": {
@@ -606,6 +608,7 @@ def neutral_bullpen_breakdown():
         "last7_sample_weight": 0.0,
         "fatigue_penalty": 0.0,
         "availability_penalty": 0.0,
+        "availability_penalty_reasons": [],
         "active_subcomponents": [],
         "missing_inputs": [
             "season_era",
@@ -657,14 +660,86 @@ def bullpen_recent_sample_weight(innings_last7):
 
 def bullpen_availability_penalty(bullpen):
     penalty = 0.0
+    reasons = []
 
     if bullpen.get("closer_available") is False:
         penalty += 4.0
+        reasons.append("closer_unavailable")
 
     if bullpen.get("setup_available") is False:
         penalty += 2.5
+        reasons.append("setup_unavailable")
 
-    return penalty
+    ledger_penalty = high_leverage_workload_penalty(
+        bullpen.get("evidence_ledger")
+    )
+    penalty += ledger_penalty["penalty"]
+    reasons.extend(ledger_penalty["reasons"])
+
+    return {
+        "penalty": round(
+            clamp(
+                penalty,
+                low=0.0,
+                high=6.5,
+            ),
+            1,
+        ),
+        "reasons": sorted(set(reasons)),
+    }
+
+
+def high_leverage_workload_penalty(evidence_ledger):
+    if not isinstance(evidence_ledger, list):
+        return {
+            "penalty": 0.0,
+            "reasons": [],
+        }
+
+    closer_concern = False
+    setup_concern = False
+
+    for entry in evidence_ledger:
+        if not isinstance(entry, dict):
+            continue
+
+        availability = entry.get("availability_evidence")
+        if not isinstance(availability, dict):
+            continue
+        if availability.get("status") != "OBSERVED_WORKLOAD_CONCERN":
+            continue
+        if availability.get("source_quality") != "COMPLETE":
+            continue
+
+        role_evidence = entry.get("role_evidence")
+        if not isinstance(role_evidence, dict):
+            continue
+
+        for candidate in role_evidence.get("candidate_roles", []):
+            if not isinstance(candidate, dict):
+                continue
+            role = candidate.get("role")
+            confidence = candidate.get("confidence")
+            if role == "CLOSER" and confidence in {"MEDIUM", "HIGH"}:
+                closer_concern = True
+            elif role == "SETUP" and confidence in {"MEDIUM", "HIGH"}:
+                setup_concern = True
+
+    penalty = 0.0
+    reasons = []
+
+    if closer_concern:
+        penalty += 2.0
+        reasons.append("closer_observed_workload_concern")
+
+    if setup_concern:
+        penalty += 1.25
+        reasons.append("setup_observed_workload_concern")
+
+    return {
+        "penalty": penalty,
+        "reasons": reasons,
+    }
 
 
 def first_available(mapping, *keys):

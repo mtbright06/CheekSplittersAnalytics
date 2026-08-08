@@ -8,7 +8,27 @@ from engine.lineups.mlb_roster import (
     roster_name_map,
     roster_position_map,
 )
+from engine.bomb_lab.statcast_contract import statcast_barrel_flag
 from engine.mlb import offense
+
+
+HITTER_BARREL_CENTER = 0.04
+HITTER_BARREL_HALF_RANGE = 0.08
+HITTER_HARD_HIT_CENTER = 0.09
+HITTER_HARD_HIT_HALF_RANGE = 0.09
+HITTER_AVG_EV_CENTER = 84.0
+HITTER_AVG_EV_HALF_RANGE = 8.0
+HITTER_SPLIT_HR_CENTER = 8.0
+HITTER_SPLIT_HR_HALF_RANGE = 12.0
+
+HITTER_BARREL_WEIGHT = 0.45
+HITTER_HARD_HIT_WEIGHT = 0.20
+HITTER_AVG_EV_WEIGHT = 0.20
+HITTER_SPLIT_POWER_WEIGHT = 0.15
+
+OPPORTUNITY_PITCHER_WEIGHT = 0.40
+OPPORTUNITY_HITTER_WEIGHT = 0.45
+OPPORTUNITY_ENVIRONMENT_WEIGHT = 0.15
 
 
 def safe_num(value, default=0):
@@ -18,6 +38,17 @@ def safe_num(value, default=0):
         return float(value)
     except Exception:
         return default
+
+
+def clamp_score(value):
+    return max(0.0, min(100.0, value))
+
+
+def centered_score(value, center, half_range):
+    if half_range <= 0:
+        return 50.0
+
+    return clamp_score(50.0 + ((safe_num(value) - center) / half_range) * 50.0)
 
 
 def side_matches(bat_side, attack_side):
@@ -65,15 +96,13 @@ def add_contact_flags(df):
     df = df.copy()
 
     launch_speed = pd.to_numeric(df["launch_speed"], errors="coerce").fillna(0)
-    launch_angle = pd.to_numeric(df["launch_angle"], errors="coerce").fillna(-999)
 
     df["hard_hit"] = (launch_speed >= 95).astype(int)
 
-    df["barrel"] = (
-        ((launch_speed >= 98) & (launch_angle.between(26, 30)))
-        |
-        ((launch_speed >= 95) & (launch_angle.between(8, 50)))
-    ).astype(int)
+    if "launch_speed_angle" in df.columns:
+        df["barrel"] = df.apply(statcast_barrel_flag, axis=1)
+    else:
+        df["barrel"] = 0
 
     df["is_hr"] = (df["events"] == "home_run").astype(int)
 
@@ -227,6 +256,97 @@ def split_hr_score(hitter, pitcher_throw):
     return min(score, 70)
 
 
+def hitter_sample_reliability(hitter, pitcher_throw=None):
+    score = 100.0
+    concerns = []
+
+    bbe = safe_num(hitter.get("bbe"))
+    pa = safe_num(hitter.get("pa"))
+
+    if bbe <= 0:
+        score -= 35.0
+        concerns.append("hitter_batted_ball_sample_missing")
+    elif bbe < 60:
+        score -= 18.0
+        concerns.append("hitter_batted_ball_sample_thin")
+    elif bbe < 120:
+        score -= 8.0
+        concerns.append("hitter_batted_ball_sample_moderate")
+
+    if pa <= 0:
+        score -= 20.0
+        concerns.append("hitter_pa_sample_missing")
+    elif pa < 80:
+        score -= 8.0
+        concerns.append("hitter_pa_sample_thin")
+
+    pitcher_throw = str(pitcher_throw or "").upper()
+    if pitcher_throw not in {"L", "R"}:
+        score -= 8.0
+        concerns.append("pitcher_hand_missing")
+
+    return {
+        "score": round(max(0.0, min(100.0, score)), 1),
+        "concerns": concerns,
+    }
+
+
+def hitter_hr_ability_score(hitter, pitcher_throw):
+    barrel_score = centered_score(
+        hitter.get("barrel_pct"),
+        HITTER_BARREL_CENTER,
+        HITTER_BARREL_HALF_RANGE,
+    )
+    hard_hit_score = centered_score(
+        hitter.get("hard_hit_pct"),
+        HITTER_HARD_HIT_CENTER,
+        HITTER_HARD_HIT_HALF_RANGE,
+    )
+    ev_score = centered_score(
+        hitter.get("avg_ev"),
+        HITTER_AVG_EV_CENTER,
+        HITTER_AVG_EV_HALF_RANGE,
+    )
+
+    pitcher_throw = str(pitcher_throw or "").upper()
+    if pitcher_throw == "L":
+        split_hrs = safe_num(hitter.get("hr_vs_lhp"))
+    elif pitcher_throw == "R":
+        split_hrs = safe_num(hitter.get("hr_vs_rhp"))
+    else:
+        split_hrs = 0.0
+
+    split_power_score = centered_score(
+        split_hrs,
+        HITTER_SPLIT_HR_CENTER,
+        HITTER_SPLIT_HR_HALF_RANGE,
+    )
+
+    score = (
+        barrel_score * HITTER_BARREL_WEIGHT
+        + hard_hit_score * HITTER_HARD_HIT_WEIGHT
+        + ev_score * HITTER_AVG_EV_WEIGHT
+        + split_power_score * HITTER_SPLIT_POWER_WEIGHT
+    )
+
+    return round(clamp_score(score), 1)
+
+
+def hr_opportunity_score(
+    *,
+    pitcher_vulnerability,
+    hitter_hr_ability,
+    environment_score,
+):
+    score = (
+        safe_num(pitcher_vulnerability) * OPPORTUNITY_PITCHER_WEIGHT
+        + safe_num(hitter_hr_ability) * OPPORTUNITY_HITTER_WEIGHT
+        + safe_num(environment_score) * OPPORTUNITY_ENVIRONMENT_WEIGHT
+    )
+
+    return round(clamp_score(score), 1)
+
+
 def build_target_score(hitter, attack_side, pitcher_throw, opportunity_score):
     barrel = safe_num(hitter.get("barrel_pct")) * 100
     hard_hit = safe_num(hitter.get("hard_hit_pct")) * 100
@@ -274,6 +394,29 @@ def attach_target_hitters_to_pitchers(pitchers, season_statcast_df=None):
 
         for hitter in hitters:
             hitter["team"] = offense
+            hitter["hitter_hr_ability"] = hitter_hr_ability_score(
+                hitter,
+                pitcher_throw,
+            )
+            hitter_reliability = hitter_sample_reliability(
+                hitter,
+                pitcher_throw,
+            )
+            hitter["hitter_reliability"] = hitter_reliability["score"]
+            hitter["hitter_reliability_concerns"] = hitter_reliability[
+                "concerns"
+            ]
+            hitter["hr_opportunity_score"] = hr_opportunity_score(
+                pitcher_vulnerability=item.get("pitcher_vulnerability")
+                or item.get("pitcher_risk"),
+                hitter_hr_ability=hitter["hitter_hr_ability"],
+                environment_score=item.get("environment_score")
+                or item.get("park_score"),
+            )
+            hitter["reliability"] = min(
+                safe_num(item.get("bomb_reliability"), 100.0),
+                hitter["hitter_reliability"],
+            )
             hitter["target_score"] = build_target_score(
                 hitter=hitter,
                 attack_side=attack_side,
@@ -284,9 +427,31 @@ def attach_target_hitters_to_pitchers(pitchers, season_statcast_df=None):
 
         item["top_hitters"] = sorted(
             hitters,
-            key=lambda x: x["target_score"],
+            key=lambda x: (
+                x["hr_opportunity_score"],
+                x["hitter_hr_ability"],
+                x["target_score"],
+            ),
             reverse=True,
         )[:5]
+
+        if item["top_hitters"]:
+            best_hitter = item["top_hitters"][0]
+            item["recommended_hitter"] = best_hitter.get("name")
+            item["hitter_hr_ability"] = best_hitter.get(
+                "hitter_hr_ability"
+            )
+            item["hr_opportunity_score"] = best_hitter.get(
+                "hr_opportunity_score"
+            )
+            item["opportunity_reliability"] = best_hitter.get(
+                "reliability"
+            )
+            item["hitter_reliability_concerns"] = best_hitter.get(
+                "hitter_reliability_concerns",
+                [],
+            )
+            item["bomb_score"] = best_hitter["hr_opportunity_score"]
 
         enriched.append(item)
 

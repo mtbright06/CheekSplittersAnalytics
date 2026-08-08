@@ -21,15 +21,15 @@ def grade_from_score(score):
     except Exception:
         return "PASS"
 
-    if score >= 90:
+    if score >= 65:
         return "A+"
-    if score >= 82:
+    if score >= 62.5:
         return "A"
-    if score >= 75:
+    if score >= 57.5:
         return "B+"
-    if score >= 68:
+    if score >= 55:
         return "B"
-    if score >= 60:
+    if score >= 52.5:
         return "C"
     return "PASS"
 
@@ -40,16 +40,12 @@ def label_from_score(score):
     except Exception:
         return "PASS"
 
-    if score >= 90:
-        return "🚨 NUCLEAR"
-    if score >= 82:
+    if score >= 65:
         return "🔥 ELITE"
-    if score >= 75:
+    if score >= 57.5:
         return "💣 STRONG"
-    if score >= 68:
-        return "👀 PLAYABLE"
-    if score >= 60:
-        return "WATCH"
+    if score >= 52.5:
+        return "👀 WATCH"
     return "PASS"
 
 
@@ -59,15 +55,15 @@ def stars_from_score(score):
     except Exception:
         return "☆☆☆☆☆"
 
-    if score >= 90:
+    if score >= 65:
         return "★★★★★"
-    if score >= 82:
+    if score >= 62.5:
         return "★★★★☆"
-    if score >= 75:
+    if score >= 57.5:
         return "★★★★"
-    if score >= 68:
+    if score >= 55:
         return "★★★☆"
-    if score >= 60:
+    if score >= 52.5:
         return "★★★"
     return "★★"
 

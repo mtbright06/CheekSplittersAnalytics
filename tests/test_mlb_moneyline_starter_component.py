@@ -255,11 +255,12 @@ def test_offense_component_remains_unchanged():
 
 def test_weights_and_thresholds_are_unchanged():
     assert WEIGHTS == {
-        "offense": 0.42,
-        "starting_pitching": 0.38,
+        "offense": 0.40,
+        "starting_pitching": 0.40,
         "bullpen": 0.15,
         "home_field": 0.05,
     }
+    assert sum(WEIGHTS.values()) == 1.0
     assert MLB_MONEYLINE_V2_CANDIDATE_TIERS == (
         ("STRONG PLAY", 8.0),
         ("PLAY", 6.0),

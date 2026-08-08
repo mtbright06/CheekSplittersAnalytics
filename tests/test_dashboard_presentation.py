@@ -379,7 +379,7 @@ def test_bomb_lab_workstation_uses_existing_payload_without_legacy_tabs():
     assert "MODEL ONLY" in html
     assert "Bomb Score" in html
     assert "84.2" in html
-    assert "HR Confidence" in html
+    assert "Reliability" in html
     assert "Hunter Goodman" in html
     assert "RHB · Target Score: 83.0 · Season HR: 30" in html
     assert "Bomb Squad" in html

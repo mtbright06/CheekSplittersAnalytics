@@ -17,8 +17,8 @@ from engine.odds.market_edge import calculate_market_edge, market_edge_to_dict
 
 
 WEIGHTS = {
-    "offense": 0.42,
-    "starting_pitching": 0.38,
+    "offense": 0.40,
+    "starting_pitching": 0.40,
     "bullpen": 0.15,
     "home_field": 0.05,
 }

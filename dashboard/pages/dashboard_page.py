@@ -369,7 +369,7 @@ def _render_bomb_parlay(bomb_card: dict) -> None:
             )
             if ticket["type"] == "lucky":
                 if st.button(
-                    "↻ Refresh Lucky Ticket",
+                    "🎲 **Lucky Ticket** 🎲",
                     key="command_center_refresh_lucky_bomb_parlay",
                     width="stretch",
                 ):

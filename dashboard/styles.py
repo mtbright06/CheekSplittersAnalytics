@@ -4628,9 +4628,9 @@ button[data-baseweb="tab"][aria-selected="true"] {
 
 .command-parlay-row {
     display: grid;
-    grid-template-columns: 38px minmax(0, 1fr) auto;
+    grid-template-columns: 50px minmax(0, 1fr) auto;
     align-items: center;
-    gap: 14px;
+    gap: 16px;
     min-height: 58px;
     padding: 11px 12px;
     border: 1px solid rgba(116, 143, 177, 0.14);
@@ -4639,8 +4639,8 @@ button[data-baseweb="tab"][aria-selected="true"] {
 }
 
 .command-parlay-logo {
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4648,12 +4648,12 @@ button[data-baseweb="tab"][aria-selected="true"] {
 
 .command-parlay-logo .team-logo,
 .command-parlay-logo .team-logo-placeholder {
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
-    min-height: 32px !important;
-    max-width: 32px !important;
-    max-height: 32px !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    max-width: 40px !important;
+    max-height: 40px !important;
 }
 
 .command-parlay-player {

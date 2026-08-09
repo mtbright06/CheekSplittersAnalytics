@@ -363,20 +363,18 @@ def _render_bomb_parlay(bomb_card: dict) -> None:
         strict=True,
     ):
         with column:
-            if ticket["type"] == "lucky":
-                _, refresh_column = st.columns([0.70, 0.30])
-                with refresh_column:
-                    if st.button(
-                        "↻ Refresh",
-                        key="command_center_refresh_lucky_bomb_parlay",
-                        width="stretch",
-                    ):
-                        _refresh_lucky_bomb_ticket(bomb_card)
-                        st.rerun()
             st.markdown(
                 _bomb_parlay_html(ticket),
                 unsafe_allow_html=True,
             )
+            if ticket["type"] == "lucky":
+                if st.button(
+                    "↻ Refresh Lucky Ticket",
+                    key="command_center_refresh_lucky_bomb_parlay",
+                    width="stretch",
+                ):
+                    _refresh_lucky_bomb_ticket(bomb_card)
+                    st.rerun()
 
     if st.button(
         "View Bomb Lab →",

@@ -4,6 +4,7 @@ history/
 output/
 .env
 .venv/.env
+data/nhl/moneypuck/
 
 # Python virtual environments
 .venv/

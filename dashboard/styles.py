@@ -4555,7 +4555,7 @@ button[data-baseweb="tab"][aria-selected="true"] {
 }
 
 .command-parlay-card {
-    margin-top: 12px;
+    margin-top: 10px;
     min-height: 310px;
     padding: 16px;
     border: 1px solid rgba(116, 143, 177, 0.20);
@@ -4628,9 +4628,9 @@ button[data-baseweb="tab"][aria-selected="true"] {
 
 .command-parlay-row {
     display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
     align-items: center;
-    gap: 13px;
+    gap: 14px;
     min-height: 58px;
     padding: 11px 12px;
     border: 1px solid rgba(116, 143, 177, 0.14);
@@ -4639,8 +4639,8 @@ button[data-baseweb="tab"][aria-selected="true"] {
 }
 
 .command-parlay-logo {
-    width: 24px;
-    height: 24px;
+    width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4648,12 +4648,12 @@ button[data-baseweb="tab"][aria-selected="true"] {
 
 .command-parlay-logo .team-logo,
 .command-parlay-logo .team-logo-placeholder {
-    width: 22px !important;
-    height: 22px !important;
-    min-width: 22px !important;
-    min-height: 22px !important;
-    max-width: 22px !important;
-    max-height: 22px !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    max-width: 32px !important;
+    max-height: 32px !important;
 }
 
 .command-parlay-player {
@@ -4688,26 +4688,6 @@ button[data-baseweb="tab"][aria-selected="true"] {
     font-size: 9px !important;
     letter-spacing: 0.03em !important;
     text-transform: uppercase;
-}
-
-.command-parlay-refresh {
-    flex: 0 0 auto;
-    padding: 5px 9px;
-    border: 1px solid rgba(160, 190, 230, 0.18);
-    border-radius: 999px;
-    background: rgba(160, 190, 230, 0.06);
-    color: #d8e3f5 !important;
-    font-size: 11px;
-    font-weight: 850;
-    line-height: 1;
-    text-decoration: none !important;
-    white-space: nowrap;
-}
-
-.command-parlay-refresh:hover {
-    border-color: rgba(213, 181, 92, 0.42);
-    background: rgba(213, 181, 92, 0.12);
-    color: #ffffff !important;
 }
 
 .command-parlay-empty {

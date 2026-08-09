@@ -725,7 +725,13 @@ def adapt_kbo_row(
             ),
             "model_strength": row.get("model_strength"),
             "model_confidence": row.get("model_confidence"),
-            "model_reliability": row.get("model_confidence"),
+            "model_reliability": (
+                row.get("model_reliability")
+                if row.get("model_reliability") is not None
+                else row.get("reliability")
+                if row.get("reliability") is not None
+                else row.get("model_confidence")
+            ),
         },
 
         source_signals={

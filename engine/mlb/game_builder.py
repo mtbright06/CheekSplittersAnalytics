@@ -26,6 +26,7 @@ from engine.mlb.team_mapping import (
 )
 from engine.mlb.totals import (
     build_totals_projection,
+    build_totals_league_baselines,
 )
 from engine.model.sharpscore import (
     build_sharpscore_decision,
@@ -1349,10 +1350,25 @@ def build_mlb_card(
             game_log_cache=game_log_cache,
             team_profile_cache=team_profile_cache,
         )
+        scheduled_start_at = raw.get(
+            "gameDate"
+        )
+        away_pitcher = pitcher_from_team(
+            away_blob,
+            game_date=scheduled_start_at,
+            game_log_cache=game_log_cache,
+        )
+        home_pitcher = pitcher_from_team(
+            home_blob,
+            game_date=scheduled_start_at,
+            game_log_cache=game_log_cache,
+        )
 
         profile_contexts[index] = {
             "away": away_profile,
             "home": home_profile,
+            "away_pitcher": away_pitcher,
+            "home_pitcher": home_pitcher,
         }
 
     league_baselines = build_moneyline_league_baselines(
@@ -1364,6 +1380,24 @@ def build_mlb_card(
                 context["home"],
             )
         ]
+    )
+    totals_league_baselines = build_totals_league_baselines(
+        team_profiles=[
+            profile
+            for context in profile_contexts.values()
+            for profile in (
+                context["away"],
+                context["home"],
+            )
+        ],
+        starter_profiles=[
+            pitcher
+            for context in profile_contexts.values()
+            for pitcher in (
+                context["away_pitcher"],
+                context["home_pitcher"],
+            )
+        ],
     )
 
     for index, raw in enumerate(raw_games):
@@ -1423,13 +1457,13 @@ def build_mlb_card(
             scheduled_start=scheduled_start_at,
         )
 
-        away_pitcher = pitcher_from_team(
+        away_pitcher = context.get("away_pitcher") or pitcher_from_team(
             away_blob,
             game_date=scheduled_start_at,
             game_log_cache=game_log_cache,
         )
 
-        home_pitcher = pitcher_from_team(
+        home_pitcher = context.get("home_pitcher") or pitcher_from_team(
             home_blob,
             game_date=scheduled_start_at,
             game_log_cache=game_log_cache,
@@ -1556,7 +1590,8 @@ def build_mlb_card(
         game[
             "totals_model"
         ] = build_totals_projection(
-            game
+            game,
+            league_baselines=totals_league_baselines,
         )
 
         games.append(

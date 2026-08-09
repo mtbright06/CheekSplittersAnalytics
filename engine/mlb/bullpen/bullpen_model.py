@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 from engine.mlb.bullpen.fatigue import (
     FatigueResult,
@@ -40,8 +41,12 @@ def build_bullpen_projection(
     season_whip: float | None,
     last7_era: float | None,
     innings_last3: float,
+    innings_last7: float | None = None,
+    innings_last5: float | None = None,
+    evidence_ledger: list[dict[str, Any]] | None = None,
     closer_available: bool = True,
     setup_available: bool = True,
+    league_baselines: dict[str, Any] | None = None,
 ) -> BullpenProjection:
     """
     Build one team's bullpen projection.
@@ -50,12 +55,22 @@ def build_bullpen_projection(
     scoring impact attributable to this bullpen.
     """
 
-    fatigue = calculate_fatigue(innings_last3)
+    high_leverage_concerns = _high_leverage_workload_concerns(
+        evidence_ledger or []
+    )
+
+    fatigue = calculate_fatigue(
+        innings_last3,
+        innings_last5=innings_last5,
+        high_leverage_concerns=high_leverage_concerns,
+    )
 
     quality = calculate_bullpen_quality(
         season_era=season_era,
         season_whip=season_whip,
         last7_era=last7_era,
+        innings_last7=innings_last7,
+        league_baselines=league_baselines,
     )
 
     availability_adjustment = 0.0
@@ -80,8 +95,8 @@ def build_bullpen_projection(
     )
 
     total_run_adjustment = max(
-        -0.50,
-        min(0.75, total_run_adjustment),
+        -0.55,
+        min(0.85, total_run_adjustment),
     )
 
     confidence = _calculate_confidence(
@@ -172,3 +187,44 @@ def _get_data_quality(
         return "FAIR"
 
     return "LIMITED"
+
+
+def _high_leverage_workload_concerns(
+    evidence_ledger: list[dict[str, Any]],
+) -> int:
+    concerns = 0
+
+    for entry in evidence_ledger:
+        availability = entry.get("availability_evidence")
+        if not isinstance(availability, dict):
+            continue
+
+        if availability.get("status") != "OBSERVED_WORKLOAD_CONCERN":
+            continue
+
+        if availability.get("confidence") != "HIGH":
+            continue
+
+        role = _primary_role(entry)
+        if role in {"CLOSER", "SETUP", "GAME_FINISHER"}:
+            concerns += 1
+
+    return concerns
+
+
+def _primary_role(
+    entry: dict[str, Any],
+) -> str | None:
+    role_evidence = entry.get("role_evidence")
+    if not isinstance(role_evidence, dict):
+        return None
+
+    candidates = role_evidence.get("candidate_roles")
+    if not isinstance(candidates, list) or not candidates:
+        return None
+
+    first = candidates[0]
+    if not isinstance(first, dict):
+        return None
+
+    return first.get("role")

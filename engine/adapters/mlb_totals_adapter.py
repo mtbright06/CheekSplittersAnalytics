@@ -19,6 +19,9 @@ def _first_present(*values: Any) -> Any:
 def _canonical_recommendation(value: Any) -> str:
     text = str(value or "").upper()
 
+    if "STRONG" in text:
+        return "STRONG BET"
+
     for label in ("HAMMER", "BET", "LEAN"):
         if label in text:
             return label

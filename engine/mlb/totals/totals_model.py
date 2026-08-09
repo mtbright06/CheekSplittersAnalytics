@@ -39,6 +39,188 @@ from engine.mlb.totals.explanation import (
     build_totals_explanation,
 )
 
+MIN_BASELINE_SAMPLE_SIZE = 10
+
+
+def build_totals_league_baselines(
+    *,
+    team_profiles: list[dict[str, Any]],
+    starter_profiles: list[dict[str, Any]],
+) -> dict[str, Any]:
+    offense = _build_offense_baseline(team_profiles)
+    starter = _build_starter_baseline(starter_profiles)
+    bullpen = _build_bullpen_baseline(team_profiles)
+    baselines: dict[str, Any] = {
+        "source": "current_build_totals_profiles",
+    }
+
+    if offense:
+        baselines["offense"] = offense
+
+    if starter:
+        baselines["starter"] = starter
+
+    if bullpen:
+        baselines["bullpen"] = bullpen
+
+    return baselines
+
+
+def _build_offense_baseline(
+    team_profiles: list[dict[str, Any]],
+) -> dict[str, Any]:
+    offenses = [
+        profile.get("offense", {})
+        for profile in _unique_profiles(team_profiles).values()
+    ]
+    eligible = [
+        offense
+        for offense in offenses
+        if offense.get("source_quality") == "COMPLETE"
+    ]
+
+    return _with_baseline_metadata(
+        {
+            "runs_per_team": _average_metric(
+                eligible,
+                "runs_per_game",
+            ),
+            "obp": _average_metric(
+                eligible,
+                "obp",
+            ),
+            "slg": _average_metric(
+                eligible,
+                "slg",
+            ),
+            "ops": _average_metric(
+                eligible,
+                "ops",
+            ),
+            "iso": _average_metric(
+                eligible,
+                "iso",
+            ),
+            "hr_per_game": _average_metric(
+                eligible,
+                "hr_per_game",
+            ),
+            "bb_minus_k_rate": _average_discipline(
+                eligible,
+            ),
+        },
+        source="mlb_statsapi_team_hitting_season",
+        sample_size=len(eligible),
+    )
+
+
+def _build_starter_baseline(
+    starter_profiles: list[dict[str, Any]],
+) -> dict[str, Any]:
+    eligible = [
+        starter
+        for starter in starter_profiles
+        if to_optional_float(starter.get("ip")) is not None
+        and to_optional_float(starter.get("ip")) > 0
+    ]
+
+    return _with_baseline_metadata(
+        {
+            "era": _average_metric(eligible, "era"),
+            "whip": _average_metric(eligible, "whip"),
+            "hr9": _average_metric(eligible, "hr9"),
+        },
+        source="mlb_statsapi_starter_game_logs",
+        sample_size=len(eligible),
+    )
+
+
+def _build_bullpen_baseline(
+    team_profiles: list[dict[str, Any]],
+) -> dict[str, Any]:
+    bullpens = [
+        profile.get("bullpen", {})
+        for profile in _unique_profiles(team_profiles).values()
+    ]
+    eligible = [
+        bullpen
+        for bullpen in bullpens
+        if bullpen.get("source_quality") == "COMPLETE"
+    ]
+
+    return _with_baseline_metadata(
+        {
+            "era": _average_metric(eligible, "season_era"),
+            "whip": _average_metric(eligible, "season_whip"),
+        },
+        source="active_roster_reliever_game_logs",
+        sample_size=len(eligible),
+    )
+
+
+def _unique_profiles(
+    team_profiles: list[dict[str, Any]],
+) -> dict[Any, dict[str, Any]]:
+    return {
+        profile.get("id"): profile
+        for profile in team_profiles
+        if profile.get("id")
+    }
+
+
+def _with_baseline_metadata(
+    baselines: dict[str, Any],
+    *,
+    source: str,
+    sample_size: int,
+) -> dict[str, Any]:
+    values = {
+        key: value
+        for key, value in baselines.items()
+        if value is not None
+    }
+
+    if sample_size < MIN_BASELINE_SAMPLE_SIZE or not values:
+        return {}
+
+    values["source"] = source
+    values["sample_size"] = sample_size
+    return values
+
+
+def _average_metric(
+    rows: list[dict[str, Any]],
+    key: str,
+) -> float | None:
+    values = [
+        value
+        for row in rows
+        if (value := to_optional_float(row.get(key))) is not None
+        and value > 0
+    ]
+
+    if not values:
+        return None
+
+    return round(sum(values) / len(values), 3)
+
+
+def _average_discipline(
+    rows: list[dict[str, Any]],
+) -> float | None:
+    values = [
+        bb_rate - k_rate
+        for row in rows
+        if (bb_rate := to_optional_float(row.get("bb_rate"))) is not None
+        and (k_rate := to_optional_float(row.get("k_rate"))) is not None
+    ]
+
+    if not values:
+        return None
+
+    return round(sum(values) / len(values), 3)
+
+
 @dataclass
 class TotalsProjection:
     away: TeamRunProjection
@@ -61,6 +243,8 @@ class TotalsProjection:
     confidence: float
     data_quality: str
     reasons: list[str]
+    league_baselines: dict[str, Any]
+    reliability_deductions: list[dict[str, Any]]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -122,6 +306,8 @@ class TotalsProjection:
             "data_quality": (
                 self.data_quality
             ),
+            "league_baselines": self.league_baselines,
+            "reliability_deductions": self.reliability_deductions,
             "market_status": (
                 self.market_edge.status
             ),
@@ -212,7 +398,11 @@ def reliability_from_current_inputs(
     home_projection: TeamRunProjection,
     park: ParkFactorResult,
     bullpen_adjustment: GameBullpenAdjustment,
-) -> tuple[float, list[str]]:
+    away_pitcher: dict[str, Any] | None = None,
+    home_pitcher: dict[str, Any] | None = None,
+    league_baselines: dict[str, Any] | None = None,
+    include_deductions: bool = False,
+) -> tuple[float, list[str]] | tuple[float, list[str], list[dict[str, Any]]]:
     """
     Measure trust in inputs currently consumed by the totals projection.
 
@@ -221,30 +411,143 @@ def reliability_from_current_inputs(
     """
     reliability = 100.0
     concerns: list[str] = []
+    deductions: list[dict[str, Any]] = []
+
+    def deduct(
+        *,
+        code: str,
+        points: float,
+        source: str,
+        severity: str,
+        message: str,
+        visibility: str = "user",
+    ) -> None:
+        nonlocal reliability
+        reliability -= points
+        concerns.append(code)
+        deductions.append(
+            {
+                "code": code,
+                "severity": severity,
+                "deduction": round(points, 1),
+                "source": source,
+                "message": message,
+                "visibility": visibility,
+            }
+        )
 
     for side, projection in (
         ("away", away_projection),
         ("home", home_projection),
     ):
         if projection.data_points <= 1:
-            reliability -= 25.0
-            concerns.append(f"{side}_projection_core_inputs_limited")
+            deduct(
+                code=f"{side}_projection_core_inputs_limited",
+                points=25.0,
+                source="totals_projection_inputs",
+                severity="high",
+                message=(
+                    f"{side.title()} projection has limited current offense, "
+                    "starter, or park inputs."
+                ),
+            )
         elif projection.data_points <= 3:
-            reliability -= 10.0
-            concerns.append(f"{side}_projection_inputs_partial")
+            deduct(
+                code=f"{side}_projection_inputs_partial",
+                points=10.0,
+                source="totals_projection_inputs",
+                severity="medium",
+                message=(
+                    f"{side.title()} projection is built from partial current "
+                    "offense, starter, or park inputs."
+                ),
+            )
 
     if not park.available:
-        reliability -= 5.0
-        concerns.append("park_factor_unavailable")
+        deduct(
+            code="park_factor_unavailable",
+            points=5.0,
+            source="park_factor",
+            severity="low",
+            message="Park factor was unavailable, so a neutral park context was used.",
+        )
 
     if bullpen_adjustment.confidence < 55.0:
-        reliability -= 15.0
-        concerns.append("bullpen_inputs_limited")
+        deduct(
+            code="bullpen_inputs_limited",
+            points=15.0,
+            source="bullpen_provider",
+            severity="high",
+            message="Bullpen inputs are limited for today's totals projection.",
+        )
     elif bullpen_adjustment.confidence < 75.0:
-        reliability -= 8.0
-        concerns.append("bullpen_inputs_partial")
+        deduct(
+            code="bullpen_inputs_partial",
+            points=8.0,
+            source="bullpen_provider",
+            severity="medium",
+            message="Bullpen inputs are partial for today's totals projection.",
+        )
 
-    return (
+    for section in ("offense", "starter", "bullpen"):
+        if not (league_baselines or {}).get(section):
+            deduct(
+                code=f"{section}_league_baseline_static_fallback",
+                points=5.0,
+                source="league_baselines",
+                severity="low",
+                message=(
+                    f"Current-season {section} league baseline was unavailable; "
+                    "static center was used."
+                ),
+            )
+
+    for side, pitcher in (
+        ("away", away_pitcher or {}),
+        ("home", home_pitcher or {}),
+    ):
+        data_source = pitcher.get("data_source")
+        if data_source and data_source != "starter_game_log":
+            deduct(
+                code=f"{side}_starter_profile_fallback",
+                points=5.0,
+                source="starter_profile",
+                severity="low",
+                message=(
+                    f"{side.title()} starter profile used fallback source "
+                    f"{data_source}."
+                ),
+            )
+
+        if data_source == "starter_game_log":
+            if pitcher.get("previous_start_date") is None:
+                deduct(
+                    code=f"{side}_missing_starter_rest_context",
+                    points=4.0,
+                    source="starter_context",
+                    severity="low",
+                    message=(
+                        f"{side.title()} starter rest context is unavailable; "
+                        "starter context strength remains neutral."
+                    ),
+                )
+
+            if (
+                pitcher.get("previous_start_ip") is None
+                or pitcher.get("previous_start_pitch_count") is None
+            ):
+                deduct(
+                    code=f"{side}_missing_starter_workload_context",
+                    points=4.0,
+                    source="starter_context",
+                    severity="low",
+                    message=(
+                        f"{side.title()} starter workload context is incomplete; "
+                        "workload strength adjustment remains neutral."
+                    ),
+                )
+
+    result = (
         round(
             clamp(
                 reliability,
@@ -255,6 +558,15 @@ def reliability_from_current_inputs(
         ),
         concerns,
     )
+
+    if include_deductions:
+        return (
+            result[0],
+            result[1],
+            deductions,
+        )
+
+    return result
 
 
 def data_quality_label(
@@ -309,6 +621,8 @@ def calculate_game_data_points(
 
 def build_totals_projection(
     game: dict[str, Any],
+    *,
+    league_baselines: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     teams = game.get(
         "teams",
@@ -364,6 +678,7 @@ def build_totals_projection(
         opposing_pitcher=home_pitcher,
         park=park,
         is_home=False,
+        league_baselines=league_baselines,
     )
 
     home_projection = project_team_runs(
@@ -371,6 +686,7 @@ def build_totals_projection(
         opposing_pitcher=away_pitcher,
         park=park,
         is_home=True,
+        league_baselines=league_baselines,
     )
 
     starter_based_total = (
@@ -381,11 +697,13 @@ def build_totals_projection(
     away_bullpen = build_bullpen_projection_from_profile(
         team=away_projection.team,
         profile=away_bullpen_profile,
+        league_baselines=league_baselines,
     )
 
     home_bullpen = build_bullpen_projection_from_profile(
         team=home_projection.team,
         profile=home_bullpen_profile,
+        league_baselines=league_baselines,
     )
 
     bullpen_adjustment = (
@@ -418,11 +736,16 @@ def build_totals_projection(
     (
         reliability,
         reliability_concerns,
+        reliability_deductions,
     ) = reliability_from_current_inputs(
         away_projection=away_projection,
         home_projection=home_projection,
         park=park,
         bullpen_adjustment=bullpen_adjustment,
+        away_pitcher=away_pitcher,
+        home_pitcher=home_pitcher,
+        league_baselines=league_baselines,
+        include_deductions=True,
     )
 
     quality = data_quality_label(
@@ -498,6 +821,8 @@ def build_totals_projection(
         confidence=reliability,
         data_quality=quality,
         reasons=reasons,
+        league_baselines=league_baselines or {},
+        reliability_deductions=reliability_deductions,
     )
 
     return result.to_dict()
@@ -507,6 +832,7 @@ def build_bullpen_projection_from_profile(
     *,
     team: str,
     profile: dict[str, Any] | None,
+    league_baselines: dict[str, Any] | None = None,
 ) -> BullpenProjection:
     """
     Convert a game bullpen payload into a BullpenProjection.
@@ -544,6 +870,28 @@ def build_bullpen_projection_from_profile(
             ),
             default=0.0,
         ),
+        innings_last7=to_optional_float(
+            first_available(
+                profile,
+                "innings_last7",
+                "innings_last_7",
+            )
+        ),
+        innings_last5=to_optional_float(
+            first_available(
+                profile,
+                "innings_last5",
+                "innings_last_5",
+            )
+        ),
+        evidence_ledger=(
+            profile.get("evidence_ledger")
+            if isinstance(
+                profile.get("evidence_ledger"),
+                list,
+            )
+            else []
+        ),
         closer_available=to_bool(
             profile.get(
                 "closer_available"
@@ -558,6 +906,7 @@ def build_bullpen_projection_from_profile(
             ),
             default=True,
         ),
+        league_baselines=league_baselines,
     )
 
 
@@ -659,8 +1008,20 @@ def bullpen_projection_to_dict(
         "last7_era": (
             projection.quality.last7_era
         ),
+        "stabilized_last7_era": (
+            projection.quality.stabilized_last7_era
+        ),
+        "last7_sample_weight": (
+            projection.quality.last7_sample_weight
+        ),
         "innings_last3": (
             projection.fatigue.innings_last3
+        ),
+        "innings_last5": (
+            projection.fatigue.innings_last5
+        ),
+        "high_leverage_concerns": (
+            projection.fatigue.high_leverage_concerns
         ),
         "fatigue_rating": (
             projection.fatigue.rating

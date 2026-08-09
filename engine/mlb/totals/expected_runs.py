@@ -32,6 +32,19 @@ HOME_FIELD_RUN_BONUS = 0.12
 PARK_RUN_MULTIPLIER = 4.00
 
 
+def _baseline_value(
+    league_baselines: dict[str, Any] | None,
+    section: str,
+    key: str,
+    fallback: float,
+) -> float:
+    section_payload = (league_baselines or {}).get(section, {})
+    value = safe_float(section_payload.get(key))
+    if value is None or value <= 0:
+        return fallback
+    return value
+
+
 @dataclass
 class TeamRunProjection:
     team: str
@@ -39,6 +52,7 @@ class TeamRunProjection:
     baseline_runs: float
     offense_adjustment: float
     starter_adjustment: float
+    starter_context_adjustment: float
     park_adjustment: float
     park_factor: float
     home_adjustment: float
@@ -62,6 +76,10 @@ class TeamRunProjection:
             ),
             "starter_adjustment": round(
                 self.starter_adjustment,
+                2,
+            ),
+            "starter_context_adjustment": round(
+                self.starter_context_adjustment,
                 2,
             ),
             "park_adjustment": round(
@@ -112,7 +130,7 @@ def extract_ops(
     )
 
 
-def extract_wrc_plus(
+def extract_obp(
     team_profile: dict[str, Any],
 ) -> float | None:
     offense = team_profile.get(
@@ -121,17 +139,153 @@ def extract_wrc_plus(
     )
 
     return first_number(
-        offense.get("wrc_plus"),
-        offense.get("wrc+"),
-        offense.get("wRC+"),
+        offense.get("obp"),
+        offense.get("OBP"),
+    )
+
+
+def extract_slg(
+    team_profile: dict[str, Any],
+) -> float | None:
+    offense = team_profile.get(
+        "offense",
+        {},
+    )
+
+    return first_number(
+        offense.get("slg"),
+        offense.get("SLG"),
+    )
+
+
+def extract_iso(
+    team_profile: dict[str, Any],
+) -> float | None:
+    offense = team_profile.get(
+        "offense",
+        {},
+    )
+
+    return first_number(
+        offense.get("iso"),
+        offense.get("ISO"),
+    )
+
+
+def extract_hr_per_game(
+    team_profile: dict[str, Any],
+) -> float | None:
+    offense = team_profile.get(
+        "offense",
+        {},
+    )
+
+    return first_number(
+        offense.get("hr_per_game"),
+        offense.get("hr_game"),
+    )
+
+
+def extract_discipline(
+    team_profile: dict[str, Any],
+) -> float | None:
+    offense = team_profile.get(
+        "offense",
+        {},
+    )
+
+    bb_rate = first_number(
+        offense.get("bb_rate"),
+        offense.get("BB%"),
+    )
+    k_rate = first_number(
+        offense.get("k_rate"),
+        offense.get("K%"),
+    )
+
+    if bb_rate is None or k_rate is None:
+        return None
+
+    return bb_rate - k_rate
+
+
+def _active_weighted_average(
+    components: dict[str, float | None],
+    weights: dict[str, float],
+) -> tuple[float | None, list[str]]:
+    active = [
+        name
+        for name in weights
+        if components.get(name) is not None
+    ]
+
+    active_weight = sum(weights[name] for name in active)
+
+    if active_weight <= 0:
+        return None, []
+
+    return (
+        sum(
+            components[name] * weights[name]
+            for name in active
+            if components[name] is not None
+        ) / active_weight,
+        active,
     )
 
 
 def calculate_offense_adjustment(
     team_profile: dict[str, Any],
+    *,
+    league_baselines: dict[str, Any] | None = None,
 ) -> tuple[float, int, list[str]]:
-    adjustments: list[float] = []
+    components: dict[str, float | None] = {
+        "realized_scoring": None,
+        "skill": None,
+    }
     reasons: list[str] = []
+    league_runs_per_team = _baseline_value(
+        league_baselines,
+        "offense",
+        "runs_per_team",
+        LEAGUE_RUNS_PER_TEAM,
+    )
+    league_obp = _baseline_value(
+        league_baselines,
+        "offense",
+        "obp",
+        0.320,
+    )
+    league_slg = _baseline_value(
+        league_baselines,
+        "offense",
+        "slg",
+        0.400,
+    )
+    league_ops = _baseline_value(
+        league_baselines,
+        "offense",
+        "ops",
+        0.720,
+    )
+    league_iso = _baseline_value(
+        league_baselines,
+        "offense",
+        "iso",
+        0.160,
+    )
+    league_hr_per_game = _baseline_value(
+        league_baselines,
+        "offense",
+        "hr_per_game",
+        1.10,
+    )
+    league_discipline = _baseline_value(
+        league_baselines,
+        "offense",
+        "bb_minus_k_rate",
+        -14.0,
+    )
 
     runs_per_game = extract_runs_per_game(
         team_profile
@@ -140,15 +294,13 @@ def calculate_offense_adjustment(
     if runs_per_game is not None:
         rpg_adjustment = (
             runs_per_game
-            - LEAGUE_RUNS_PER_TEAM
+            - league_runs_per_team
         )
 
-        adjustments.append(
-            clamp(
-                rpg_adjustment,
-                -1.25,
-                1.25,
-            )
+        components["realized_scoring"] = clamp(
+            rpg_adjustment,
+            -1.10,
+            1.10,
         )
 
         reasons.append(
@@ -156,52 +308,131 @@ def calculate_offense_adjustment(
             f"{runs_per_game:.2f} runs per game."
         )
 
-    wrc_plus = extract_wrc_plus(
+    obp = extract_obp(
+        team_profile
+    )
+    iso = extract_iso(
+        team_profile
+    )
+    hr_per_game = extract_hr_per_game(
+        team_profile
+    )
+    discipline = extract_discipline(
         team_profile
     )
 
-    if wrc_plus is not None:
-        wrc_adjustment = (
-            (wrc_plus - 100.0)
-            / 100.0
-        ) * 1.35
+    skill_components: dict[str, float | None] = {
+        "on_base": None,
+        "power": None,
+        "discipline": None,
+        "ops_fallback": None,
+    }
 
-        adjustments.append(
-            clamp(
-                wrc_adjustment,
-                -0.80,
-                0.80,
-            )
+    if obp is not None:
+        skill_components["on_base"] = clamp(
+            (obp - league_obp) * 9.0,
+            -0.55,
+            0.55,
         )
-
         reasons.append(
-            f"Offense wRC+ is "
-            f"{wrc_plus:.0f}."
+            f"Offense OBP is "
+            f"{obp:.3f}."
         )
 
-    ops = extract_ops(
-        team_profile
-    )
+    if iso is not None:
+        skill_components["power"] = clamp(
+            (iso - league_iso) * 5.0,
+            -0.45,
+            0.45,
+        )
+        reasons.append(
+            f"Offense ISO is "
+            f"{iso:.3f}."
+        )
+    elif hr_per_game is not None:
+        skill_components["power"] = clamp(
+            (hr_per_game - league_hr_per_game) * 0.90,
+            -0.45,
+            0.45,
+        )
+        reasons.append(
+            f"Offense hits "
+            f"{hr_per_game:.2f} HR per game."
+        )
+    else:
+        slg = extract_slg(
+            team_profile
+        )
+        if slg is not None:
+            skill_components["power"] = clamp(
+                (slg - league_slg) * 4.0,
+                -0.45,
+                0.45,
+            )
+            reasons.append(
+                f"Offense SLG is "
+                f"{slg:.3f}."
+            )
 
-    if ops is not None:
-        ops_adjustment = (
-            ops - 0.720
-        ) * 4.5
+    if discipline is not None:
+        skill_components["discipline"] = clamp(
+            (discipline - league_discipline) * 0.04,
+            -0.25,
+            0.25,
+        )
+        reasons.append(
+            f"Offense BB-K rate is "
+            f"{discipline:.1f} percentage points."
+        )
 
-        adjustments.append(
-            clamp(
-                ops_adjustment,
+    if all(
+        skill_components[name] is None
+        for name in ("on_base", "power", "discipline")
+    ):
+        ops = extract_ops(
+            team_profile
+        )
+        if ops is not None:
+            skill_components["ops_fallback"] = clamp(
+                (ops - league_ops) * 4.5,
                 -0.65,
                 0.65,
             )
-        )
+            reasons.append(
+                f"Offense OPS fallback is "
+                f"{ops:.3f}."
+            )
 
+    skill_adjustment, active_skill_inputs = _active_weighted_average(
+        skill_components,
+        {
+            "on_base": 0.45,
+            "power": 0.35,
+            "discipline": 0.20,
+            "ops_fallback": 1.00,
+        },
+    )
+
+    if skill_adjustment is not None:
+        components["skill"] = clamp(
+            skill_adjustment,
+            -0.55,
+            0.55,
+        )
         reasons.append(
-            f"Offense OPS is "
-            f"{ops:.3f}."
+            "Offense skill composite uses "
+            f"{', '.join(active_skill_inputs)}."
         )
 
-    if not adjustments:
+    offense_adjustment, active_inputs = _active_weighted_average(
+        components,
+        {
+            "realized_scoring": 0.60,
+            "skill": 0.40,
+        },
+    )
+
+    if offense_adjustment is None:
         return (
             0.0,
             0,
@@ -212,18 +443,41 @@ def calculate_offense_adjustment(
         )
 
     return (
-        sum(adjustments)
-        / len(adjustments),
-        len(adjustments),
+        clamp(
+            offense_adjustment,
+            -1.00,
+            1.00,
+        ),
+        len(active_inputs),
         reasons,
     )
 
 
 def calculate_starter_adjustment(
     opposing_pitcher: dict[str, Any],
+    *,
+    league_baselines: dict[str, Any] | None = None,
 ) -> tuple[float, int, list[str]]:
     adjustments: list[float] = []
     reasons: list[str] = []
+    league_starter_era = _baseline_value(
+        league_baselines,
+        "starter",
+        "era",
+        LEAGUE_STARTER_ERA,
+    )
+    league_starter_whip = _baseline_value(
+        league_baselines,
+        "starter",
+        "whip",
+        LEAGUE_STARTER_WHIP,
+    )
+    league_starter_hr9 = _baseline_value(
+        league_baselines,
+        "starter",
+        "hr9",
+        LEAGUE_HR9,
+    )
     pitcher_metrics = dict(opposing_pitcher)
     pitcher_metrics["hr9"] = first_number(
         opposing_pitcher.get("hr9"),
@@ -240,7 +494,7 @@ def calculate_starter_adjustment(
     if era is not None:
         era_adjustment = (
             era
-            - LEAGUE_STARTER_ERA
+            - league_starter_era
         ) * 0.42
 
         adjustments.append(
@@ -263,7 +517,7 @@ def calculate_starter_adjustment(
     if whip is not None:
         whip_adjustment = (
             whip
-            - LEAGUE_STARTER_WHIP
+            - league_starter_whip
         ) * 1.35
 
         adjustments.append(
@@ -284,7 +538,7 @@ def calculate_starter_adjustment(
     if hr9 is not None:
         hr_adjustment = (
             hr9
-            - LEAGUE_HR9
+            - league_starter_hr9
         ) * 0.45
 
         adjustments.append(
@@ -314,6 +568,101 @@ def calculate_starter_adjustment(
         sum(adjustments)
         / len(adjustments),
         len(adjustments),
+        reasons,
+    )
+
+
+def calculate_starter_context_adjustment(
+    opposing_pitcher: dict[str, Any],
+) -> tuple[float, int, list[str]]:
+    """
+    Estimate today's starter-condition impact in full-game runs.
+
+    This is intentionally smaller than First 5 because full-game totals
+    already include an explicit bullpen run adjustment. Role risk here
+    represents transfer uncertainty, not a claim that more bullpen innings
+    are automatically worse.
+    """
+
+    adjustment = 0.0
+    reasons: list[str] = []
+    data_points = 0
+
+    days_rest = safe_float(opposing_pitcher.get("days_rest"))
+    previous_ip = safe_float(opposing_pitcher.get("previous_start_ip"))
+    previous_pitches = safe_float(
+        opposing_pitcher.get("previous_start_pitch_count")
+    )
+    average_start_ip = safe_float(opposing_pitcher.get("average_start_ip"))
+    role_context = opposing_pitcher.get("role_context")
+
+    if days_rest is not None:
+        data_points += 1
+        if days_rest <= 3:
+            adjustment += 0.15
+            reasons.append("Starter is on very short rest.")
+        elif days_rest == 4:
+            adjustment += 0.08
+            reasons.append("Starter is on short rest.")
+        elif days_rest == 7:
+            adjustment -= 0.03
+            reasons.append("Starter has one extra rest day.")
+
+    if previous_pitches is not None and days_rest is not None:
+        data_points += 1
+        if previous_pitches >= 110 and days_rest <= 5:
+            adjustment += 0.10
+            reasons.append("Starter carried a heavy previous pitch count.")
+        elif previous_pitches >= 100 and days_rest <= 4:
+            adjustment += 0.06
+            reasons.append("Starter had elevated workload on short rest.")
+
+    if (
+        previous_ip is not None
+        and previous_ip >= 7.0
+        and days_rest is not None
+        and days_rest <= 5
+    ):
+        data_points += 1
+        adjustment += 0.05
+        reasons.append("Starter worked deep into the previous start.")
+
+    if role_context in {
+        "opener_risk",
+        "short_start_role_risk",
+        "limited_starting_role",
+        "established_starter",
+    }:
+        data_points += 1
+
+    if role_context == "opener_risk":
+        adjustment += 0.12
+        reasons.append("Starter role carries opener risk.")
+    elif role_context == "short_start_role_risk":
+        adjustment += 0.08
+        reasons.append("Starter role carries short-start risk.")
+    elif role_context == "limited_starting_role":
+        adjustment += 0.05
+        reasons.append("Starter role has limited-start evidence.")
+
+    if (
+        average_start_ip is not None
+        and average_start_ip < 4.0
+        and role_context == "established_starter"
+    ):
+        data_points += 1
+        adjustment += 0.05
+        reasons.append("Starter has limited average start length.")
+
+    adjustment = clamp(
+        adjustment,
+        -0.05,
+        0.30,
+    )
+
+    return (
+        adjustment,
+        data_points,
         reasons,
     )
 
@@ -367,6 +716,7 @@ def project_team_runs(
     opposing_pitcher: dict[str, Any],
     park: ParkFactorResult,
     is_home: bool,
+    league_baselines: dict[str, Any] | None = None,
 ) -> TeamRunProjection:
     team_name = str(
         team_profile.get("name")
@@ -379,7 +729,8 @@ def project_team_runs(
         offense_points,
         offense_reasons,
     ) = calculate_offense_adjustment(
-        team_profile
+        team_profile,
+        league_baselines=league_baselines,
     )
 
     (
@@ -387,7 +738,16 @@ def project_team_runs(
         starter_points,
         starter_reasons,
     ) = calculate_starter_adjustment(
-        opposing_pitcher
+        opposing_pitcher,
+        league_baselines=league_baselines,
+    )
+
+    (
+        starter_context_adjustment,
+        starter_context_points,
+        starter_context_reasons,
+    ) = calculate_starter_context_adjustment(
+        opposing_pitcher,
     )
 
     (
@@ -403,11 +763,18 @@ def project_team_runs(
         if is_home
         else 0.0
     )
+    league_runs_per_team = _baseline_value(
+        league_baselines,
+        "offense",
+        "runs_per_team",
+        LEAGUE_RUNS_PER_TEAM,
+    )
 
     expected_runs = (
-        LEAGUE_RUNS_PER_TEAM
+        league_runs_per_team
         + offense_adjustment
         + starter_adjustment
+        + starter_context_adjustment
         + park_adjustment
         + home_adjustment
     )
@@ -421,6 +788,7 @@ def project_team_runs(
     reasons = [
         *offense_reasons,
         *starter_reasons,
+        *starter_context_reasons,
         *park_reasons,
     ]
 
@@ -432,15 +800,17 @@ def project_team_runs(
     return TeamRunProjection(
         team=team_name,
         expected_runs=expected_runs,
-        baseline_runs=LEAGUE_RUNS_PER_TEAM,
+        baseline_runs=league_runs_per_team,
         offense_adjustment=offense_adjustment,
         starter_adjustment=starter_adjustment,
+        starter_context_adjustment=starter_context_adjustment,
         park_adjustment=park_adjustment,
         park_factor=park.factor,
         home_adjustment=home_adjustment,
         data_points=(
             offense_points
             + starter_points
+            + starter_context_points
             + park_points
         ),
         reasons=reasons,

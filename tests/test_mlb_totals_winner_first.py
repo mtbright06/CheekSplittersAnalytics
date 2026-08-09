@@ -2,6 +2,13 @@ from engine.mlb.totals.recommendation import build_totals_recommendation
 from engine.mlb.totals.totals_model import reliability_from_current_inputs
 
 
+FULL_BASELINES = {
+    "offense": {"runs_per_team": 4.5},
+    "starter": {"era": 4.0, "whip": 1.25, "hr9": 1.1},
+    "bullpen": {"era": 4.1, "whip": 1.28},
+}
+
+
 def market_payload(**overrides):
     payload = {
         "available": True,
@@ -146,6 +153,19 @@ def test_clean_current_totals_inputs_can_reach_reliability_100():
         home_projection=projection,
         park=park,
         bullpen_adjustment=bullpen,
+        away_pitcher={
+            "data_source": "starter_game_log",
+            "previous_start_date": "2026-08-01",
+            "previous_start_ip": 6.0,
+            "previous_start_pitch_count": 92,
+        },
+        home_pitcher={
+            "data_source": "starter_game_log",
+            "previous_start_date": "2026-08-01",
+            "previous_start_ip": 6.0,
+            "previous_start_pitch_count": 92,
+        },
+        league_baselines=FULL_BASELINES,
     )
 
     assert reliability == 100.0
@@ -174,6 +194,19 @@ def test_future_totals_context_absence_does_not_reduce_reliability():
         home_projection=projection,
         park=park,
         bullpen_adjustment=bullpen,
+        away_pitcher={
+            "data_source": "starter_game_log",
+            "previous_start_date": "2026-08-01",
+            "previous_start_ip": 6.0,
+            "previous_start_pitch_count": 92,
+        },
+        home_pitcher={
+            "data_source": "starter_game_log",
+            "previous_start_date": "2026-08-01",
+            "previous_start_ip": 6.0,
+            "previous_start_pitch_count": 92,
+        },
+        league_baselines=FULL_BASELINES,
     )
 
     assert reliability == 100.0

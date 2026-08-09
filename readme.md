@@ -1,5 +1,34 @@
 # SharpStack Roadmap
 
+
+## Quick Start
+
+Clone the repository.
+
+Run:
+
+```bash
+./bootstrap.sh
+```
+
+The bootstrap script will:
+
+- create a virtual environment
+- install dependencies
+- verify the installation
+
+Then activate the environment:
+
+```bash
+source .venv/bin/activate
+```
+
+Build:
+
+```bash
+python build.py
+```
+
 ## Phase 1 — Foundation ✅
 Status: Complete
 

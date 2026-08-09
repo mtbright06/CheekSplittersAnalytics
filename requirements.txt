@@ -1,0 +1,13 @@
+beautifulsoup4>=4.13
+lxml>=6.0
+numpy>=2.3
+pandas>=2.3
+pybaseball>=2.2
+python-dotenv>=1.1
+requests>=2.32
+scipy>=1.16
+streamlit>=1.49
+sqlalchemy>=2.0
+psycopg[binary]>=3.2
+pydantic-settings
+alembic

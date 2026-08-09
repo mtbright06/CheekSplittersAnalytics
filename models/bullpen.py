@@ -9,3 +9,7 @@ class Bullpen:
         self.fip = None
 
         self.recent_usage = None
+
+        self.league_era = None
+
+        self.source = None

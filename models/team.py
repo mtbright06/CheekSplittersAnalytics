@@ -1,6 +1,7 @@
 from models.pitcher import Pitcher
 from models.offense import Offense
 from models.bullpen import Bullpen
+from models.recent_form import RecentForm
 
 
 class Team:
@@ -11,7 +12,7 @@ class Team:
 
         self.record = None
 
-        self.form = None
+        self.form = RecentForm()
 
         self.pitcher = Pitcher()
 

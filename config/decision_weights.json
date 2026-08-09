@@ -1,0 +1,13 @@
+{
+    "mlb_model": 0.23,
+    "first5": 0.14,
+    "bomb": 0.10,
+    "starter": 0.13,
+    "offense": 0.10,
+    "bullpen": 0.07,
+    "park": 0.04,
+    "weather": 0.04,
+    "market_edge": 0.08,
+    "expected_value": 0.04,
+    "sample_confidence": 0.03
+}

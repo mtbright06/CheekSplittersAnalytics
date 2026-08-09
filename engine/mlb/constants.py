@@ -1,0 +1,2 @@
+MLB_SPORT_ID = 1
+MLB_LEAGUE = "MLB"

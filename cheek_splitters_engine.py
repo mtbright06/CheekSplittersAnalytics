@@ -6,6 +6,7 @@ from engine.factory import ProviderFactory
 from engine.model_factory import ModelFactory
 
 from reports.console import ConsoleReport
+from app.services.reference_price_service import ReferencePriceService
 
 
 def main():
@@ -17,7 +18,8 @@ def main():
     pipeline = Pipeline(
         provider=ProviderFactory.create(SPORT),
         model=ModelFactory.create(),
-        report=ConsoleReport()
+        report=ConsoleReport(),
+        reference_price_resolver=ReferencePriceService(),
     )
 
     pipeline.run(

@@ -1,0 +1,15 @@
+{
+  "content_type": "text/csv",
+  "dataset": "goalies.csv",
+  "downloaded_at": "2026-08-09T04:28:10.791620+00:00",
+  "error": null,
+  "file_size": 97451,
+  "final_url": "https://moneypuck.com/moneypuck/playerData/seasonSummary/2024/regular/goalies.csv",
+  "last_refresh_at": "2026-08-09T04:28:10.791631+00:00",
+  "last_refresh_status": "success",
+  "row_count": 515,
+  "season": 2024,
+  "season_type": "regular",
+  "source": "MoneyPuck.com",
+  "source_url": "https://moneypuck.com/moneypuck/playerData/seasonSummary/2024/regular/goalies.csv"
+}

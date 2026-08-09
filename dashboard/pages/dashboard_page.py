@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import json
+import random
 from pathlib import Path
 
 import streamlit as st
@@ -351,12 +352,30 @@ def _first5_selection(item: dict) -> str:
 
 
 def _render_bomb_parlay(bomb_card: dict) -> None:
-    hitters = _bomb_parlay_hitters(bomb_card)
-    complete = len(hitters) == 3
-    st.markdown(
-        _bomb_parlay_html(hitters, complete),
-        unsafe_allow_html=True,
-    )
+    official = _official_bomb_ticket(bomb_card)
+    alternate = _alternate_bomb_ticket(bomb_card, official)
+    lucky = _lucky_bomb_ticket_from_session(bomb_card)
+
+    columns = st.columns(3)
+    for column, ticket in zip(
+        columns,
+        (official, alternate, lucky),
+        strict=True,
+    ):
+        with column:
+            st.markdown(
+                _bomb_parlay_html(ticket),
+                unsafe_allow_html=True,
+            )
+            if ticket["type"] == "lucky":
+                if st.button(
+                    "↻ Refresh",
+                    key="command_center_refresh_lucky_bomb_parlay",
+                    width="stretch",
+                ):
+                    _refresh_lucky_bomb_ticket(bomb_card)
+                    st.rerun()
+
     if st.button(
         "View Bomb Lab →",
         key="command_center_view_bomb_lab_parlay",
@@ -364,6 +383,22 @@ def _render_bomb_parlay(bomb_card: dict) -> None:
     ):
         st.session_state.page = "Bomb Lab"
         st.rerun()
+
+
+def _official_bomb_ticket(bomb_card: dict) -> dict:
+    hitters = _bomb_parlay_hitters(bomb_card)
+    return _bomb_ticket(
+        ticket_type="official",
+        title="Official Bomb Parlay",
+        eyebrow="Bomb Lab",
+        message=(
+            "Top hitter from each of the top three distinct attacking teams."
+            if len(hitters) == 3
+            else "Incomplete: fewer than three eligible attacking teams are available."
+        ),
+        hitters=hitters,
+        build_id=_bomb_card_build_id(bomb_card),
+    )
 
 
 def _bomb_parlay_hitters(bomb_card: dict) -> list[dict]:
@@ -388,7 +423,11 @@ def _bomb_parlay_hitters(bomb_card: dict) -> list[dict]:
                 "team": team,
                 "handedness": hitter.get("bat_side"),
                 "target_score": hitter.get("target_score"),
+                "hr_opportunity_score": hitter.get("hr_opportunity_score"),
                 "hr": hitter.get("hr"),
+                "hitter_id": hitter.get("batter_id"),
+                "game_id": _game_identity(pitcher),
+                "ticket_type": "official",
             }
         )
         if len(selected) == 3:
@@ -396,22 +435,359 @@ def _bomb_parlay_hitters(bomb_card: dict) -> list[dict]:
     return selected
 
 
-def _bomb_parlay_html(hitters: list[dict], complete: bool) -> str:
-    message = (
-        "Top hitter from each of the top three distinct attacking teams."
-        if complete
-        else "Incomplete: fewer than three eligible attacking teams are available."
+def _flatten_bomb_candidates(bomb_card: dict) -> list[dict]:
+    pitchers = bomb_card.get("pitchers")
+    if not isinstance(pitchers, list):
+        return []
+
+    candidates: list[dict] = []
+    seen = set()
+    for pitcher_index, pitcher in enumerate(pitchers):
+        hitters = pitcher.get("top_hitters")
+        if not isinstance(hitters, list):
+            continue
+
+        for hitter_index, hitter in enumerate(hitters):
+            team = hitter.get("team") or pitcher.get("opponent")
+            candidate = {
+                "name": hitter.get("name"),
+                "team": team,
+                "handedness": hitter.get("bat_side"),
+                "target_score": hitter.get("target_score"),
+                "hr_opportunity_score": hitter.get("hr_opportunity_score"),
+                "hr": hitter.get("hr"),
+                "hitter_id": hitter.get("batter_id"),
+                "game_id": _game_identity(pitcher),
+                "pitcher_index": pitcher_index,
+                "hitter_index": hitter_index,
+            }
+            identity = _hitter_identity(candidate)
+            if not team or identity in seen:
+                continue
+            seen.add(identity)
+            candidates.append(candidate)
+
+    return candidates
+
+
+def _alternate_bomb_ticket(
+    bomb_card: dict,
+    official: dict,
+) -> dict:
+    official_hitters = official.get("hitters") or []
+    official_identities = {
+        _hitter_identity(hitter)
+        for hitter in official_hitters
+    }
+    official_teams = {
+        hitter.get("team")
+        for hitter in official_hitters
+        if hitter.get("team")
+    }
+
+    candidates = [
+        candidate
+        for candidate in _flatten_bomb_candidates(bomb_card)
+        if _hitter_identity(candidate) not in official_identities
+    ]
+
+    preferred = [
+        candidate
+        for candidate in candidates
+        if candidate.get("team") not in official_teams
+    ]
+
+    hitters = _select_best_distinct_bomb_hitters(
+        preferred,
+        limit=3,
     )
+
+    if len(hitters) < 3:
+        hitters = _select_best_distinct_bomb_hitters(
+            candidates,
+            limit=3,
+        )
+
+    return _bomb_ticket(
+        ticket_type="alternate",
+        title="Alternate Bomb Parlay",
+        eyebrow="Diversified",
+        message=(
+            "Deterministic next-best ticket using different qualified hitters."
+            if len(hitters) == 3
+            else "Incomplete: fewer than three alternate teams are available."
+        ),
+        hitters=hitters,
+        build_id=_bomb_card_build_id(bomb_card),
+    )
+
+
+def _lucky_bomb_ticket_from_session(bomb_card: dict) -> dict:
+    build_id = _bomb_card_build_id(bomb_card)
+    if st.session_state.get("bomb_lucky_ticket_build_id") != build_id:
+        _refresh_lucky_bomb_ticket(bomb_card)
+
+    return st.session_state.get(
+        "bomb_lucky_ticket",
+        _lucky_bomb_ticket(
+            bomb_card,
+            seed=0,
+        ),
+    )
+
+
+def _refresh_lucky_bomb_ticket(bomb_card: dict) -> None:
+    build_id = _bomb_card_build_id(bomb_card)
+    seed = random.SystemRandom().randrange(1, 2**31)
+    ticket = _lucky_bomb_ticket(
+        bomb_card,
+        seed=seed,
+    )
+    st.session_state["bomb_lucky_ticket_build_id"] = build_id
+    st.session_state["bomb_lucky_ticket_seed"] = seed
+    st.session_state["bomb_lucky_ticket_hitters"] = ticket["hitters"]
+    st.session_state["bomb_lucky_ticket"] = ticket
+
+
+def _lucky_bomb_ticket(
+    bomb_card: dict,
+    *,
+    seed: int,
+) -> dict:
+    candidates = _qualified_lucky_candidates(
+        bomb_card,
+        target_floor=70.0,
+    )
+    floor = 70.0
+    if _distinct_team_count(candidates) < 3:
+        candidates = _qualified_lucky_candidates(
+            bomb_card,
+            target_floor=65.0,
+        )
+        floor = 65.0
+
+    hitters = _weighted_distinct_bomb_hitters(
+        candidates,
+        seed=seed,
+        limit=3,
+    )
+
+    return _bomb_ticket(
+        ticket_type="lucky",
+        title="Lucky Ticket",
+        eyebrow="Discovery",
+        message=(
+            f"Weighted discovery ticket from qualified Bomb Lab hitters "
+            f"(Target {floor:g}+)."
+            if len(hitters) == 3
+            else f"Incomplete: fewer than three qualified teams at Target {floor:g}+."
+        ),
+        hitters=hitters,
+        build_id=_bomb_card_build_id(bomb_card),
+        seed=seed,
+        target_floor=floor,
+    )
+
+
+def _qualified_lucky_candidates(
+    bomb_card: dict,
+    *,
+    target_floor: float,
+) -> list[dict]:
+    return [
+        candidate
+        for candidate in _flatten_bomb_candidates(bomb_card)
+        if _number_value(candidate.get("target_score")) >= target_floor
+    ]
+
+
+def _select_best_distinct_bomb_hitters(
+    candidates: list[dict],
+    *,
+    limit: int,
+) -> list[dict]:
+    selected: list[dict] = []
+    teams = set()
+    games = set()
+
+    for candidate in sorted(
+        candidates,
+        key=_bomb_candidate_sort_key,
+    ):
+        team = candidate.get("team")
+        game = candidate.get("game_id")
+        if not team or team in teams or game in games:
+            continue
+        selected.append(
+            _ticket_hitter(candidate)
+        )
+        teams.add(team)
+        games.add(game)
+        if len(selected) == limit:
+            break
+
+    return selected
+
+
+def _weighted_distinct_bomb_hitters(
+    candidates: list[dict],
+    *,
+    seed: int,
+    limit: int,
+) -> list[dict]:
+    rng = random.Random(seed)
+    remaining = list(candidates)
+    selected: list[dict] = []
+    teams = set()
+    games = set()
+
+    while remaining and len(selected) < limit:
+        eligible = [
+            candidate
+            for candidate in remaining
+            if candidate.get("team") not in teams
+            and candidate.get("game_id") not in games
+        ]
+        if not eligible:
+            break
+
+        weights = [
+            _lucky_candidate_weight(candidate)
+            for candidate in eligible
+        ]
+        chosen = rng.choices(
+            eligible,
+            weights=weights,
+            k=1,
+        )[0]
+        selected.append(
+            _ticket_hitter(chosen)
+        )
+        teams.add(chosen.get("team"))
+        games.add(chosen.get("game_id"))
+        remaining = [
+            candidate
+            for candidate in remaining
+            if _hitter_identity(candidate) != _hitter_identity(chosen)
+        ]
+
+    return selected
+
+
+def _lucky_candidate_weight(candidate: dict) -> float:
+    return max(
+        1.0,
+        _number_value(candidate.get("target_score")) - 65.0,
+    ) ** 1.5
+
+
+def _bomb_candidate_sort_key(candidate: dict) -> tuple:
+    return (
+        -_number_value(candidate.get("target_score")),
+        -_number_value(candidate.get("hr_opportunity_score")),
+        str(candidate.get("team") or ""),
+        str(candidate.get("name") or ""),
+    )
+
+
+def _bomb_ticket(
+    *,
+    ticket_type: str,
+    title: str,
+    eyebrow: str,
+    message: str,
+    hitters: list[dict],
+    build_id: str,
+    seed: int | None = None,
+    target_floor: float | None = None,
+) -> dict:
+    return {
+        "type": ticket_type,
+        "title": title,
+        "eyebrow": eyebrow,
+        "message": message,
+        "complete": len(hitters) == 3,
+        "hitters": hitters,
+        "build_id": build_id,
+        "seed": seed,
+        "target_floor": target_floor,
+    }
+
+
+def _ticket_hitter(candidate: dict) -> dict:
+    return {
+        "name": candidate.get("name"),
+        "team": candidate.get("team"),
+        "handedness": candidate.get("handedness"),
+        "target_score": candidate.get("target_score"),
+        "hr_opportunity_score": candidate.get("hr_opportunity_score"),
+        "hr": candidate.get("hr"),
+        "hitter_id": candidate.get("hitter_id"),
+        "game_id": candidate.get("game_id"),
+    }
+
+
+def _hitter_identity(hitter: dict) -> tuple:
+    return (
+        hitter.get("hitter_id"),
+        str(hitter.get("name") or "").strip().lower(),
+        str(hitter.get("team") or "").strip().lower(),
+    )
+
+
+def _game_identity(pitcher: dict) -> str:
+    return str(
+        pitcher.get("game_pk")
+        or pitcher.get("game_id")
+        or pitcher.get("game")
+        or (
+            f"{pitcher.get('pitching_team')} vs "
+            f"{pitcher.get('opponent')}"
+        )
+    )
+
+
+def _bomb_card_build_id(bomb_card: dict) -> str:
+    return str(
+        bomb_card.get("generated_at")
+        or bomb_card.get("build_id")
+        or "unknown-build"
+    )
+
+
+def _distinct_team_count(candidates: list[dict]) -> int:
+    return len(
+        {
+            candidate.get("team")
+            for candidate in candidates
+            if candidate.get("team")
+        }
+    )
+
+
+def _number_value(value) -> float:
+    try:
+        if value in (None, ""):
+            return 0.0
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _bomb_parlay_html(ticket: dict) -> str:
+    hitters = ticket.get("hitters") or []
+    complete = bool(ticket.get("complete"))
     rows = "".join(_bomb_parlay_row_html(hitter) for hitter in hitters)
     if not rows:
         rows = "<div class='command-parlay-empty'>No Bomb Lab hitters available.</div>"
     return (
         "<section class='command-parlay-card'>"
         "<div class='command-parlay-heading'>"
-        "<div><span>Bomb Lab</span><strong>💣 3-Man Bomb Parlay</strong></div>"
+        f"<div><span>{html.escape(str(ticket.get('eyebrow') or 'Bomb Lab'))}</span>"
+        f"<strong>{html.escape(str(ticket.get('title') or '3-Man Bomb Parlay'))}</strong></div>"
         f"{status_pill_html('COMPLETE' if complete else 'INCOMPLETE')}"
         "</div>"
-        f"<p>{html.escape(message)}</p>"
+        f"<p>{html.escape(str(ticket.get('message') or ''))}</p>"
         f"<div class='command-parlay-grid'>{rows}</div>"
         "</section>"
     )

@@ -4604,11 +4604,11 @@ button[data-baseweb="tab"][aria-selected="true"] {
 
 .command-parlay-row {
     display: grid;
-    grid-template-columns: minmax(160px, 1.4fr) minmax(120px, 1fr) 68px 92px 72px;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr) 42px 62px 42px;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-height: 42px;
-    padding: 8px 10px;
+    padding: 8px;
     border: 1px solid rgba(116, 143, 177, 0.14);
     border-radius: 6px;
     background: rgba(116, 143, 177, 0.05);
@@ -4621,6 +4621,13 @@ button[data-baseweb="tab"][aria-selected="true"] {
     font-size: 14px;
     font-weight: 900;
     line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.command-parlay-row span {
+    min-width: 0;
+    overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }

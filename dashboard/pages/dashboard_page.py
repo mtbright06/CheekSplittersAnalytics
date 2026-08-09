@@ -352,6 +352,7 @@ def _first5_selection(item: dict) -> str:
 
 
 def _render_bomb_parlay(bomb_card: dict) -> None:
+    _handle_lucky_bomb_refresh_query(bomb_card)
     official = _official_bomb_ticket(bomb_card)
     alternate = _alternate_bomb_ticket(bomb_card, official)
     lucky = _lucky_bomb_ticket_from_session(bomb_card)
@@ -363,16 +364,6 @@ def _render_bomb_parlay(bomb_card: dict) -> None:
         strict=True,
     ):
         with column:
-            if ticket["type"] == "lucky":
-                _, refresh_column = st.columns([0.68, 0.32])
-                with refresh_column:
-                    if st.button(
-                        "↻ Refresh",
-                        key="command_center_refresh_lucky_bomb_parlay",
-                        width="stretch",
-                    ):
-                        _refresh_lucky_bomb_ticket(bomb_card)
-                        st.rerun()
             st.markdown(
                 _bomb_parlay_html(ticket),
                 unsafe_allow_html=True,
@@ -385,6 +376,16 @@ def _render_bomb_parlay(bomb_card: dict) -> None:
     ):
         st.session_state.page = "Bomb Lab"
         st.rerun()
+
+
+def _handle_lucky_bomb_refresh_query(bomb_card: dict) -> None:
+    token = st.query_params.get("bomb_lucky_refresh")
+    if not token:
+        return
+    if st.session_state.get("bomb_lucky_refresh_token") == token:
+        return
+    st.session_state["bomb_lucky_refresh_token"] = token
+    _refresh_lucky_bomb_ticket(bomb_card)
 
 
 def _official_bomb_ticket(bomb_card: dict) -> dict:
@@ -788,12 +789,19 @@ def _bomb_parlay_html(ticket: dict) -> str:
         else status_pill_html("⚠ Incomplete", "warning")
     )
     ticket_type = html.escape(str(ticket.get("type") or "standard"))
+    refresh = ""
+    if ticket.get("type") == "lucky":
+        refresh_token = random.SystemRandom().randrange(1, 2**31)
+        refresh = (
+            "<a class='command-parlay-refresh' "
+            f"href='?bomb_lucky_refresh={refresh_token}'>↻ Refresh</a>"
+        )
     return (
         f"<section class='command-parlay-card command-parlay-card--{ticket_type}'>"
         "<div class='command-parlay-heading'>"
         f"<div><span>{html.escape(str(ticket.get('eyebrow') or 'Bomb Lab'))}</span>"
         f"<strong>{html.escape(str(ticket.get('title') or '3-Man Bomb Parlay'))}</strong></div>"
-        f"{status}"
+        f"{refresh or status}"
         "</div>"
         f"<p>{html.escape(str(ticket.get('message') or ''))}</p>"
         f"<div class='command-parlay-grid'>{rows}</div>"

@@ -7,3 +7,4 @@ output/
 
 # Python virtual environments
 .venv/
+data/nhl/moneypuck/

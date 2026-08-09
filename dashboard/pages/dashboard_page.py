@@ -556,15 +556,9 @@ def _lucky_bomb_ticket(
 ) -> dict:
     candidates = _qualified_lucky_candidates(
         bomb_card,
-        target_floor=70.0,
+        target_floor=80.0,
     )
-    floor = 70.0
-    if _distinct_team_count(candidates) < 3:
-        candidates = _qualified_lucky_candidates(
-            bomb_card,
-            target_floor=65.0,
-        )
-        floor = 65.0
+    floor = 80.0
 
     hitters = _weighted_distinct_bomb_hitters(
         candidates,

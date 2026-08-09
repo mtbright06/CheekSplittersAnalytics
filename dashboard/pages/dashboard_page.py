@@ -363,10 +363,6 @@ def _render_bomb_parlay(bomb_card: dict) -> None:
         strict=True,
     ):
         with column:
-            st.markdown(
-                _bomb_parlay_html(ticket),
-                unsafe_allow_html=True,
-            )
             if ticket["type"] == "lucky":
                 if st.button(
                     "↻ Refresh",
@@ -375,6 +371,10 @@ def _render_bomb_parlay(bomb_card: dict) -> None:
                 ):
                     _refresh_lucky_bomb_ticket(bomb_card)
                     st.rerun()
+            st.markdown(
+                _bomb_parlay_html(ticket),
+                unsafe_allow_html=True,
+            )
 
     if st.button(
         "View Bomb Lab →",
@@ -389,8 +389,8 @@ def _official_bomb_ticket(bomb_card: dict) -> dict:
     hitters = _bomb_parlay_hitters(bomb_card)
     return _bomb_ticket(
         ticket_type="official",
-        title="Official Bomb Parlay",
-        eyebrow="Bomb Lab",
+        title="💣 Official Bomb Parlay",
+        eyebrow="Highest-confidence Bomb Lab ticket.",
         message=(
             "Top hitter from each of the top three distinct attacking teams."
             if len(hitters) == 3
@@ -510,8 +510,8 @@ def _alternate_bomb_ticket(
 
     return _bomb_ticket(
         ticket_type="alternate",
-        title="Alternate Bomb Parlay",
-        eyebrow="Diversified",
+        title="🎯 Alternate Bomb Parlay",
+        eyebrow="Diversified qualified hitters.",
         message=(
             "Deterministic next-best ticket using different qualified hitters."
             if len(hitters) == 3
@@ -574,8 +574,8 @@ def _lucky_bomb_ticket(
 
     return _bomb_ticket(
         ticket_type="lucky",
-        title="Lucky Ticket",
-        eyebrow="Discovery",
+        title="Lucky Ticket 🎲",
+        eyebrow="Weighted discovery ticket.",
         message=(
             f"Weighted discovery ticket from qualified Bomb Lab hitters "
             f"(Target {floor:g}+)."
@@ -780,12 +780,18 @@ def _bomb_parlay_html(ticket: dict) -> str:
     rows = "".join(_bomb_parlay_row_html(hitter) for hitter in hitters)
     if not rows:
         rows = "<div class='command-parlay-empty'>No Bomb Lab hitters available.</div>"
+    status = (
+        ""
+        if complete
+        else status_pill_html("⚠ Incomplete", "warning")
+    )
+    ticket_type = html.escape(str(ticket.get("type") or "standard"))
     return (
-        "<section class='command-parlay-card'>"
+        f"<section class='command-parlay-card command-parlay-card--{ticket_type}'>"
         "<div class='command-parlay-heading'>"
         f"<div><span>{html.escape(str(ticket.get('eyebrow') or 'Bomb Lab'))}</span>"
         f"<strong>{html.escape(str(ticket.get('title') or '3-Man Bomb Parlay'))}</strong></div>"
-        f"{status_pill_html('COMPLETE' if complete else 'INCOMPLETE')}"
+        f"{status}"
         "</div>"
         f"<p>{html.escape(str(ticket.get('message') or ''))}</p>"
         f"<div class='command-parlay-grid'>{rows}</div>"
@@ -794,13 +800,16 @@ def _bomb_parlay_html(ticket: dict) -> str:
 
 
 def _bomb_parlay_row_html(hitter: dict) -> str:
+    team = str(hitter.get("team") or "N/A")
+    logo = team_logo_html(team, "mlb") if team != "N/A" else ""
     return (
         "<div class='command-parlay-row'>"
+        f"<div class='command-parlay-logo'>{logo}</div>"
+        "<div class='command-parlay-player'>"
         f"<strong>{html.escape(str(hitter.get('name') or 'Unknown Hitter'))}</strong>"
-        f"<span>{html.escape(str(hitter.get('team') or 'N/A'))}</span>"
-        f"<span>{html.escape(str(hitter.get('handedness') or 'N/A'))}</span>"
-        f"<span>{html.escape(_number(hitter.get('target_score')))}</span>"
-        f"<span>{html.escape(str(hitter.get('hr') if hitter.get('hr') is not None else 'N/A'))}</span>"
+        f"<span>{html.escape(team)}</span>"
+        "</div>"
+        f"<span class='command-parlay-score'>Target {_number(hitter.get('target_score'))}</span>"
         "</div>"
     )
 

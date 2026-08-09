@@ -4556,10 +4556,25 @@ button[data-baseweb="tab"][aria-selected="true"] {
 
 .command-parlay-card {
     margin-top: 12px;
-    padding: 12px;
+    min-height: 310px;
+    padding: 14px;
     border: 1px solid rgba(116, 143, 177, 0.20);
     border-radius: 8px;
-    background: rgba(8, 15, 24, 0.86);
+    background:
+        linear-gradient(180deg, rgba(18, 28, 42, 0.94), rgba(8, 15, 24, 0.90));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+}
+
+.command-parlay-card--official {
+    border-color: rgba(93, 214, 143, 0.28);
+}
+
+.command-parlay-card--alternate {
+    border-color: rgba(124, 181, 255, 0.26);
+}
+
+.command-parlay-card--lucky {
+    border-color: rgba(213, 181, 92, 0.26);
 }
 
 .command-parlay-heading {
@@ -4584,7 +4599,7 @@ button[data-baseweb="tab"][aria-selected="true"] {
     display: block;
     margin-top: 3px;
     color: #f5f7fb;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 900;
     line-height: 1.08;
 }
@@ -4599,26 +4614,44 @@ button[data-baseweb="tab"][aria-selected="true"] {
 
 .command-parlay-grid {
     display: grid;
-    gap: 7px;
+    gap: 9px;
 }
 
 .command-parlay-row {
     display: grid;
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr) 42px 62px 42px;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
     align-items: center;
-    gap: 6px;
-    min-height: 42px;
-    padding: 8px;
+    gap: 10px;
+    min-height: 58px;
+    padding: 9px 10px;
     border: 1px solid rgba(116, 143, 177, 0.14);
     border-radius: 6px;
     background: rgba(116, 143, 177, 0.05);
+}
+
+.command-parlay-logo {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.command-parlay-logo .team-logo,
+.command-parlay-logo .team-logo-placeholder {
+    width: 34px;
+    height: 34px;
+}
+
+.command-parlay-player {
+    min-width: 0;
 }
 
 .command-parlay-row strong {
     min-width: 0;
     overflow: hidden;
     color: #f5f7fb;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 900;
     line-height: 1.1;
     text-overflow: ellipsis;
@@ -4630,6 +4663,18 @@ button[data-baseweb="tab"][aria-selected="true"] {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.command-parlay-score {
+    justify-self: end;
+    padding: 5px 7px;
+    border: 1px solid rgba(93, 214, 143, 0.22);
+    border-radius: 999px;
+    background: rgba(93, 214, 143, 0.08);
+    color: #aaf0bd !important;
+    font-size: 10px !important;
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase;
 }
 
 .command-parlay-empty {

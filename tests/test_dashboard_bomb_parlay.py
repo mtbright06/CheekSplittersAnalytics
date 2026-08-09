@@ -161,25 +161,45 @@ def test_lucky_bomb_ticket_uses_unique_hitters_teams_and_games():
     assert len({hitter["name"] for hitter in hitters}) == 3
     assert len({hitter["team"] for hitter in hitters}) == 3
     assert len({hitter["game_id"] for hitter in hitters}) == 3
-    assert all(hitter["target_score"] >= 70 for hitter in hitters)
+    assert all(hitter["target_score"] >= 80 for hitter in hitters)
 
 
-def test_lucky_bomb_ticket_falls_back_to_65_but_never_below():
+def test_lucky_bomb_ticket_never_uses_lower_threshold_fallback():
     card = {
         "generated_at": "fixture-build",
         "pitchers": [
-            bomb_pitcher("game-1", "Team A", [bomb_hitter("A", "Team A", 71)]),
-            bomb_pitcher("game-2", "Team B", [bomb_hitter("B", "Team B", 66)]),
-            bomb_pitcher("game-3", "Team C", [bomb_hitter("C", "Team C", 65)]),
-            bomb_pitcher("game-4", "Team D", [bomb_hitter("D", "Team D", 64)]),
+            bomb_pitcher("game-1", "Team A", [bomb_hitter("A", "Team A", 81)]),
+            bomb_pitcher("game-2", "Team B", [bomb_hitter("B", "Team B", 79)]),
+            bomb_pitcher("game-3", "Team C", [bomb_hitter("C", "Team C", 70)]),
+            bomb_pitcher("game-4", "Team D", [bomb_hitter("D", "Team D", 65)]),
         ],
     }
 
     ticket = _lucky_bomb_ticket(card, seed=7)
 
-    assert ticket["target_floor"] == 65.0
+    assert ticket["target_floor"] == 80.0
+    assert ticket["complete"] is False
+    assert len(ticket["hitters"]) == 1
+    assert all(hitter["target_score"] >= 80 for hitter in ticket["hitters"])
+
+
+def test_lucky_bomb_ticket_three_eligible_hitters_still_produces_valid_ticket():
+    card = {
+        "generated_at": "fixture-build",
+        "pitchers": [
+            bomb_pitcher("game-1", "Team A", [bomb_hitter("A", "Team A", 81)]),
+            bomb_pitcher("game-2", "Team B", [bomb_hitter("B", "Team B", 82)]),
+            bomb_pitcher("game-3", "Team C", [bomb_hitter("C", "Team C", 83)]),
+            bomb_pitcher("game-4", "Team D", [bomb_hitter("D", "Team D", 79)]),
+        ],
+    }
+
+    ticket = _lucky_bomb_ticket(card, seed=7)
+
+    assert ticket["target_floor"] == 80.0
+    assert ticket["complete"] is True
     assert len(ticket["hitters"]) == 3
-    assert all(hitter["target_score"] >= 65 for hitter in ticket["hitters"])
+    assert all(hitter["target_score"] >= 80 for hitter in ticket["hitters"])
 
 
 def test_lucky_bomb_ticket_same_seed_is_stable_and_new_seed_can_differ():
@@ -206,4 +226,4 @@ def test_lucky_bomb_ticket_handles_insufficient_pool_safely():
 
     assert ticket["complete"] is False
     assert len(ticket["hitters"]) == 1
-    assert ticket["hitters"][0]["target_score"] >= 65
+    assert ticket["hitters"][0]["target_score"] >= 80

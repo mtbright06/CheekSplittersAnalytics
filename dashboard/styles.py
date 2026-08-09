@@ -4557,7 +4557,7 @@ button[data-baseweb="tab"][aria-selected="true"] {
 .command-parlay-card {
     margin-top: 12px;
     min-height: 310px;
-    padding: 14px;
+    padding: 16px;
     border: 1px solid rgba(116, 143, 177, 0.20);
     border-radius: 8px;
     background:
@@ -4566,15 +4566,25 @@ button[data-baseweb="tab"][aria-selected="true"] {
 }
 
 .command-parlay-card--official {
-    border-color: rgba(93, 214, 143, 0.28);
+    border-color: rgba(116, 143, 177, 0.20);
+    box-shadow:
+        inset 3px 0 0 rgba(124, 181, 255, 0.42),
+        inset 0 1px 0 rgba(255,255,255,0.035);
 }
 
 .command-parlay-card--alternate {
-    border-color: rgba(124, 181, 255, 0.26);
+    border-color: rgba(116, 143, 177, 0.20);
+    box-shadow:
+        inset 3px 0 0 rgba(116, 143, 177, 0.30),
+        inset 0 1px 0 rgba(255,255,255,0.035);
 }
 
 .command-parlay-card--lucky {
-    border-color: rgba(213, 181, 92, 0.26);
+    margin-top: -38px;
+    border-color: rgba(116, 143, 177, 0.20);
+    box-shadow:
+        inset 3px 0 0 rgba(213, 181, 92, 0.38),
+        inset 0 1px 0 rgba(255,255,255,0.035);
 }
 
 .command-parlay-heading {
@@ -4588,16 +4598,16 @@ button[data-baseweb="tab"][aria-selected="true"] {
 .command-parlay-row span {
     display: block;
     color: #b9c7dc;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 820;
-    letter-spacing: 0.10em;
+    letter-spacing: 0.08em;
     line-height: 1.15;
     text-transform: uppercase;
 }
 
 .command-parlay-heading strong {
     display: block;
-    margin-top: 3px;
+    margin-top: 4px;
     color: #f5f7fb;
     font-size: 17px;
     font-weight: 900;
@@ -4605,7 +4615,7 @@ button[data-baseweb="tab"][aria-selected="true"] {
 }
 
 .command-parlay-card p {
-    margin: 8px 0 10px;
+    margin: 10px 0 14px;
     color: #9fb0c6;
     font-size: 12px;
     font-weight: 660;
@@ -4614,24 +4624,24 @@ button[data-baseweb="tab"][aria-selected="true"] {
 
 .command-parlay-grid {
     display: grid;
-    gap: 9px;
+    gap: 10px;
 }
 
 .command-parlay-row {
     display: grid;
-    grid-template-columns: 42px minmax(0, 1fr) auto;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
     align-items: center;
-    gap: 10px;
+    gap: 13px;
     min-height: 58px;
-    padding: 9px 10px;
+    padding: 11px 12px;
     border: 1px solid rgba(116, 143, 177, 0.14);
     border-radius: 6px;
     background: rgba(116, 143, 177, 0.05);
 }
 
 .command-parlay-logo {
-    width: 38px;
-    height: 38px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4639,8 +4649,8 @@ button[data-baseweb="tab"][aria-selected="true"] {
 
 .command-parlay-logo .team-logo,
 .command-parlay-logo .team-logo-placeholder {
-    width: 34px;
-    height: 34px;
+    width: 22px;
+    height: 22px;
 }
 
 .command-parlay-player {
@@ -4667,13 +4677,13 @@ button[data-baseweb="tab"][aria-selected="true"] {
 
 .command-parlay-score {
     justify-self: end;
-    padding: 5px 7px;
-    border: 1px solid rgba(93, 214, 143, 0.22);
+    padding: 4px 6px;
+    border: 1px solid rgba(160, 190, 230, 0.16);
     border-radius: 999px;
-    background: rgba(93, 214, 143, 0.08);
-    color: #aaf0bd !important;
-    font-size: 10px !important;
-    letter-spacing: 0.04em !important;
+    background: rgba(160, 190, 230, 0.06);
+    color: #b8c8db !important;
+    font-size: 9px !important;
+    letter-spacing: 0.03em !important;
     text-transform: uppercase;
 }
 

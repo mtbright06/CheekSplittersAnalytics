@@ -364,13 +364,15 @@ def _render_bomb_parlay(bomb_card: dict) -> None:
     ):
         with column:
             if ticket["type"] == "lucky":
-                if st.button(
-                    "↻ Refresh",
-                    key="command_center_refresh_lucky_bomb_parlay",
-                    width="stretch",
-                ):
-                    _refresh_lucky_bomb_ticket(bomb_card)
-                    st.rerun()
+                _, refresh_column = st.columns([0.68, 0.32])
+                with refresh_column:
+                    if st.button(
+                        "↻ Refresh",
+                        key="command_center_refresh_lucky_bomb_parlay",
+                        width="stretch",
+                    ):
+                        _refresh_lucky_bomb_ticket(bomb_card)
+                        st.rerun()
             st.markdown(
                 _bomb_parlay_html(ticket),
                 unsafe_allow_html=True,
@@ -389,8 +391,8 @@ def _official_bomb_ticket(bomb_card: dict) -> dict:
     hitters = _bomb_parlay_hitters(bomb_card)
     return _bomb_ticket(
         ticket_type="official",
-        title="💣 Official Bomb Parlay",
-        eyebrow="Highest-confidence Bomb Lab ticket.",
+        title="Official Bomb Parlay 💣",
+        eyebrow="Highest Confidence",
         message=(
             "Top hitter from each of the top three distinct attacking teams."
             if len(hitters) == 3
@@ -510,8 +512,8 @@ def _alternate_bomb_ticket(
 
     return _bomb_ticket(
         ticket_type="alternate",
-        title="🎯 Alternate Bomb Parlay",
-        eyebrow="Diversified qualified hitters.",
+        title="Alternate Bomb Parlay 🎯",
+        eyebrow="Diversified Ticket",
         message=(
             "Deterministic next-best ticket using different qualified hitters."
             if len(hitters) == 3
@@ -575,7 +577,7 @@ def _lucky_bomb_ticket(
     return _bomb_ticket(
         ticket_type="lucky",
         title="Lucky Ticket 🎲",
-        eyebrow="Weighted discovery ticket.",
+        eyebrow="Weighted Discovery",
         message=(
             f"Weighted discovery ticket from qualified Bomb Lab hitters "
             f"(Target {floor:g}+)."

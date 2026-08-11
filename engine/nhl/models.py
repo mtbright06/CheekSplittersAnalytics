@@ -267,3 +267,25 @@ class NHLGoalieProfile:
     source_state: NHLProfileSourceState = field(
         default_factory=NHLProfileSourceState
     )
+
+
+@dataclass(frozen=True)
+class NHLPlayerGameLog:
+    player_id: int
+    player: NHLPlayer | None
+    game_id: int
+    game_date: datetime
+    season_id: int
+    game_type: str
+    team_abbreviation: str | None
+    opponent_abbreviation: str | None
+    home_away: str | None
+    position: str | None = None
+    goals: int | None = None
+    assists: int | None = None
+    points: int | None = None
+    shots_on_goal: int | None = None
+    saves: int | None = None
+    shots_against: int | None = None
+    source: str = "nhl_player_game_log"
+    concerns: tuple[str, ...] = ()

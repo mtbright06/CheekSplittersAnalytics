@@ -21,6 +21,7 @@ class KBOProvider(Provider):
                     game_url=game.get("url"),
                     venue=game.get("venue"),
                     start_time=game.get("time"),
+                    game_date=game.get("game_date"),
                 )
             )
 

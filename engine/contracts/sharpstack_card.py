@@ -65,6 +65,7 @@ def normalize_legacy_kbo_game(game, sport):
     return {
         "sport": (get_value(game, "sport") or sport).lower(),
         "game_id": get_value(game, "game_id") or get_value(game, "game_url"),
+        "game_date": get_value(game, "game_date"),
         "venue": get_value(game, "venue"),
         "start_time": get_value(game, "start_time"),
         "status": get_value(game, "status"),
@@ -99,6 +100,10 @@ def normalize_legacy_kbo_game(game, sport):
             "recommendation": get_value(result, "recommendation"),
             "reasons": get_value(result, "reasons", []),
             "signals": get_value(result, "signals", []),
+            "component_scores": get_value(result, "component_scores", {}),
+            "configured_weights": get_value(result, "configured_weights", {}),
+            "weighted_score": get_value(result, "weighted_score"),
+            "shadow_model": get_value(result, "shadow_model"),
         }),
         "odds": normalize_odds(get_value(game, "odds", {})),
         "market_edge": get_value(game, "market_edge", {}),

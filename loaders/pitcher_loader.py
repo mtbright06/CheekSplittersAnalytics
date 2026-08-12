@@ -16,6 +16,9 @@ class PitcherLoader:
         details = KBODataProvider.get_game_details(game.game_url)
         game_date = details.get("game_date")
 
+        if game_date:
+            game.game_date = game_date
+
         PitcherLoader._apply_live_pitcher(
             game.away.pitcher,
             details["away"],

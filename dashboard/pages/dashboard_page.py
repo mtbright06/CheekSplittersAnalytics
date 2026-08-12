@@ -1188,6 +1188,9 @@ def render_single_sport_dashboard(
         league,
     )
 
+    if league == "KBO":
+        _render_kbo_freshness_warning(card)
+
     if not games:
         st.info(
             "No games are currently available."
@@ -1264,6 +1267,27 @@ def render_single_sport_dashboard(
             render_mlb_totals_board(ranked_games)
     else:
         render_ranked_slate()
+
+
+def _render_kbo_freshness_warning(card: dict):
+    freshness = card.get("_freshness") or {}
+    status = freshness.get("status")
+
+    if status == "CURRENT":
+        return
+
+    message = freshness.get("message") or "KBO DATA UNAVAILABLE"
+    last_build = freshness.get("last_successful_build")
+
+    if last_build:
+        message = f"{message}. Last successful build: {last_build}"
+
+    if status == "STALE":
+        st.warning(message)
+        return
+
+    if status == "UNAVAILABLE":
+        st.error(message)
 
 def render_dashboard(
     card: dict,

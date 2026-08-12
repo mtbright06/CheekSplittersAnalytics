@@ -66,6 +66,14 @@ class GameParser:
     @classmethod
     def _find_starters(cls, soup):
 
+        current_starters = soup.select(
+            ".starter-comparison__pitcher--away, "
+            ".starter-comparison__pitcher--home"
+        )
+
+        if len(current_starters) == 2:
+            return current_starters
+
         starters = soup.select(
             ".away-starter, .home-starter"
         )
@@ -103,7 +111,8 @@ class GameParser:
 
         for link in links:
             href = link["href"]
-            if "/players/" in href:
+            text = link.get_text(strip=True)
+            if "/players/" in href and text:
                 player_link = link
                 break
 

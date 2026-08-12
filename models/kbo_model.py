@@ -9,6 +9,7 @@ from calculators.starting_pitching import StartingPitchingCalculator
 from calculators.offense import OffenseCalculator
 from calculators.bullpen import BullpenCalculator
 from calculators.recent_form import RecentFormCalculator
+from engine.kbo_shadow import build_supported_component_shadow
 
 
 class KBOModel:
@@ -46,10 +47,14 @@ class KBOModel:
             result.inactive_components = []
 
             weighted_score = 0
+            component_scores = {}
+            configured_weights = {}
 
             for calculator in self.calculators:
 
                 score = calculator.score(game, i)
+                component_scores[calculator.NAME] = score
+                configured_weights[calculator.NAME] = calculator.WEIGHT
                 contribution = score * calculator.WEIGHT
 
                 result.signals.append(
@@ -70,12 +75,23 @@ class KBOModel:
                 50 + (weighted_score * 8),
                 1
             )
+            result.component_scores = component_scores
+            result.configured_weights = configured_weights
+            result.weighted_score = round(weighted_score, 6)
             # Deprecated compatibility alias: this is ordinal model strength,
             # not a calibrated win probability.
             result.model_probability = result.model_strength
             result.play = self._selection_from_score(
                 weighted_score,
                 game,
+            )
+            result.shadow_model = build_supported_component_shadow(
+                game=game,
+                index=i,
+                calculators=self.calculators,
+                component_scores=component_scores,
+                recommendation_fn=self._model_score_recommendation,
+                selection_fn=self._selection_from_score,
             )
 
             (

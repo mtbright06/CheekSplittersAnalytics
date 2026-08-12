@@ -123,11 +123,10 @@ class ScheduleParser:
         1: away team second word
         2: home team first word
         3: home team second word
-        4: game time
-        5: venue
+        4+: optional weather, game time, venue, starter notes
         """
 
-        if len(lines) < 6:
+        if len(lines) < 5:
             return None
 
         away = cls._normalize(
@@ -140,8 +139,16 @@ class ScheduleParser:
             lines[3],
         )
 
-        game_time = lines[4].strip()
-        venue = lines[5].strip()
+        game_time = None
+        venue = None
+
+        for index, value in enumerate(lines[4:], start=4):
+            if not cls._looks_like_time(value):
+                continue
+
+            game_time = value.strip()
+            venue = cls._next_meaningful_token(lines, index + 1)
+            break
 
         if not cls._valid_team_name(away):
             return None
@@ -149,10 +156,10 @@ class ScheduleParser:
         if not cls._valid_team_name(home):
             return None
 
-        if not cls._looks_like_time(game_time):
+        if not game_time:
             print(
                 "Unexpected KBO game time:",
-                game_time,
+                lines[4:] if len(lines) > 4 else lines,
                 "for",
                 href,
             )
@@ -162,7 +169,35 @@ class ScheduleParser:
             "home": home,
             "time": game_time,
             "venue": venue,
+            "game_date": cls._game_date_from_href(href),
         }
+
+    @classmethod
+    def _next_meaningful_token(
+        cls,
+        lines: list[str],
+        start_index: int,
+    ) -> str | None:
+        for value in lines[start_index:]:
+            text = str(value or "").strip()
+            if not text:
+                continue
+            if text == "Starters:":
+                continue
+            return text
+
+        return None
+
+    @staticmethod
+    def _game_date_from_href(
+        href: str,
+    ) -> str | None:
+        match = re.search(r"(\d{8})(?:$|[^\d])", str(href or ""))
+        if not match:
+            return None
+
+        value = match.group(1)
+        return f"{value[:4]}-{value[4:6]}-{value[6:]}"
 
     @classmethod
     def _normalize(

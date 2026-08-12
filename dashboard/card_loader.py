@@ -11,6 +11,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from engine.contracts.sharpstack_card import normalize_card
+from kbo_freshness import evaluate_kbo_card_freshness
+from providers.kbo_data_provider import KBODataProvider
 
 
 def load_card_file(path):
@@ -28,7 +30,35 @@ def load_card_file(path):
 
 
 def load_sport_card(sport):
-    return load_card_file(CARDS_DIR / f"{sport.lower()}_card.json")
+    card = load_card_file(CARDS_DIR / f"{sport.lower()}_card.json")
+    if sport.lower() == "kbo":
+        return attach_kbo_freshness(card)
+
+    return card
+
+
+def attach_kbo_freshness(card):
+    schedule_games = None
+    try:
+        schedule_games = KBODataProvider.get_schedule()
+    except Exception:
+        schedule_games = None
+
+    freshness = evaluate_kbo_card_freshness(
+        card,
+        schedule_games=schedule_games,
+    )
+
+    if card is None:
+        card = {
+            "sport": "KBO",
+            "version": None,
+            "generated_at": None,
+            "games": [],
+        }
+
+    card["_freshness"] = freshness.to_dict()
+    return card
 
 
 def load_all_cards():

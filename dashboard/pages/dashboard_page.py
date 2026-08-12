@@ -315,6 +315,9 @@ def _top_game(card: dict, league: str) -> dict:
         return {}
     if league.upper() == "MLB":
         return rank_mlb_games_by_prediction(games)[0]
+    if league.upper() == "KBO":
+        ranked = rank_kbo_actionable_games(games)
+        return ranked[0] if ranked else {}
     return rank_games_by_confidence(games)[0]
 
 
@@ -1144,6 +1147,48 @@ def rank_games_by_confidence(
         key=game_confidence,
         reverse=True,
     )
+
+
+def rank_kbo_actionable_games(
+    games: list[dict],
+) -> list[dict]:
+    """Rank only actionable KBO plays; reliability cannot promote NO PLAY."""
+    actionable = [
+        game
+        for game in games
+        if kbo_recommendation_rank(
+            game.get("model", {}).get("recommendation")
+        )
+        > 0
+    ]
+
+    return sorted(
+        actionable,
+        key=lambda game: (
+            -kbo_recommendation_rank(
+                game.get("model", {}).get("recommendation")
+            ),
+            -game_model_win_probability(game),
+            -game_confidence(game),
+        ),
+    )
+
+
+def kbo_recommendation_rank(
+    recommendation: object,
+) -> int:
+    text = str(recommendation or "").upper()
+
+    if "STRONG PLAY" in text:
+        return 4
+    if "PLAYABLE" in text:
+        return 2
+    if "PLAY" in text and "NO PLAY" not in text:
+        return 3
+    if "LEAN" in text:
+        return 1
+
+    return 0
 
 
 def rank_mlb_games_by_prediction(

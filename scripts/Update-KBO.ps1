@@ -10,8 +10,8 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-scp -i "$env:USERPROFILE\.ssh\sharpstack_kbo" `
+scp -P 2222 -i "$env:USERPROFILE\.ssh\sharpstack_kbo" `
     "C:\CheekSplittersAnalytics\output\cards\kbo_card.json" `
-    "sharp@10.10.0.153:/opt/CheekSplittersAnalytics/output/cards/kbo_card.json"
+    "sharp@10.10.4.153:/opt/CheekSplittersAnalytics/output/cards/kbo_card.json"
 
 exit $LASTEXITCODE

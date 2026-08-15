@@ -12,6 +12,7 @@ from app.services.daily_persistence_service import (
 )
 from app.services.game_result_ingestion_service import GameResultInput
 from app.services.prediction_snapshot_persistence_service import PersistedPredictionRun
+from tools_persist_daily_history import CompositeResultProvider
 
 
 SNAPSHOT_ID = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
@@ -248,3 +249,25 @@ def test_snapshot_persistence_failure_stops_result_polling():
             assert provider.calls == 0
             return
         raise AssertionError("Result polling continued after prediction persistence failed.")
+
+
+def test_composite_result_provider_preserves_mlb_provider_behavior():
+    mlb_result = _result_input()
+    kbo_result = GameResultInput(
+        provider="mykbostats",
+        league_code="KBO",
+        provider_game_id="https://mykbostats.com/games/1",
+        status="FINAL",
+        away_score=1,
+        home_score=2,
+        winner_side="HOME",
+    )
+    provider = CompositeResultProvider(
+        _Results([mlb_result]),
+        _Results([kbo_result]),
+    )
+
+    assert provider.fetch_recent(days_back=7) == (
+        mlb_result,
+        kbo_result,
+    )

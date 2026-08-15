@@ -83,3 +83,49 @@ def test_normalizer_preserves_kbo_starter_identity_and_source_status():
     assert game["pitching"]["away"]["name"] == "So Hyeong-jun"
     assert game["pitching"]["away"]["data_source"] == "starter_profile"
     assert game["pitching"]["away"]["starter_confirmed"] is True
+
+
+def test_legacy_kbo_normalizer_preserves_selected_team_model_strength():
+    result = type(
+        "Result",
+        (),
+        {
+            "market": "Moneyline",
+            "play": "KIA Tigers",
+            "model_strength": 47.7,
+            "model_probability": 47.7,
+            "selected_team_model_strength": 52.3,
+            "recommendation": "👀 LEAN",
+            "confidence": 72.0,
+            "model_confidence": 72.0,
+            "confidence_breakdown": {},
+            "component_scores": {},
+            "configured_weights": {},
+            "weighted_score": -0.2875,
+            "shadow_model": {
+                "model_strength": 47.3,
+                "selected_team_model_strength": 52.7,
+                "recommendation": "👀 LEAN",
+            },
+            "reasons": [],
+            "signals": [],
+            "edge": None,
+        },
+    )()
+    game_obj = type(
+        "Game",
+        (),
+        {
+            "away": type("Team", (), {"name": "Doosan Bears"})(),
+            "home": type("Team", (), {"name": "KIA Tigers"})(),
+            "result": result,
+            "odds": {},
+        },
+    )()
+
+    game = normalize_card({"sport": "KBO", "games": [game_obj]})["games"][0]
+
+    assert game["model"]["model_strength"] == 47.7
+    assert game["model"]["selected_team_model_strength"] == 52.3
+    assert game["model"]["recommendation"] == "👀 LEAN"
+    assert game["model"]["shadow_model"]["selected_team_model_strength"] == 52.7

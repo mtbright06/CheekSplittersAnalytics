@@ -73,6 +73,60 @@ def test_model_score_direction_determines_selected_team():
     assert scored[1].result.play == "Home Better"
 
 
+def test_positive_away_score_tiers_from_selected_side_strength():
+    game = _known_game(
+        "Away Better",
+        "Home Worse",
+        away_rpg=5.7,
+        home_rpg=4.2,
+    )
+
+    finalized = KBOModel().finalize(_score([game]))[0]
+
+    assert finalized.result.play == "Away Better"
+    assert finalized.result.model_strength == 52.4
+    assert finalized.result.selected_team_model_strength == 52.4
+    assert finalized.result.recommendation == "👀 LEAN"
+
+
+def test_negative_home_score_tiers_from_selected_side_strength():
+    game = _known_game(
+        "Away Worse",
+        "Home Better",
+        away_rpg=4.2,
+        home_rpg=5.7,
+    )
+
+    finalized = KBOModel().finalize(_score([game]))[0]
+
+    assert finalized.result.play == "Home Better"
+    assert finalized.result.model_strength == 47.6
+    assert finalized.result.selected_team_model_strength == 52.4
+    assert finalized.result.recommendation == "👀 LEAN"
+
+
+def test_equal_magnitude_home_and_away_advantages_receive_same_tier():
+    away_game = _known_game(
+        "Away Better",
+        "Home Worse",
+        away_rpg=5.7,
+        home_rpg=4.2,
+    )
+    home_game = _known_game(
+        "Away Worse",
+        "Home Better",
+        away_rpg=4.2,
+        home_rpg=5.7,
+    )
+
+    away, home = KBOModel().finalize(_score([away_game, home_game]))
+
+    assert away.result.model_strength == 52.4
+    assert home.result.model_strength == 47.6
+    assert away.result.selected_team_model_strength == home.result.selected_team_model_strength
+    assert away.result.recommendation == home.result.recommendation == "👀 LEAN"
+
+
 def test_zero_kbo_score_is_neutral_no_play():
     game = _known_game(
         "Away Even",
@@ -86,6 +140,7 @@ def test_zero_kbo_score_is_neutral_no_play():
 
     assert finalized.result.model_probability == 50.0
     assert finalized.result.model_strength == 50.0
+    assert finalized.result.selected_team_model_strength is None
     assert finalized.result.play is None
     assert finalized.result.recommendation == "❌ NO PLAY"
 

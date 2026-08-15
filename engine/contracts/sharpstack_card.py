@@ -89,6 +89,10 @@ def normalize_legacy_kbo_game(game, sport):
                 "model_win_strength",
             ),
             "model_probability": get_value(result, "model_probability"),
+            "selected_team_model_strength": get_value(
+                result,
+                "selected_team_model_strength",
+            ),
             "edge": get_value(result, "edge"),
             "model_confidence": get_value(result, "model_confidence"),
             "confidence": get_value(result, "confidence"),

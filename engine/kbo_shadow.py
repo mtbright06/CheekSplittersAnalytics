@@ -42,6 +42,7 @@ def build_supported_component_shadow(
             "component_scores": component_scores,
             "weighted_score": 0.0,
             "model_strength": 50.0,
+            "selected_team_model_strength": None,
             "selection": None,
             "recommendation": recommendation_fn(50.0),
         }
@@ -59,6 +60,11 @@ def build_supported_component_shadow(
         50 + (weighted_score * 8),
         1,
     )
+    selection = selection_fn(weighted_score, game)
+    selected_team_model_strength = _selected_side_strength(
+        model_strength,
+        selection,
+    )
 
     return {
         "available": True,
@@ -69,8 +75,13 @@ def build_supported_component_shadow(
         "component_scores": component_scores,
         "weighted_score": round(weighted_score, 6),
         "model_strength": model_strength,
-        "selection": selection_fn(weighted_score, game),
-        "recommendation": recommendation_fn(model_strength),
+        "selected_team_model_strength": selected_team_model_strength,
+        "selection": selection,
+        "recommendation": recommendation_fn(
+            selected_team_model_strength
+            if selected_team_model_strength is not None
+            else 50.0
+        ),
     }
 
 
@@ -125,3 +136,16 @@ def _unsupported_concerns(
         for name, is_supported in supported.items()
         if not is_supported
     ]
+
+
+def _selected_side_strength(
+    raw_model_strength: float,
+    selection: Any,
+) -> float | None:
+    if not selection:
+        return None
+
+    return round(
+        50.0 + abs(float(raw_model_strength) - 50.0),
+        1,
+    )

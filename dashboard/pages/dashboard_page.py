@@ -1162,13 +1162,39 @@ def rank_kbo_actionable_games(
         > 0
     ]
 
+    return rank_kbo_games_for_dashboard(actionable)
+
+
+def kbo_selected_team_model_strength(game: dict) -> float:
+    raw_strength = game_model_win_probability(game)
+    if raw_strength == float("-inf"):
+        return raw_strength
+
+    model = game.get("model", {})
+    matchup = game.get("matchup", {})
+    selection = str(model.get("play") or "")
+    away = str(matchup.get("away") or "")
+    home = str(matchup.get("home") or "")
+
+    if selection == home:
+        return 50.0 + max(0.0, 50.0 - raw_strength)
+    if selection == away:
+        return 50.0 + max(0.0, raw_strength - 50.0)
+
+    return 50.0 + abs(raw_strength - 50.0)
+
+
+def rank_kbo_games_for_dashboard(
+    games: list[dict],
+) -> list[dict]:
+    """Order KBO slate by actionable tier, then selected-side strength."""
     return sorted(
-        actionable,
+        games,
         key=lambda game: (
             -kbo_recommendation_rank(
                 game.get("model", {}).get("recommendation")
             ),
-            -game_model_win_probability(game),
+            -kbo_selected_team_model_strength(game),
             -game_confidence(game),
         ),
     )
@@ -1242,11 +1268,12 @@ def render_single_sport_dashboard(
         )
         return
 
-    ranked_games = (
-        rank_mlb_games_by_prediction(games)
-        if league == "MLB"
-        else rank_games_by_confidence(games)
-    )
+    if league == "MLB":
+        ranked_games = rank_mlb_games_by_prediction(games)
+    elif league == "KBO":
+        ranked_games = rank_kbo_games_for_dashboard(games)
+    else:
+        ranked_games = rank_games_by_confidence(games)
     hammer_scores = (
         decision_hammer_scores()
         if league == "MLB"

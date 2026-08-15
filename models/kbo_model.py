@@ -85,6 +85,12 @@ class KBOModel:
                 weighted_score,
                 game,
             )
+            result.selected_team_model_strength = (
+                self._selected_side_strength(
+                    result.model_strength,
+                    result.play,
+                )
+            )
             result.shadow_model = build_supported_component_shadow(
                 game=game,
                 index=i,
@@ -136,8 +142,16 @@ class KBOModel:
             if getattr(result, "model_strength", None) is None:
                 result.model_strength = result.model_probability
 
+            result.selected_team_model_strength = (
+                self._selected_side_strength(
+                    result.model_strength,
+                    result.play,
+                )
+            )
             result.recommendation = self._model_score_recommendation(
-                result.model_strength
+                result.selected_team_model_strength
+                if result.selected_team_model_strength is not None
+                else 50.0
             )
             (
                 result.model_reliability,
@@ -199,6 +213,24 @@ class KBOModel:
             return "👀 LEAN"
 
         return "❌ NO PLAY"
+
+    @staticmethod
+    def _selected_side_strength(
+        raw_model_strength,
+        selection,
+    ):
+        if not selection:
+            return None
+
+        try:
+            raw = float(raw_model_strength)
+        except (TypeError, ValueError):
+            return None
+
+        return round(
+            50.0 + abs(raw - 50.0),
+            1,
+        )
 
     @classmethod
     def _model_strength_confidence(cls, model_score):

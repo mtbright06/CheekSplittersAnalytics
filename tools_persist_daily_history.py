@@ -1,17 +1,30 @@
 #!/usr/bin/env python3
-"""Persist the completed Registry, ingest recent MLB results, and grade matches."""
+"""Persist the completed Registry, ingest recent results, and grade matches."""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
+from app.providers.kbo_game_results import KBOGameResultProvider
 from app.providers.mlb_game_results import MLBGameResultProvider
+from app.services.game_result_ingestion_service import GameResultInput
 from app.services.daily_persistence_service import DailyPersistenceService
 
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_REGISTRY = ROOT / "output" / "cards" / "recommendation_registry.json"
+
+
+class CompositeResultProvider:
+    def __init__(self, *providers):
+        self.providers = providers
+
+    def fetch_recent(self, *, days_back: int) -> tuple[GameResultInput, ...]:
+        results: list[GameResultInput] = []
+        for provider in self.providers:
+            results.extend(provider.fetch_recent(days_back=days_back))
+        return tuple(results)
 
 
 def main() -> None:
@@ -22,13 +35,16 @@ def main() -> None:
 
     summary = DailyPersistenceService().run(
         registry_path=args.registry,
-        provider=MLBGameResultProvider(),
+        provider=CompositeResultProvider(
+            MLBGameResultProvider(),
+            KBOGameResultProvider(),
+        ),
         days_back=args.days_back,
     )
     print("Daily persistence complete")
     print(f"Logical run: {summary.logical_run_key}")
     print(f"Persisted snapshots: {summary.persisted_snapshots}")
-    print(f"Ingested MLB results: {summary.ingested_results}")
+    print(f"Ingested results: {summary.ingested_results}")
     print(f"Changed results: {summary.changed_results}")
     print(f"Created grades: {summary.created_grades}")
     print(f"Reused grades: {summary.reused_grades}")

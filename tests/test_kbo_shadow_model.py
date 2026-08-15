@@ -165,6 +165,24 @@ def test_shadow_does_not_change_production_output():
     assert scored.result.shadow_model["model_strength"] != scored.result.model_strength
 
 
+def test_shadow_home_selection_tiers_from_selected_side_strength():
+    game = _game()
+    game.away.offense.runs_per_game = 4.2
+    game.home.offense.runs_per_game = 5.7
+    for team in (game.away, game.home):
+        team.bullpen.era = None
+        team.bullpen.league_era = None
+        team.form.recent_runs_per_game = None
+        team.form.recent_games = None
+
+    shadow = _score(game).result.shadow_model
+
+    assert shadow["selection"] == "Home"
+    assert shadow["model_strength"] < 50.0
+    assert shadow["selected_team_model_strength"] > 52.0
+    assert shadow["recommendation"] == "👀 LEAN"
+
+
 def test_shadow_calculation_is_deterministic():
     first = _score(_game()).result.shadow_model
     second = _score(_game()).result.shadow_model

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from engine.core.consensus import (
     ConsensusSignal,
@@ -14,6 +15,9 @@ from engine.core import (
     Recommendation,
 )
 from engine.core.pregame_eligibility import PregameEligibilityReason
+
+
+KBO_TIMEZONE = ZoneInfo("Asia/Seoul")
 
 
 def _authoritative_scheduled_start(value: Any) -> str | None:
@@ -41,6 +45,64 @@ def _authoritative_scheduled_start(value: Any) -> str | None:
     return parsed.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
+def _kbo_scheduled_start_from_card(row: dict) -> str | None:
+    explicit = _authoritative_scheduled_start(
+        row.get("scheduled_start_at")
+        or row.get("commence_time")
+    )
+    if explicit is not None:
+        return explicit
+
+    game_date = str(row.get("game_date") or "").strip()
+    start_time = str(row.get("start_time") or row.get("game_time") or "").strip()
+    if not game_date or not start_time:
+        return None
+
+    for fmt in ("%Y-%m-%d %I:%M%p", "%Y-%m-%d %I:%M %p", "%Y-%m-%d %H:%M"):
+        try:
+            parsed = datetime.strptime(
+                f"{game_date} {start_time.upper().replace(' ', '')}",
+                fmt,
+            )
+        except ValueError:
+            continue
+        return (
+            parsed.replace(tzinfo=KBO_TIMEZONE)
+            .astimezone(UTC)
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
+
+    return None
+
+
+def _selected_team_model_strength(row: dict) -> float | None:
+    raw = safe_float(
+        row.get("model_strength")
+        if row.get("model_strength") is not None
+        else row.get("model_probability")
+    )
+    if raw is None:
+        return None
+
+    selection = str(row.get("selection") or "").strip()
+    away = team_name(row, "away")
+    home = team_name(row, "home")
+
+    if selection and home and _same_team(selection, home):
+        return round(50.0 + max(0.0, 50.0 - raw), 1)
+    if selection and away and _same_team(selection, away):
+        return round(50.0 + max(0.0, raw - 50.0), 1)
+
+    return round(50.0 + abs(raw - 50.0), 1)
+
+
+def _same_team(left: str, right: str) -> bool:
+    left_norm = " ".join(str(left or "").lower().split())
+    right_norm = " ".join(str(right or "").lower().split())
+    return bool(left_norm and right_norm and (left_norm == right_norm))
+
+
 def canonical_kbo_row(row: dict) -> dict:
     """Expose the current nested KBO card shape to the legacy registry adapter."""
     model = row.get("model")
@@ -66,22 +128,58 @@ def canonical_kbo_row(row: dict) -> dict:
     if isinstance(matchup_value, dict):
         matchup_value = f"{away_name or 'Away'} @ {home_name or 'Home'}"
 
-    return {
+    model_strength = (
+        model.get("model_strength")
+        if model.get("model_strength") is not None
+        else model.get("model_probability")
+    )
+    model_probability = (
+        model.get("model_probability")
+        if model.get("model_probability") is not None
+        else model.get("model_strength")
+    )
+    scheduled_start_at = _kbo_scheduled_start_from_card(row)
+    production_components = {
+        "component_scores": model.get("component_scores") or {},
+        "configured_weights": model.get("configured_weights") or {},
+        "weighted_score": model.get("weighted_score"),
+        "raw_model_strength": model_strength,
+        "selected_team_model_strength": None,
+        "selection": model.get("play"),
+        "recommendation": model.get("recommendation"),
+        "reliability": (
+            model.get("model_reliability")
+            if model.get("model_reliability") is not None
+            else model.get("reliability")
+            if model.get("reliability") is not None
+            else model.get("confidence")
+        ),
+        "reliability_breakdown": model.get("confidence_breakdown") or {},
+    }
+    shadow_model = model.get("shadow_model") or {}
+    shadow_payload = {
+        **shadow_model,
+        "authoritative": False,
+        "selected_team_model_strength": (
+            _shadow_selected_team_model_strength(
+                shadow_model,
+                away_name=away_name,
+                home_name=home_name,
+            )
+            if isinstance(shadow_model, dict)
+            else None
+        ),
+    }
+
+    flattened = {
         **row,
         "matchup": matchup_value,
         "away": away,
         "home": home,
         "selection": model.get("play"),
-        "model_strength": (
-            model.get("model_strength")
-            if model.get("model_strength") is not None
-            else model.get("model_probability")
-        ),
-        "model_probability": (
-            model.get("model_probability")
-            if model.get("model_probability") is not None
-            else model.get("model_strength")
-        ),
+        "scheduled_start_at": scheduled_start_at,
+        "model_strength": model_strength,
+        "model_probability": model_probability,
         "model_confidence": (
             model.get("model_confidence")
             if model.get("model_confidence") is not None
@@ -90,6 +188,13 @@ def canonical_kbo_row(row: dict) -> dict:
                 if model.get("model_reliability") is not None
                 else model.get("confidence")
             )
+        ),
+        "model_reliability": (
+            model.get("model_reliability")
+            if model.get("model_reliability") is not None
+            else model.get("reliability")
+            if model.get("reliability") is not None
+            else model.get("confidence")
         ),
         "hammer_score": model.get("hammer_score"),
         "confidence": model.get("confidence"),
@@ -101,7 +206,33 @@ def canonical_kbo_row(row: dict) -> dict:
         "book_odds": odds.get("moneyline"),
         "market_probability": odds.get("book_probability"),
         "market_updated_at": odds.get("last_updated"),
+        "production_components": production_components,
+        "shadow_model": shadow_payload,
     }
+    flattened["production_components"]["selected_team_model_strength"] = (
+        _selected_team_model_strength(flattened)
+    )
+
+    return {
+        **flattened,
+    }
+
+
+def _shadow_selected_team_model_strength(
+    shadow_model: dict,
+    *,
+    away_name: str | None,
+    home_name: str | None,
+) -> float | None:
+    raw = safe_float(shadow_model.get("model_strength"))
+    if raw is None:
+        return None
+    selection = str(shadow_model.get("selection") or "").strip()
+    if selection and home_name and _same_team(selection, home_name):
+        return round(50.0 + max(0.0, 50.0 - raw), 1)
+    if selection and away_name and _same_team(selection, away_name):
+        return round(50.0 + max(0.0, raw - 50.0), 1)
+    return round(50.0 + abs(raw - 50.0), 1)
 
 
 def score_supports(
@@ -605,10 +736,7 @@ def adapt_kbo_row(
 ) -> Recommendation | None:
     row = canonical_kbo_row(row)
 
-    scheduled_start_at = _authoritative_scheduled_start(
-        row.get("scheduled_start_at")
-        or row.get("commence_time")
-    )
+    scheduled_start_at = _kbo_scheduled_start_from_card(row)
     pregame_eligible = (
         row.get("pregame_eligible")
         if row.get("pregame_eligible") is not None
@@ -702,6 +830,14 @@ def adapt_kbo_row(
         market_quote=market_quote,
         reasons=build_reasons(row),
         components={
+            "identity": {
+                "provider": "mykbostats",
+                "game_date": row.get("game_date"),
+                "scheduled_start_at": scheduled_start_at,
+                "raw_model_perspective": "away_team",
+            },
+            "production": row.get("production_components") or {},
+            "shadow_model": row.get("shadow_model") or {},
             "starter": row.get(
                 "starter_score"
             ),

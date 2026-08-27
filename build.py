@@ -23,7 +23,10 @@ STEPS = [
 
     (
         "Track Recommendations",
-        [sys.executable, "tools_track_recommendations.py"],
+        [
+            sys.executable,
+            "engine/results/tools_track_recommendations.py",
+        ],
         False,
     ),
 
@@ -53,7 +56,10 @@ STEPS = [
 
     (
         "Build Discord Report",
-        [sys.executable, "tools_build_discord_report.py"],
+        [
+            sys.executable,
+            "engine/reports/tools_build_discord_report.py",
+        ],
         False,
     ),
 ]

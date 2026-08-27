@@ -15,13 +15,13 @@ from components.footer import render_footer
 from pages.dashboard_page import render_dashboard
 from pages.decision_page import render_decisions
 from pages.model_health_page import render_model_health_dashboard
+from pages.nhl_prop_trends_page import render_nhl_prop_trends
 from pages.placeholder_pages import (
     render_bomb_lab,
     render_first5,
     render_hall,
     render_kbo,
     render_mlb,
-    render_props,
     render_settings,
 )
 from shell import initialize_shell, render_application_shell
@@ -84,7 +84,7 @@ def render_page():
         render_first5()
 
     elif page == "Props":
-        render_props()
+        render_nhl_prop_trends()
 
     elif page == "Hall":
         render_hall()

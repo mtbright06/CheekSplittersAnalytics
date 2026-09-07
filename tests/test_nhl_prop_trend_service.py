@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+import threading
+import time
 
 from engine.nhl.models import NHLPlayer, NHLPlayerGameLog
+from engine.nhl.player_game_logs import NHLPlayerGameLogProvider
 from engine.nhl.prop_trend_service import NHLPropTrendReadService
 from engine.nhl.prop_trends import (
     ASSISTS,
@@ -189,6 +192,121 @@ def test_service_has_no_streamlit_dependency():
     assert "streamlit" not in source.lower()
 
 
+def test_service_loads_independent_player_logs_concurrently():
+    provider = _SlowProvider({
+        player_id: _logs(player_id, shots=[4, 3, 2])
+        for player_id in range(1, 7)
+    })
+    service = NHLPropTrendReadService(
+        game_log_provider=provider,
+        max_workers=3,
+    )
+    start = time.perf_counter()
+
+    rows = service.build_rows(
+        players=[_player(player_id) for player_id in range(1, 7)],
+        markets=[SHOTS_ON_GOAL],
+        selected_lines={SHOTS_ON_GOAL: 2.5},
+        season_id=20232024,
+    )
+    elapsed = time.perf_counter() - start
+
+    assert len(rows) == 6
+    assert provider.max_active <= 3
+    assert provider.max_active > 1
+    assert elapsed < 0.5
+
+
+def test_concurrent_service_preserves_deterministic_ordering():
+    provider = _SlowProvider({
+        2: _logs(2, shots=[1, 1, 1]),
+        1: _logs(1, shots=[4, 4, 1]),
+    })
+    sequential = NHLPropTrendReadService(
+        game_log_provider=provider,
+        max_workers=1,
+    ).build_rows(
+        players=[_player(2, name="Beta"), _player(1, name="Alpha")],
+        markets=[SHOTS_ON_GOAL],
+        selected_lines={SHOTS_ON_GOAL: 2.5},
+        season_id=20232024,
+    )
+
+    provider = _SlowProvider({
+        2: _logs(2, shots=[1, 1, 1]),
+        1: _logs(1, shots=[4, 4, 1]),
+    })
+    concurrent = NHLPropTrendReadService(
+        game_log_provider=provider,
+        max_workers=4,
+    ).build_rows(
+        players=[_player(2, name="Beta"), _player(1, name="Alpha")],
+        markets=[SHOTS_ON_GOAL],
+        selected_lines={SHOTS_ON_GOAL: 2.5},
+        season_id=20232024,
+    )
+
+    assert [row.player_id for row in concurrent] == [
+        row.player_id for row in sequential
+    ]
+    assert [row.season.hit_rate for row in concurrent] == [
+        row.season.hit_rate for row in sequential
+    ]
+
+
+def test_concurrent_provider_failure_is_isolated_as_row_concern():
+    service = NHLPropTrendReadService(
+        game_log_provider=_PartlyFailingProvider({1}),
+        max_workers=3,
+    )
+
+    rows = service.build_rows(
+        players=[_player(1), _player(2), _player(3)],
+        markets=[SHOTS_ON_GOAL],
+        selected_lines={SHOTS_ON_GOAL: 2.5},
+        season_id=20232024,
+    )
+
+    by_id = {row.player_id: row for row in rows}
+    assert "game_log_provider_failed" in by_id[1].concerns
+    assert by_id[2].season.games_considered == 1
+    assert by_id[3].season.games_considered == 1
+
+
+def test_game_log_provider_retries_transient_429(monkeypatch):
+    monkeypatch.setattr("engine.nhl.player_game_logs.sleep", lambda _seconds: None)
+    fetcher = _RetryFetcher()
+    provider = NHLPlayerGameLogProvider(fetcher=fetcher, cache_dir=None)
+
+    logs = provider.load_player_game_logs(
+        player_id=1,
+        season_id=20232024,
+        game_type="REG",
+    )
+
+    assert len(logs) == 1
+    assert len(fetcher.calls) == 2
+
+
+def test_game_log_provider_cache_reuses_successful_payload(monkeypatch):
+    monkeypatch.setattr("engine.nhl.player_game_logs.sleep", lambda _seconds: None)
+    fetcher = _RetryFetcher()
+    provider = NHLPlayerGameLogProvider(fetcher=fetcher, cache_dir=None)
+
+    provider.load_player_game_logs(
+        player_id=1,
+        season_id=20232024,
+        game_type="REG",
+    )
+    provider.load_player_game_logs(
+        player_id=1,
+        season_id=20232024,
+        game_type="REG",
+    )
+
+    assert len(fetcher.calls) == 2
+
+
 class _Provider:
     def __init__(self, logs_by_player):
         self.logs_by_player = logs_by_player
@@ -202,6 +320,73 @@ class _Provider:
 class _FailingProvider:
     def load_player_game_logs(self, **kwargs):
         raise RuntimeError("provider down")
+
+
+class _PartlyFailingProvider:
+    def __init__(self, failing_ids):
+        self.failing_ids = set(failing_ids)
+
+    def load_player_game_logs(self, *, player_id, **kwargs):
+        if player_id in self.failing_ids:
+            raise RuntimeError("provider down")
+        return _logs(player_id, shots=[3])
+
+
+class _SlowProvider:
+    def __init__(self, logs_by_player):
+        self.logs_by_player = logs_by_player
+        self.active = 0
+        self.max_active = 0
+        self.lock = threading.Lock()
+
+    def load_player_game_logs(self, *, player_id, season_id, game_type="REG"):
+        with self.lock:
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+        try:
+            time.sleep(0.1)
+            return list(self.logs_by_player.get(player_id, ()))
+        finally:
+            with self.lock:
+                self.active -= 1
+
+
+class _RetryFetcher:
+    def __init__(self):
+        self.calls = []
+
+    def __call__(self, url, timeout):
+        self.calls.append((url, timeout))
+        if len(self.calls) == 1:
+            return _Response(429, {})
+        return _Response(200, {
+            "seasonId": 20232024,
+            "gameTypeId": 2,
+            "gameLog": [
+                {
+                    "gameId": 1,
+                    "gameDate": "2024-01-01",
+                    "homeRoadFlag": "H",
+                    "teamAbbrev": "EDM",
+                    "opponentAbbrev": "VAN",
+                    "shots": 3,
+                }
+            ],
+        })
+
+
+class _Response:
+    def __init__(self, status_code, payload):
+        self.status_code = status_code
+        self.payload = payload
+        self.headers = {}
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+    def json(self):
+        return self.payload
 
 
 def _player(player_id, name=None, position="C"):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Iterable
 
@@ -20,6 +21,7 @@ from engine.nhl.prop_trends import (
 
 
 DEFAULT_WINDOWS = (LAST_5, LAST_10, LAST_20, SEASON)
+DEFAULT_MAX_WORKERS = 6
 
 
 @dataclass(frozen=True)
@@ -54,8 +56,10 @@ class NHLPropTrendReadService:
         self,
         *,
         game_log_provider: NHLPlayerGameLogProvider | None = None,
+        max_workers: int = DEFAULT_MAX_WORKERS,
     ) -> None:
         self._game_log_provider = game_log_provider or NHLPlayerGameLogProvider()
+        self._max_workers = max(1, int(max_workers or 1))
 
     def build_rows(
         self,
@@ -72,20 +76,23 @@ class NHLPropTrendReadService:
         if not player_list or not market_list:
             return []
 
-        rows: list[NHLPropTrendRow] = []
-        for player in sorted(
+        sorted_players = sorted(
             player_list,
             key=lambda item: (
                 item.team_abbreviation or "",
                 item.name or "",
                 item.source_player_id,
             ),
-        ):
-            logs, log_concerns = self._load_logs(
-                player=player,
-                season_id=season_id,
-                game_type=game_type,
-            )
+        )
+        player_logs = self._load_logs_for_players(
+            sorted_players,
+            season_id=season_id,
+            game_type=game_type,
+        )
+
+        rows: list[NHLPropTrendRow] = []
+        for player in sorted_players:
+            logs, log_concerns = player_logs[player.source_player_id]
             for market in market_list:
                 selected_line = _selected_line(selected_lines, market)
                 row = _row_from_logs(
@@ -112,6 +119,42 @@ class NHLPropTrendReadService:
                 row.player_id,
             ),
         )
+
+    def _load_logs_for_players(
+        self,
+        players: tuple[NHLPlayer, ...],
+        *,
+        season_id: int,
+        game_type: str | int,
+    ) -> dict[int, tuple[tuple[NHLPlayerGameLog, ...], tuple[str, ...]]]:
+        if len(players) <= 1 or self._max_workers <= 1:
+            return {
+                player.source_player_id: self._load_logs(
+                    player=player,
+                    season_id=season_id,
+                    game_type=game_type,
+                )
+                for player in players
+            }
+
+        worker_count = min(self._max_workers, len(players))
+        results: dict[int, tuple[tuple[NHLPlayerGameLog, ...], tuple[str, ...]]] = {}
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            futures = {
+                executor.submit(
+                    self._load_logs,
+                    player=player,
+                    season_id=season_id,
+                    game_type=game_type,
+                ): player.source_player_id
+                for player in players
+            }
+            for future, player_id in futures.items():
+                try:
+                    results[player_id] = future.result()
+                except Exception:
+                    results[player_id] = (), ("game_log_provider_failed",)
+        return results
 
     def _load_logs(
         self,

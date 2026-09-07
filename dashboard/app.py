@@ -48,9 +48,15 @@ def render_page():
     page = st.session_state.page
 
     if page == "Dashboard":
+        dashboard_card = combined_dashboard_card()
         render_dashboard(
-            combined_dashboard_card()
+            dashboard_card
         )
+        if not dashboard_card.get("games"):
+            st.warning(
+                "No cards found. Run an "
+                "engine/build script first."
+            )
 
     elif page == "Best Bets":
         render_best_bets()
@@ -93,15 +99,7 @@ def render_page():
         render_settings()
 
 
-dashboard_card = combined_dashboard_card()
-
 render_application_shell()
-
-if not dashboard_card.get("games"):
-    st.warning(
-        "No cards found. Run an "
-        "engine/build script first."
-    )
 
 render_page()
 render_footer()

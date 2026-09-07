@@ -5,6 +5,7 @@ output/
 .env
 .venv/.env
 data/nhl/moneypuck/
+data/nhl/cache/
 
 # Python virtual environments
 .venv/

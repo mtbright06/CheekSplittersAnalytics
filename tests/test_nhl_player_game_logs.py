@@ -156,6 +156,7 @@ def test_malformed_missing_optional_empty_invalid_and_failure_are_safe():
     provider = NHLPlayerGameLogProvider(
         fetcher=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("down")),
         players=[],
+        cache_dir=None,
     )
     assert provider.load_player_game_logs(player_id=1, season_id=20232024) == []
 
@@ -176,11 +177,204 @@ def test_provider_caches_player_season_and_boxscore_requests():
         fetcher=fetcher,
         boxscore_fetcher=boxscore_fetcher,
         players=[_player(8480280, "Jeremy Swayman", "G")],
+        cache_dir=None,
     )
 
     assert provider.load_player_game_logs(player_id=8480280, season_id=20232024)
     assert provider.load_player_game_logs(player_id=8480280, season_id=20232024)
     assert len(calls) == 1
+    assert boxscore_calls == [2023021291]
+
+
+def test_first_request_fetches_network_and_writes_cache(tmp_path):
+    calls = []
+
+    def fetcher(url, **kwargs):
+        calls.append(url)
+        return FakeResponse(_skater_log())
+
+    provider = NHLPlayerGameLogProvider(
+        fetcher=fetcher,
+        cache_dir=tmp_path,
+    )
+
+    logs = provider.load_player_game_logs(
+        player_id=8478402,
+        season_id=20232024,
+    )
+
+    assert logs
+    assert len(calls) == 1
+    assert list(tmp_path.rglob("8478402.json"))
+
+
+def test_second_provider_instance_reads_disk_cache_without_network(tmp_path):
+    calls = []
+
+    def fetcher(url, **kwargs):
+        calls.append(url)
+        return FakeResponse(_skater_log())
+
+    first = NHLPlayerGameLogProvider(
+        fetcher=fetcher,
+        cache_dir=tmp_path,
+    )
+    assert first.load_player_game_logs(player_id=8478402, season_id=20232024)
+
+    second = NHLPlayerGameLogProvider(
+        fetcher=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("network should not run")),
+        cache_dir=tmp_path,
+    )
+
+    assert second.load_player_game_logs(player_id=8478402, season_id=20232024)
+    assert len(calls) == 1
+
+
+def test_fresh_active_season_cache_is_reused(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "engine.nhl.player_game_logs.current_nhl_season_id",
+        lambda: 20232024,
+    )
+    provider = NHLPlayerGameLogProvider(
+        fetcher=lambda *args, **kwargs: FakeResponse(_skater_log()),
+        cache_dir=tmp_path,
+        active_cache_ttl_seconds=3600,
+    )
+
+    provider.load_player_game_logs(player_id=8478402, season_id=20232024)
+    second = NHLPlayerGameLogProvider(
+        fetcher=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("network should not run")),
+        cache_dir=tmp_path,
+        active_cache_ttl_seconds=3600,
+    )
+
+    assert second.load_player_game_logs(player_id=8478402, season_id=20232024)
+
+
+def test_stale_active_season_cache_refetches(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "engine.nhl.player_game_logs.current_nhl_season_id",
+        lambda: 20232024,
+    )
+    NHLPlayerGameLogProvider(
+        fetcher=lambda *args, **kwargs: FakeResponse(_skater_log()),
+        cache_dir=tmp_path,
+        active_cache_ttl_seconds=0,
+    ).load_player_game_logs(player_id=8478402, season_id=20232024)
+    calls = []
+
+    def fetcher(url, **kwargs):
+        calls.append(url)
+        return FakeResponse(_skater_log(player_id=8478402))
+
+    logs = NHLPlayerGameLogProvider(
+        fetcher=fetcher,
+        cache_dir=tmp_path,
+        active_cache_ttl_seconds=0,
+    ).load_player_game_logs(player_id=8478402, season_id=20232024)
+
+    assert logs
+    assert len(calls) == 1
+
+
+def test_historical_season_cache_is_reused(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "engine.nhl.player_game_logs.current_nhl_season_id",
+        lambda: 20242025,
+    )
+    NHLPlayerGameLogProvider(
+        fetcher=lambda *args, **kwargs: FakeResponse(_skater_log()),
+        cache_dir=tmp_path,
+        active_cache_ttl_seconds=0,
+    ).load_player_game_logs(player_id=8478402, season_id=20232024)
+
+    second = NHLPlayerGameLogProvider(
+        fetcher=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("network should not run")),
+        cache_dir=tmp_path,
+        active_cache_ttl_seconds=0,
+    )
+
+    assert second.load_player_game_logs(player_id=8478402, season_id=20232024)
+
+
+def test_corrupt_cache_safely_refetches(tmp_path):
+    path = tmp_path / "players" / "20232024" / "2" / "8478402.json"
+    path.parent.mkdir(parents=True)
+    path.write_text("{bad json", encoding="utf-8")
+    calls = []
+
+    def fetcher(url, **kwargs):
+        calls.append(url)
+        return FakeResponse(_skater_log())
+
+    logs = NHLPlayerGameLogProvider(
+        fetcher=fetcher,
+        cache_dir=tmp_path,
+    ).load_player_game_logs(player_id=8478402, season_id=20232024)
+
+    assert logs
+    assert len(calls) == 1
+
+
+def test_cache_write_failure_does_not_lose_fetched_result(tmp_path):
+    blocker = tmp_path / "players"
+    blocker.write_text("not a directory", encoding="utf-8")
+
+    provider = NHLPlayerGameLogProvider(
+        fetcher=lambda *args, **kwargs: FakeResponse(_skater_log()),
+        cache_dir=tmp_path,
+    )
+
+    assert provider.load_player_game_logs(player_id=8478402, season_id=20232024)
+
+
+def test_concurrent_writes_remain_valid(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+
+    provider = NHLPlayerGameLogProvider(
+        fetcher=lambda *args, **kwargs: FakeResponse(_skater_log()),
+        cache_dir=tmp_path,
+    )
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        results = list(executor.map(
+            lambda _: provider.load_player_game_logs(
+                player_id=8478402,
+                season_id=20232024,
+            ),
+            range(4),
+        ))
+
+    assert all(result for result in results)
+    assert NHLPlayerGameLogProvider(
+        fetcher=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("network should not run")),
+        cache_dir=tmp_path,
+    ).load_player_game_logs(player_id=8478402, season_id=20232024)
+
+
+def test_goalie_enriched_data_uses_persistent_boxscore_cache(tmp_path):
+    boxscore_calls = []
+
+    def boxscore_fetcher(game_id):
+        boxscore_calls.append(game_id)
+        return _boxscore(player_id=8480280, saves=23, shots_against=24)
+
+    first = NHLPlayerGameLogProvider(
+        fetcher=lambda *args, **kwargs: FakeResponse(_goalie_log()),
+        boxscore_fetcher=boxscore_fetcher,
+        players=[_player(8480280, "Jeremy Swayman", "G")],
+        cache_dir=tmp_path,
+    )
+    assert first.load_player_game_logs(player_id=8480280, season_id=20232024)[0].saves == 23
+
+    second = NHLPlayerGameLogProvider(
+        fetcher=lambda *args, **kwargs: FakeResponse(_goalie_log()),
+        boxscore_fetcher=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boxscore should not run")),
+        players=[_player(8480280, "Jeremy Swayman", "G")],
+        cache_dir=tmp_path,
+    )
+
+    assert second.load_player_game_logs(player_id=8480280, season_id=20232024)[0].saves == 23
     assert boxscore_calls == [2023021291]
 
 

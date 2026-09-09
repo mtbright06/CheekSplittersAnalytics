@@ -22,6 +22,14 @@ reachable through the SharpStack shell. No work has been lost. The experimental
 UI redesign is preserved only on `backup/model-health-ui-wip` at `45f380a` and
 must be treated as a recovery/reference branch, not an implementation source.
 
+**NFL prop-trends factual foundation:** implemented and awaiting review on
+`feature/nhl-prop-trends`. Weekly nflverse player-stat files are bulk-loaded by
+season, joined to the canonical NFL schedule by game ID, and normalized into
+typed player game logs. The factual trend service supports passing yards,
+passing touchdowns, rushing yards, receiving yards, receptions, and anytime
+touchdowns across L5/L10/L20/current-season/previous-season windows. It does
+not add predictions, recommendations, odds, or UI behavior.
+
 **Current database status:** Azure PostgreSQL is operational for
 `recommendations`, `game_results`, and `prediction_snapshot_grades`.
 `RecommendationAnalyticsService` remains the single, read-only source for

@@ -157,6 +157,45 @@ class NFLPlayerStats:
 
 
 @dataclass(frozen=True)
+class NFLPlayerGameLog:
+    player_id: str | None
+    player: NFLPlayer | None
+    player_name: str
+    game_id: str
+    game_date: date | None
+    season: int
+    week: int
+    game_type: str
+    team_abbreviation: str | None
+    opponent_abbreviation: str | None
+    home_away: str | None
+    position: str | None = None
+    passing_yards: int | None = None
+    passing_touchdowns: int | None = None
+    carries: int | None = None
+    rushing_yards: int | None = None
+    rushing_touchdowns: int | None = None
+    targets: int | None = None
+    receptions: int | None = None
+    receiving_yards: int | None = None
+    receiving_touchdowns: int | None = None
+    special_teams_touchdowns: int | None = None
+    source: str = "nflverse_stats_player_weekly"
+    concerns: tuple[str, ...] = ()
+
+    @property
+    def anytime_touchdowns(self) -> int | None:
+        touchdown_values = (
+            self.rushing_touchdowns,
+            self.receiving_touchdowns,
+            self.special_teams_touchdowns,
+        )
+        if any(value is None for value in touchdown_values):
+            return None
+        return sum(touchdown_values)
+
+
+@dataclass(frozen=True)
 class NFLSnapCount:
     player_id: str | None
     player: NFLPlayer | None

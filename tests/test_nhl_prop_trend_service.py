@@ -123,6 +123,27 @@ def test_alternate_lines_do_not_refetch_player_logs():
     assert provider.calls == [(1, 20232024, "REG")]
 
 
+def test_player_detail_reuses_service_trend_math_for_one_player():
+    provider = _Provider({1: _logs(1, shots=[5, 4, 2, 1])})
+    service = NHLPropTrendReadService(game_log_provider=provider)
+
+    row = service.build_player_detail(
+        player=_player(1),
+        market=SHOTS_ON_GOAL,
+        selected_line=3.5,
+        alternate_lines=[1.5, 4.5],
+        season_id=20232024,
+    )
+
+    assert row.player_id == 1
+    assert row.selected_line == 3.5
+    assert row.season.hits == 2
+    assert row.season.misses == 2
+    assert sorted(row.alternate_lines) == [1.5, 4.5]
+    assert row.alternate_lines[1.5].hits == 3
+    assert provider.calls == [(1, 20232024, "REG")]
+
+
 def test_unsupported_market_produces_row_concern_without_board_crash():
     service = NHLPropTrendReadService(
         game_log_provider=_Provider({1: _logs(1, shots=[4, 3])})

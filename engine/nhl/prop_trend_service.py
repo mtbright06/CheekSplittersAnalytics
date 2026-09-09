@@ -120,6 +120,32 @@ class NHLPropTrendReadService:
             ),
         )
 
+    def build_player_detail(
+        self,
+        *,
+        player: NHLPlayer,
+        market: str,
+        selected_line: float,
+        season_id: int,
+        game_type: str | int = REGULAR_SEASON,
+        alternate_lines: Iterable[float] | None = None,
+    ) -> NHLPropTrendRow:
+        logs, concerns = self._load_logs(
+            player=player,
+            season_id=season_id,
+            game_type=game_type,
+        )
+        return _row_from_logs(
+            player=player,
+            logs=logs,
+            market=market,
+            selected_line=float(selected_line),
+            season_id=season_id,
+            game_type=game_type,
+            alternate_lines=tuple(float(line) for line in alternate_lines or ()),
+            concerns=concerns,
+        )
+
     def _load_logs_for_players(
         self,
         players: tuple[NHLPlayer, ...],

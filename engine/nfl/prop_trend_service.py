@@ -1,18 +1,28 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
+from threading import RLock
+from time import monotonic
 from typing import Iterable
 
 from engine.nfl.models import NFLPlayerGameLog, NFLRosterEntry
+from engine.nfl.prop_markets import NFLPlayerPropMarket
 from engine.nfl.player_game_logs import (
     NFLPlayerGameLogProvider,
     REGULAR_SEASON,
 )
 from engine.nfl.prop_trends import (
+    ANYTIME_TOUCHDOWN,
     LAST_10,
     LAST_20,
     LAST_5,
+    PASSING_TOUCHDOWNS,
+    PASSING_YARDS,
     PREVIOUS_SEASON,
+    RECEIVING_YARDS,
+    RECEPTIONS,
+    RUSHING_YARDS,
     SEASON,
     NFLPropTrendSummary,
     summarize_prop_lines,
@@ -55,6 +65,12 @@ class NFLPropTrendReadResult:
     source: str = "nfl_prop_trend_read_service"
 
 
+@dataclass(frozen=True)
+class NFLMarketTrendRow:
+    quote: NFLPlayerPropMarket
+    trend: NFLPropTrendRow
+
+
 class NFLPropTrendReadService:
     def __init__(
         self,
@@ -62,6 +78,42 @@ class NFLPropTrendReadService:
         game_log_provider: NFLPlayerGameLogProvider | None = None,
     ) -> None:
         self._game_log_provider = game_log_provider or NFLPlayerGameLogProvider()
+        self._history_cache = {}
+        self._history_lock = RLock()
+
+    def build_market_rows(
+        self, quotes: Iterable[NFLPlayerPropMarket], *, selected_season: int,
+        before_date: date | None = None,
+    ) -> tuple[NFLMarketTrendRow, ...]:
+        quotes = tuple(q for q in quotes if q.roster_entry and q.player_id)
+        if not quotes:
+            return ()
+        logs, concerns = self._load_history(
+            selected_season=selected_season, game_type=REGULAR_SEASON,
+            player_ids={q.player_id for q in quotes},
+        )
+        by_player = {}
+        for log in logs:
+            if before_date is None or (log.game_date and log.game_date < before_date):
+                by_player.setdefault(log.player_id, []).append(log)
+        return tuple(NFLMarketTrendRow(q, _row_from_logs(
+            entry=q.roster_entry, logs=tuple(by_player.get(q.player_id, ())),
+            market=q.market, selected_line=q.research_line, selected_season=selected_season,
+            game_type=REGULAR_SEASON, alternate_lines=(), concerns=concerns + q.concerns,
+        )) for q in quotes)
+
+    def nearby_thresholds(
+        self, row: NFLPropTrendRow, thresholds: Iterable[float], *,
+        before_date: date | None = None,
+    ) -> dict[float, dict[str, NFLPropTrendSummary]]:
+        """Recalculate from the board's cached factual history; never fetch for exploration."""
+        with self._history_lock:
+            cached = self._history_cache.get((row.selected_season, row.game_type))
+            logs = tuple(log for log in (cached[2] if cached else ())
+                         if log.player_id == row.player_id and
+                         (before_date is None or (log.game_date and log.game_date < before_date)))
+        return {float(line): summarize_prop_windows(logs, market=row.market, line=float(line),
+                selected_season=row.selected_season) for line in thresholds}
 
     def build_rows(
         self,
@@ -72,6 +124,7 @@ class NFLPropTrendReadService:
         selected_season: int,
         game_type: str = REGULAR_SEASON,
         alternate_lines: dict[str, Iterable[float]] | None = None,
+        require_meaningful_usage: bool = False,
     ) -> NFLPropTrendReadResult:
         entries, roster_concerns = _resolved_roster_entries(roster_entries)
         market_list = tuple(markets or ())
@@ -98,6 +151,11 @@ class NFLPropTrendReadService:
                 continue
             player_logs = tuple(logs_by_player.get(player_id, ()))
             for market in market_list:
+                if require_meaningful_usage and not _has_meaningful_market_usage(
+                    player_logs,
+                    market,
+                ):
+                    continue
                 rows.append(
                     _row_from_logs(
                         entry=entry,
@@ -164,6 +222,17 @@ class NFLPropTrendReadService:
         game_type: str,
         player_ids: set[str],
     ) -> tuple[tuple[NFLPlayerGameLog, ...], tuple[str, ...]]:
+        with self._history_lock:
+            key = (selected_season, game_type)
+            cached = self._history_cache.get(key)
+            if cached and monotonic() - cached[0] < 300 and player_ids <= cached[1]:
+                return tuple(log for log in cached[2] if log.player_id in player_ids), cached[3]
+            result = self._fetch_history(selected_season=selected_season, game_type=game_type,
+                                         player_ids=player_ids)
+            self._history_cache[key] = (monotonic(), set(player_ids), *result)
+            return result
+
+    def _fetch_history(self, *, selected_season, game_type, player_ids):
         batches = (
             self._game_log_provider.load_player_game_logs(
                 season=selected_season - 1,
@@ -295,3 +364,42 @@ def _alternate_lines(
     if not alternate_lines:
         return ()
     return tuple(float(line) for line in alternate_lines.get(market, ()))
+
+
+def _has_meaningful_market_usage(
+    logs: Iterable[NFLPlayerGameLog],
+    market: str,
+) -> bool:
+    logs = tuple(logs)
+    if market in {PASSING_YARDS, PASSING_TOUCHDOWNS}:
+        passing_games = sum(
+            (log.passing_yards or 0) > 0 or (log.passing_touchdowns or 0) > 0
+            for log in logs
+        )
+        passing_yards = sum(max(0, log.passing_yards or 0) for log in logs)
+        return passing_games >= 2 or passing_yards >= 100
+
+    if market == RUSHING_YARDS:
+        carries = sum(max(0, log.carries or 0) for log in logs)
+        rushing_yards = sum(max(0, log.rushing_yards or 0) for log in logs)
+        return carries >= 10 or rushing_yards >= 50
+
+    if market in {RECEIVING_YARDS, RECEPTIONS}:
+        targets = sum(max(0, log.targets or 0) for log in logs)
+        receptions = sum(max(0, log.receptions or 0) for log in logs)
+        receiving_yards = sum(max(0, log.receiving_yards or 0) for log in logs)
+        return targets >= 10 or receptions >= 5 or receiving_yards >= 50
+
+    if market == ANYTIME_TOUCHDOWN:
+        opportunities = sum(
+            max(0, log.carries or 0) + max(0, log.targets or 0)
+            for log in logs
+        )
+        offensive_touchdowns = sum(
+            max(0, log.rushing_touchdowns or 0)
+            + max(0, log.receiving_touchdowns or 0)
+            for log in logs
+        )
+        return opportunities >= 10 or offensive_touchdowns >= 2
+
+    return True

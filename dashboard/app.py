@@ -16,6 +16,7 @@ from pages.dashboard_page import render_dashboard
 from pages.decision_page import render_decisions
 from pages.model_health_page import render_model_health_dashboard
 from pages.nhl_prop_trends_page import render_nhl_prop_trends
+from pages.nfl_prop_trends_page import render_nfl_prop_trends
 from pages.placeholder_pages import (
     render_bomb_lab,
     render_first5,
@@ -91,6 +92,9 @@ def render_page():
 
     elif page == "Props":
         render_nhl_prop_trends()
+
+    elif page == "NFL Props":
+        render_nfl_prop_trends()
 
     elif page == "Hall":
         render_hall()

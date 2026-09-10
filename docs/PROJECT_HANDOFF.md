@@ -7,6 +7,12 @@
 
 # 1. Project Status
 
+NFL Props compact-control sprint: date, Games subset picker, market, search and
+refresh/threshold share a desktop control row. Games supports All/Clear and
+resets to the new slate on date changes; empty selection performs no roster or
+market loading. Existing market/history caches, stale labels and player detail
+are unchanged. Player-detail reference redesign remains deferred. No commit.
+
 **Repository:** `C:\CheekSplittersAnalytics`
 **Primary branch:** `feature/recommendation-history`
 **Environment:** Windows 11 / PowerShell / Python 3.13+
@@ -29,6 +35,31 @@ typed player game logs. The factual trend service supports passing yards,
 passing touchdowns, rushing yards, receiving yards, receptions, and anytime
 touchdowns across L5/L10/L20/current-season/previous-season windows. It does
 not add predictions, recommendations, odds, or UI behavior.
+
+**NFL Props Week 1 UI vertical slice:** implemented and awaiting review on
+`feature/nhl-prop-trends`. The isolated `NFL Props` route composes the canonical
+NFL schedule, exact weekly roster membership, and factual prop-trend read
+service into matchup, market, line, search, board, and player-detail views.
+No-game slates short-circuit before roster/stat loading; no prediction, odds,
+recommendation, or cross-sport behavior was added.
+
+**NFL Props market research:** Market Lines is now the default, with Research
+Threshold retained. `engine/nfl/prop_markets.py` uses the configured Odds API
+key for free event discovery and one paid event/market request for preferred
+books (FanDuel, then Fanatics). Quotes pair sides only within the same book,
+player, and line; unresolved identities remain visible. Anytime TD quotes
+retain Yes/No semantics and a separate equivalent 0.5 research threshold.
+The read service calculates each listed player's own line without historical
+eligibility gating. No recommendation or probability authority is introduced.
+Market cache is process-local, scoped by event/market/books, 300 seconds;
+failures replace old quotes and have a 60-second cooldown. Refresh bypasses
+the selected event/market quote cache. Source timestamps older than 300 seconds
+are visibly STALE. Historical dates do not substitute current sportsbook quotes.
+NFL history service reuse lasts 300 seconds; successful bulk weekly CSV files
+expire after 1800 seconds, while failed files are retried on the next service
+load. Alternate thresholds use cached normalized logs without requests.
+Controlled proof used one Week 1 matchup and two markets, costing two credits;
+FanDuel quotes resolved to canonical GSIS players and independent lines.
 
 **Current database status:** Azure PostgreSQL is operational for
 `recommendations`, `game_results`, and `prediction_snapshot_grades`.

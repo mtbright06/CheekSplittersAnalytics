@@ -7,8 +7,11 @@ from engine.nfl.player_game_logs import NFLPlayerGameLogBatch
 from engine.nfl.prop_trend_service import NFLPropTrendReadService
 from engine.nfl.prop_trends import (
     ANYTIME_TOUCHDOWN,
+    PASSING_TOUCHDOWNS,
     PASSING_YARDS,
     RECEIVING_YARDS,
+    RECEPTIONS,
+    RUSHING_YARDS,
 )
 
 
@@ -156,6 +159,92 @@ def test_anytime_touchdown_row_uses_factual_composed_value():
     assert result.rows[0].season.game_results[0].actual_value == 2
 
 
+def test_usage_filter_excludes_depth_passer_but_keeps_meaningful_qb():
+    provider = _Provider({2025: [
+        _log("starter", "Starter", passing_yards=300),
+        _log("depth", "Depth", passing_yards=20),
+    ]})
+    result = NFLPropTrendReadService(game_log_provider=provider).build_rows(
+        roster_entries=[
+            _roster("starter", "Starter", "QB"),
+            _roster("depth", "Depth", "QB"),
+        ],
+        markets=[PASSING_YARDS, PASSING_TOUCHDOWNS],
+        selected_lines=1.5,
+        selected_season=2026,
+        require_meaningful_usage=True,
+    )
+
+    assert {(row.player_id, row.market) for row in result.rows} == {
+        ("starter", PASSING_YARDS),
+        ("starter", PASSING_TOUCHDOWNS),
+    }
+
+
+def test_usage_filter_requires_meaningful_rushing_workload():
+    provider = _Provider({2025: [
+        _log("rb", "Runner", carries=12, rushing_yards=48),
+        _log("wr", "Occasional Runner", carries=2, rushing_yards=8),
+    ]})
+    result = NFLPropTrendReadService(game_log_provider=provider).build_rows(
+        roster_entries=[_roster("rb", "Runner", "RB"), _roster("wr", "Occasional Runner", "WR")],
+        markets=[RUSHING_YARDS],
+        selected_lines=49.5,
+        selected_season=2026,
+        require_meaningful_usage=True,
+    )
+
+    assert [row.player_id for row in result.rows] == ["rb"]
+
+
+def test_usage_filter_requires_meaningful_receiving_workload():
+    provider = _Provider({2025: [
+        _log("wr", "Receiver", targets=12, receptions=6, receiving_yards=45),
+        _log("te", "Depth Tight End", targets=1, receptions=1, receiving_yards=4),
+    ]})
+    result = NFLPropTrendReadService(game_log_provider=provider).build_rows(
+        roster_entries=[_roster("wr", "Receiver", "WR"), _roster("te", "Depth Tight End", "TE")],
+        markets=[RECEIVING_YARDS, RECEPTIONS],
+        selected_lines=3.5,
+        selected_season=2026,
+        require_meaningful_usage=True,
+    )
+
+    assert {row.player_id for row in result.rows} == {"wr"}
+
+
+def test_usage_filter_excludes_zero_opportunity_anytime_td_depth():
+    provider = _Provider({2025: [
+        _log("primary", "Primary", carries=8, targets=4),
+        _log("depth", "Depth", carries=1, targets=1),
+    ]})
+    result = NFLPropTrendReadService(game_log_provider=provider).build_rows(
+        roster_entries=[_roster("primary", "Primary", "RB"), _roster("depth", "Depth", "RB")],
+        markets=[ANYTIME_TOUCHDOWN],
+        selected_lines=0.5,
+        selected_season=2026,
+        require_meaningful_usage=True,
+    )
+
+    assert [row.player_id for row in result.rows] == ["primary"]
+
+
+def test_meaningful_sample_with_no_hits_remains_true_zero_percent():
+    provider = _Provider({2025: [
+        _log("runner", "Runner", carries=12, rushing_yards=0),
+    ]})
+    result = NFLPropTrendReadService(game_log_provider=provider).build_rows(
+        roster_entries=[_roster("runner", "Runner", "RB")],
+        markets=[RUSHING_YARDS],
+        selected_lines=49.5,
+        selected_season=2026,
+        require_meaningful_usage=True,
+    )
+
+    assert result.rows[0].last_10.games_considered == 1
+    assert result.rows[0].last_10.hit_rate == 0.0
+
+
 def _roster(player_id, name, position):
     player = NFLPlayer(gsis_id=player_id, name=name, position=position)
     return NFLRosterEntry(
@@ -176,6 +265,11 @@ def _log(
     season=2026,
     week=1,
     passing_yards=0,
+    passing_touchdowns=0,
+    carries=0,
+    rushing_yards=0,
+    targets=0,
+    receptions=0,
     receiving_yards=0,
     rushing_touchdowns=0,
     receiving_touchdowns=0,
@@ -194,10 +288,12 @@ def _log(
         opponent_abbreviation="BUF",
         home_away="AWAY",
         passing_yards=passing_yards,
-        passing_touchdowns=0,
-        rushing_yards=0,
+        passing_touchdowns=passing_touchdowns,
+        carries=carries,
+        rushing_yards=rushing_yards,
         rushing_touchdowns=rushing_touchdowns,
-        receptions=0,
+        targets=targets,
+        receptions=receptions,
         receiving_yards=receiving_yards,
         receiving_touchdowns=receiving_touchdowns,
         special_teams_touchdowns=special_teams_touchdowns,

@@ -40,6 +40,7 @@ NAVIGATION_GROUPS = (
             NavigationItem("KBO", "KBO", "◌"),
             NavigationItem("Bomb Lab", "Bomb Lab", "●"),
             NavigationItem("Props", "Props", "◎"),
+            NavigationItem("NFL Props", "NFL Props", "◉"),
             NavigationItem("First 5", "First 5", "◷"),
         ),
     ),

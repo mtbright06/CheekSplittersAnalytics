@@ -11,6 +11,7 @@ import io
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Iterable
+from time import monotonic
 
 import requests
 
@@ -44,6 +45,8 @@ class NFLPlayerGameLogProvider:
         fetcher=requests.get,
         players: Iterable[NFLPlayer] | None = None,
         schedule_provider: NFLScheduleProvider | None = None,
+        cache_ttl: float = 1800,
+        clock=monotonic,
     ) -> None:
         self._fetcher = fetcher
         self._players = tuple(players) if players is not None else None
@@ -51,6 +54,9 @@ class NFLPlayerGameLogProvider:
             fetcher=fetcher
         )
         self._row_cache: dict[int, tuple[list[dict[str, str]], tuple[str, ...]]] = {}
+        self._cache_times = {}
+        self._cache_ttl = cache_ttl
+        self._clock = clock
 
     def load_player_game_logs(
         self,
@@ -97,7 +103,7 @@ class NFLPlayerGameLogProvider:
         season: int,
     ) -> tuple[list[dict[str, str]], tuple[str, ...]]:
         cached = self._row_cache.get(season)
-        if cached is not None:
+        if cached is not None and self._clock() - self._cache_times[season] < self._cache_ttl:
             rows, concerns = cached
             return list(rows), concerns
 
@@ -115,6 +121,7 @@ class NFLPlayerGameLogProvider:
         if not rows:
             return [], (f"player_game_logs_source_empty:{season}",)
         self._row_cache[season] = (rows, ())
+        self._cache_times[season] = self._clock()
         return list(rows), ()
 
     def _player_index(self) -> dict[str, NFLPlayer]:

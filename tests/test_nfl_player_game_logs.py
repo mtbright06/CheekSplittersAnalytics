@@ -101,6 +101,22 @@ def test_provider_bulk_cache_fetches_once_per_season():
     assert calls == [STATS_PLAYER_WEEKLY_URL.format(season=2025)]
 
 
+def test_successful_bulk_cache_expires_for_updated_weekly_data():
+    calls, now = [], [0]
+    def fetcher(url, **kwargs):
+        calls.append(url)
+        return _Response(_csv(_row()))
+    provider = NFLPlayerGameLogProvider(fetcher=fetcher, players=[_player()],
+        schedule_provider=_ScheduleProvider([_game()]), clock=lambda: now[0], cache_ttl=1800)
+    provider.load_player_game_logs(season=2025)
+    now[0] = 1799
+    provider.load_player_game_logs(season=2025)
+    assert len(calls) == 1
+    now[0] = 1800
+    provider.load_player_game_logs(season=2025)
+    assert len(calls) == 2
+
+
 def test_unavailable_release_is_explicit_but_can_recover_without_restart():
     calls = []
 

@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 import requests
 
 from engine.nfl.models import NFLGame
+from engine.nfl.nflverse_cache import NFLVerseBulkCache
 from engine.nfl.teams import nfl_team_from_abbreviation
 
 
@@ -17,6 +18,7 @@ SCHEDULE_URL = (
     "schedules/games.csv"
 )
 SOURCE = "nflverse_schedules"
+PERSISTENT_CACHE_MAX_AGE_SECONDS = 6 * 60 * 60
 NFL_SCHEDULE_TZ = ZoneInfo("America/New_York")
 
 GAME_TYPE_ALIASES = {
@@ -35,8 +37,10 @@ class NFLScheduleProvider:
         self,
         *,
         fetcher=requests.get,
+        bulk_cache: NFLVerseBulkCache | None = None,
     ) -> None:
         self._fetcher = fetcher
+        self._bulk_cache = bulk_cache
         self._rows: list[dict[str, str]] | None = None
 
     def load_schedule(
@@ -58,6 +62,14 @@ class NFLScheduleProvider:
 
     def _load_rows(self) -> list[dict[str, str]]:
         if self._rows is None:
+            if self._bulk_cache is not None:
+                result = self._bulk_cache.load_csv(
+                    key="schedule", url=SCHEDULE_URL,
+                    validator=lambda text: _has_columns(text, {"game_id", "gameday", "away_team", "home_team"}),
+                    max_age_seconds=PERSISTENT_CACHE_MAX_AGE_SECONDS,
+                )
+                self._rows = _csv_rows(result.text or "")
+                return list(self._rows)
             try:
                 response = self._fetcher(
                     SCHEDULE_URL,
@@ -71,6 +83,13 @@ class NFLScheduleProvider:
             except Exception:
                 self._rows = []
         return list(self._rows)
+
+
+def _has_columns(text: str, required: set[str]) -> bool:
+    if not text or "<html" in text[:500].lower():
+        return False
+    fields = csv.DictReader(io.StringIO(text)).fieldnames or ()
+    return required <= set(fields)
 
 
 def load_nfl_schedule(

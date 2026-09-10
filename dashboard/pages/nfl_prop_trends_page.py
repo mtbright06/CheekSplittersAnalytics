@@ -11,6 +11,9 @@ import streamlit as st
 from components.data_table import render_data_table
 from components.page_header import render_compact_header
 from engine.nfl.models import NFLGame, NFLRosterEntry
+from engine.nfl.nflverse_cache import NFLVerseBulkCache
+from engine.nfl.player_game_logs import NFLPlayerGameLogProvider
+from engine.nfl.players import NFLPlayersProvider
 from engine.nfl.prop_markets import NFLPropMarketProvider
 from engine.nfl.prop_trend_service import NFLPropTrendReadService, NFLPropTrendRow
 from engine.nfl.prop_trends import (
@@ -439,8 +442,20 @@ def _market_label(market: str) -> str:
 
 
 @st.cache_resource(ttl=1800, show_spinner=False)
+def _get_nflverse_bulk_cache() -> NFLVerseBulkCache:
+    return NFLVerseBulkCache()
+
+
+@st.cache_resource(ttl=1800, show_spinner=False)
 def _get_schedule_provider() -> NFLScheduleProvider:
-    return NFLScheduleProvider()
+    return NFLScheduleProvider(bulk_cache=_get_nflverse_bulk_cache())
+
+
+@st.cache_resource(ttl=1800, show_spinner=False)
+def _get_nfl_players():
+    return NFLPlayersProvider(
+        bulk_cache=_get_nflverse_bulk_cache()
+    ).load_players()
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -456,7 +471,9 @@ def _load_slate_games(target_date: str) -> tuple[NFLGame, ...]:
 
 @st.cache_resource(ttl=1800, show_spinner=False)
 def _get_roster_provider() -> NFLRostersProvider:
-    return NFLRostersProvider()
+    return NFLRostersProvider(
+        players=_get_nfl_players(), bulk_cache=_get_nflverse_bulk_cache()
+    )
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
@@ -478,7 +495,10 @@ def _load_roster_universe(
 
 @st.cache_resource(show_spinner=False)
 def _get_prop_trend_read_service() -> NFLPropTrendReadService:
-    return NFLPropTrendReadService()
+    return NFLPropTrendReadService(game_log_provider=NFLPlayerGameLogProvider(
+        players=_get_nfl_players(), schedule_provider=_get_schedule_provider(),
+        bulk_cache=_get_nflverse_bulk_cache(),
+    ))
 
 
 @st.cache_resource(show_spinner=False)

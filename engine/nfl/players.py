@@ -8,6 +8,7 @@ from typing import Any
 import requests
 
 from engine.nfl.models import NFLPlayer
+from engine.nfl.nflverse_cache import NFLVerseBulkCache
 
 
 PLAYERS_URL = (
@@ -15,6 +16,7 @@ PLAYERS_URL = (
     "players/players.csv"
 )
 SOURCE = "nflverse_players"
+PERSISTENT_CACHE_MAX_AGE_SECONDS = 24 * 60 * 60
 
 
 class NFLPlayersProvider:
@@ -22,8 +24,10 @@ class NFLPlayersProvider:
         self,
         *,
         fetcher=requests.get,
+        bulk_cache: NFLVerseBulkCache | None = None,
     ) -> None:
         self._fetcher = fetcher
+        self._bulk_cache = bulk_cache
         self._rows: list[dict[str, str]] | None = None
 
     def load_players(self) -> list[NFLPlayer]:
@@ -31,6 +35,14 @@ class NFLPlayersProvider:
 
     def _load_rows(self) -> list[dict[str, str]]:
         if self._rows is None:
+            if self._bulk_cache is not None:
+                result = self._bulk_cache.load_csv(
+                    key="players", url=PLAYERS_URL,
+                    validator=lambda text: _has_columns(text, {"gsis_id", "display_name"}),
+                    max_age_seconds=PERSISTENT_CACHE_MAX_AGE_SECONDS,
+                )
+                self._rows = _csv_rows(result.text or "")
+                return list(self._rows)
             try:
                 response = self._fetcher(
                     PLAYERS_URL,
@@ -44,6 +56,13 @@ class NFLPlayersProvider:
             except Exception:
                 self._rows = []
         return list(self._rows)
+
+
+def _has_columns(text: str, required: set[str]) -> bool:
+    if not text or "<html" in text[:500].lower():
+        return False
+    fields = csv.DictReader(io.StringIO(text)).fieldnames or ()
+    return required <= set(fields)
 
 
 def load_nfl_players(

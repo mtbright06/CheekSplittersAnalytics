@@ -16,6 +16,7 @@ from time import monotonic
 import requests
 
 from engine.nfl.models import NFLGame, NFLPlayer, NFLPlayerGameLog
+from engine.nfl.nflverse_cache import NFLVerseBulkCache
 from engine.nfl.players import load_nfl_players
 from engine.nfl.schedule import NFLScheduleProvider, normalize_game_type
 from engine.nfl.teams import normalize_nfl_abbreviation
@@ -27,6 +28,7 @@ STATS_PLAYER_WEEKLY_URL = (
 )
 SOURCE = "nflverse_stats_player_weekly"
 REGULAR_SEASON = "REG"
+PERSISTENT_CACHE_MAX_AGE_SECONDS = 30 * 60
 
 
 @dataclass(frozen=True)
@@ -47,6 +49,7 @@ class NFLPlayerGameLogProvider:
         schedule_provider: NFLScheduleProvider | None = None,
         cache_ttl: float = 1800,
         clock=monotonic,
+        bulk_cache: NFLVerseBulkCache | None = None,
     ) -> None:
         self._fetcher = fetcher
         self._players = tuple(players) if players is not None else None
@@ -57,6 +60,7 @@ class NFLPlayerGameLogProvider:
         self._cache_times = {}
         self._cache_ttl = cache_ttl
         self._clock = clock
+        self._bulk_cache = bulk_cache
 
     def load_player_game_logs(
         self,
@@ -107,6 +111,22 @@ class NFLPlayerGameLogProvider:
             rows, concerns = cached
             return list(rows), concerns
 
+        if self._bulk_cache is not None:
+            result = self._bulk_cache.load_csv(
+                key=f"player_stats_{season}",
+                url=STATS_PLAYER_WEEKLY_URL.format(season=season),
+                validator=lambda text: _has_columns(
+                    text, {"season", "week", "game_id", "player_id"}
+                ),
+                max_age_seconds=PERSISTENT_CACHE_MAX_AGE_SECONDS,
+            )
+            rows = _csv_rows(result.text or "")
+            if not rows:
+                return [], (f"player_game_logs_source_unavailable:{season}",)
+            self._row_cache[season] = (rows, ())
+            self._cache_times[season] = self._clock()
+            return list(rows), ()
+
         try:
             response = self._fetcher(
                 STATS_PLAYER_WEEKLY_URL.format(season=season),
@@ -128,6 +148,13 @@ class NFLPlayerGameLogProvider:
         if self._players is None:
             self._players = tuple(load_nfl_players())
         return {player.gsis_id: player for player in self._players}
+
+
+def _has_columns(text: str, required: set[str]) -> bool:
+    if not text or "<html" in text[:500].lower():
+        return False
+    fields = csv.DictReader(io.StringIO(text)).fieldnames or ()
+    return required <= set(fields)
 
 
 def load_nfl_player_game_logs(

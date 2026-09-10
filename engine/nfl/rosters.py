@@ -8,6 +8,7 @@ import requests
 
 from engine.nfl.models import NFLPlayer, NFLRosterEntry
 from engine.nfl.players import load_nfl_players
+from engine.nfl.nflverse_cache import NFLVerseBulkCache
 from engine.nfl.teams import normalize_nfl_abbreviation
 
 
@@ -20,6 +21,7 @@ WEEKLY_ROSTERS_URL = (
     "weekly_rosters/roster_weekly_{season}.csv"
 )
 SOURCE = "nflverse_rosters"
+PERSISTENT_CACHE_MAX_AGE_SECONDS = 30 * 60
 
 
 class NFLRostersProvider:
@@ -28,9 +30,11 @@ class NFLRostersProvider:
         *,
         fetcher=requests.get,
         players: list[NFLPlayer] | None = None,
+        bulk_cache: NFLVerseBulkCache | None = None,
     ) -> None:
         self._fetcher = fetcher
         self._players = players
+        self._bulk_cache = bulk_cache
         self._cache: dict[tuple[str, int], list[dict[str, str]]] = {}
 
     def load_season_roster(
@@ -69,6 +73,14 @@ class NFLRostersProvider:
         key = (kind, season)
         if key not in self._cache:
             template = WEEKLY_ROSTERS_URL if kind == "weekly" else ROSTERS_URL
+            if self._bulk_cache is not None:
+                result = self._bulk_cache.load_csv(
+                    key=f"{kind}_roster_{season}", url=template.format(season=season),
+                    validator=lambda text: _has_columns(text, {"gsis_id", "team", "season"}),
+                    max_age_seconds=PERSISTENT_CACHE_MAX_AGE_SECONDS,
+                )
+                self._cache[key] = _csv_rows(result.text or "")
+                return list(self._cache[key])
             try:
                 response = self._fetcher(
                     template.format(season=season),
@@ -90,6 +102,13 @@ class NFLRostersProvider:
             player.gsis_id: player
             for player in self._players
         }
+
+
+def _has_columns(text: str, required: set[str]) -> bool:
+    if not text or "<html" in text[:500].lower():
+        return False
+    fields = csv.DictReader(io.StringIO(text)).fieldnames or ()
+    return required <= set(fields)
 
 
 def load_nfl_season_roster(

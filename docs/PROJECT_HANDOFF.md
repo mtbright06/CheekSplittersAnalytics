@@ -13,6 +13,14 @@ resets to the new slate on date changes; empty selection performs no roster or
 market loading. Existing market/history caches, stale labels and player detail
 are unchanged. Player-detail reference redesign remains deferred. No commit.
 
+NFL Props bulk-data performance: schedule, weekly roster, canonical players,
+and weekly player-stat CSVs now use an atomic known-good disk cache under
+`data/nfl/cache/`. Props shares one schedule provider and player registry across
+roster/history composition. Unpublished season files have a five-minute
+negative cache; failed refreshes cannot replace valid cached data. A measured
+one-game restart required zero nflverse HTTP requests. No Odds API behavior or
+model/trend calculations changed. No commit.
+
 **Repository:** `C:\CheekSplittersAnalytics`
 **Primary branch:** `feature/recommendation-history`
 **Environment:** Windows 11 / PowerShell / Python 3.13+

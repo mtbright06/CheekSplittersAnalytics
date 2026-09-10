@@ -6,7 +6,8 @@ import pytest
 from engine.nfl.models import NFLGame, NFLPlayer, NFLRosterEntry, NFLPlayerGameLog
 from engine.nfl.teams import nfl_team_from_abbreviation
 from engine.nfl.prop_markets import (
-    NFLPropMarketProvider, MARKET_KEYS, normalize_prop_markets, resolve_market_player,
+    NFLPropMarketProvider, MARKET_KEYS, _matches_game, normalize_prop_markets,
+    resolve_market_player,
 )
 from engine.nfl.player_game_logs import NFLPlayerGameLogBatch
 from engine.nfl.prop_trend_service import NFLPropTrendReadService
@@ -96,6 +97,31 @@ def test_timestamp_stale_and_invalid_event_are_explicit():
     data = payload()
     data['home_team'] = 'Kansas City Chiefs'
     assert normalize_prop_markets(data, game(), RUSHING_YARDS, entries(), NOW).concerns == ('event_identity_mismatch',)
+
+
+def test_rams_alias_matches_exact_event_but_reversed_or_wrong_date_does_not():
+    matchup = NFLGame(
+        '2026_01_SF_LA', 2026, 1, 'REG', date(2026, 9, 10),
+        datetime(2026, 9, 11, 0, 35, tzinfo=UTC),
+        nfl_team_from_abbreviation('SF'), nfl_team_from_abbreviation('LA'), 'SCHEDULED',
+    )
+    event = {
+        'id': 'rams-49ers',
+        'commence_time': '2026-09-11T00:35:00Z',
+        'away_team': 'San Francisco 49ers',
+        'home_team': 'Los Angeles Rams',
+    }
+
+    assert _matches_game(event, matchup)
+    assert not _matches_game({
+        **event,
+        'away_team': event['home_team'],
+        'home_team': event['away_team'],
+    }, matchup)
+    assert not _matches_game({
+        **event,
+        'commence_time': '2026-09-12T00:35:00Z',
+    }, matchup)
 
 
 def test_cache_ttl_failure_cooldown_recovery_and_refresh():

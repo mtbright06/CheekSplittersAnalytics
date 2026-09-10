@@ -6,6 +6,7 @@ from engine.nfl.schedule import load_nfl_schedule, normalize_nfl_game
 from engine.nfl.teams import (
     load_nfl_teams,
     nfl_logo_key,
+    nfl_team_from_abbreviation,
     normalize_nfl_abbreviation,
 )
 
@@ -20,9 +21,26 @@ def test_current_team_registry_has_32_teams_and_logo_keys():
 
 def test_alias_handling_is_boundary_scoped():
     assert normalize_nfl_abbreviation("JAC") == "JAX"
+    assert normalize_nfl_abbreviation("LA") == "LAR"
     assert normalize_nfl_abbreviation("WSH") == "WAS"
     assert normalize_nfl_abbreviation("JAC", current_franchise=False) == "JAC"
     assert nfl_logo_key("JAC") == "jax"
+
+
+def test_nflverse_rams_alias_normalizes_schedule_identity():
+    game = normalize_nfl_game(_row(
+        game_id="2026_01_SF_LA",
+        away_team="SF",
+        home_team="LA",
+        gametime="20:35",
+    ))
+
+    assert game.away_team.abbreviation == "SF"
+    assert game.away_team.full_name == "San Francisco 49ers"
+    assert game.home_team.abbreviation == "LAR"
+    assert game.home_team.full_name == "Los Angeles Rams"
+    assert normalize_nfl_abbreviation("LAC") == "LAC"
+    assert nfl_team_from_abbreviation("LAC").full_name == "Los Angeles Chargers"
 
 
 def test_scheduled_game_normalization_preserves_identity_and_time():

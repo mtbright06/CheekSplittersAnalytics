@@ -42,6 +42,7 @@ CURRENT_TEAM_ROWS = (
 
 PROVIDER_ALIASES = {
     "JAC": "JAX",
+    "LA": "LAR",
     "WSH": "WAS",
 }
 

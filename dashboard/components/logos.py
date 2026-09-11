@@ -65,6 +65,9 @@ def team_key(team_name):
 
 
 def team_logo_path(team_name, sport="kbo"):
+    if sport.lower() == 'nfl':
+        from engine.nfl.teams import nfl_logo_key
+        return LOGO_ROOT / 'nfl' / f'{nfl_logo_key(team_name)}.png'
     return LOGO_ROOT / sport.lower() / f"{team_key(team_name)}.png"
 
 

@@ -571,7 +571,8 @@ def _close_research():
     st.session_state['nfl_research_open'] = False
 
 
-@st.dialog('Player research', width='large', on_dismiss=_close_research)
+# Streamlit requires a nonempty title; whitespace leaves the player name as the visible heading.
+@st.dialog(' ', width='large', on_dismiss=_close_research)
 def _research_dialog(row, service, opponents, before_date, *, game=None):
     _render_market_detail(row, service, opponents, before_date, game=game)
 
@@ -610,6 +611,7 @@ def _render_market_detail(row, service, opponents, before_date, *, game=None):
     with st.container(key='nfl_intelligence'):
         render_player_identity(
             player=trend.player_name,
+            player_id=trend.player_id,
             team=trend.team_abbreviation,
             position=trend.position or 'N/A',
             opponent=opponent,

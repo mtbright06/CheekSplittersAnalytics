@@ -1,10 +1,33 @@
 from __future__ import annotations
 
 from html import escape
+from functools import lru_cache
+import base64
+from pathlib import Path
 
 import altair as alt
 import pandas as pd
 import streamlit as st
+from app.player_assets import get_player_headshot
+from components.logos import team_logo_path
+
+
+@lru_cache(maxsize=1024)
+def _local_image_data(path: str, modified: int) -> str:
+    file = Path(path)
+    mime = {'.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg'}.get(
+        file.suffix.lower(), 'image/png')
+    return f'data:{mime};base64,' + base64.b64encode(file.read_bytes()).decode('ascii')
+
+
+def _identity_image(path, css_class, label):
+    if path is None:
+        return ''
+    try:
+        source = _local_image_data(str(path), path.stat().st_mtime_ns)
+        return f'<img class="{css_class}" src="{source}" alt="{escape(label, quote=True)}">'
+    except OSError:
+        return ''
 
 
 def inject_nfl_props_styles() -> None:
@@ -17,6 +40,14 @@ def inject_nfl_props_styles() -> None:
         .nfl-props-title p {margin:.12rem 0 0; color:#54b8e8; font-size:.72rem;
             font-weight:700; letter-spacing:.12rem; text-transform:uppercase}
         .nfl-intel-name {font-size:1.15rem; font-weight:750; color:#f3f7fb}
+        .nfl-identity {display:flex; align-items:center; gap:12px}
+        .nfl-headshot {width:84px; height:80px; object-fit:contain; flex:none}
+        [data-testid="stDialog"]:has(.st-key-nfl_intelligence) [role="dialog"] > div:first-of-type {
+            height:0; margin:0; overflow:hidden;
+        }
+        .st-key-nfl_intelligence .nfl-headshot {width:104px; height:100px}
+        .st-key-nfl_intelligence .nfl-intel-name {font-size:24px; font-weight:700; line-height:1.2}
+        .nfl-team-image {width:26px; height:24px; object-fit:contain; vertical-align:middle}
         .nfl-intel-meta {color:#a9b7c5; margin-top:.18rem}
         .nfl-intel-matchup {color:#d6e4ef; font-weight:650; text-align:right}
         .nfl-intel-source {color:#71879a; font-size:.78rem; text-align:right; margin-top:.2rem}
@@ -67,19 +98,23 @@ def render_nfl_props_title() -> None:
 
 def render_player_identity(
     *, player: str, team: str, position: str, opponent: str, market: str,
-    game_context: str, source_context: str,
+    game_context: str, source_context: str, player_id: str = '',
 ) -> None:
     left, right = st.columns([1.35, 1], vertical_alignment="center")
     with left:
+        headshot = _identity_image(get_player_headshot('nfl', player_id), 'nfl-headshot', player)
+        logo = _identity_image(team_logo_path(team, 'nfl'), 'nfl-team-image', team)
         st.markdown(
-            f'<div class="nfl-intel-name">{escape(player)}</div>'
+            f'<div class="nfl-identity">{headshot}<div><div class="nfl-intel-name">{escape(player)}</div>'
             f'<div class="nfl-intel-meta">{escape(position)} &nbsp;|&nbsp; '
-            f'{escape(team)} &nbsp;|&nbsp; {escape(market)}</div>',
+            f'{logo} {escape(team)} &nbsp;|&nbsp; {escape(market)}</div></div></div>',
             unsafe_allow_html=True,
         )
     with right:
+        team_image = _identity_image(team_logo_path(team, 'nfl'), 'nfl-team-image', team)
+        opponent_image = _identity_image(team_logo_path(opponent, 'nfl'), 'nfl-team-image', opponent)
         st.markdown(
-            f'<div class="nfl-intel-matchup">{escape(team)} vs {escape(opponent)}</div>'
+            f'<div class="nfl-intel-matchup">{team_image} {escape(team)} vs {escape(opponent)} {opponent_image}</div>'
             f'<div class="nfl-intel-source">{escape(game_context)}<br>{escape(source_context)}</div>',
             unsafe_allow_html=True,
         )
@@ -112,8 +147,8 @@ def recent_performance_chart(results, line: float, average: float | None = None,
     threshold = alt.Chart(pd.DataFrame({"line": [line]})).mark_rule(
         color="#67c9f3", strokeDash=[5, 4], size=2,
     ).encode(y="line:Q")
-    labels = alt.Chart(frame).mark_text(dy=-8, color='#e5edf4', fontSize=10).encode(
-        x=alt.X('Game:N', sort=None), y='Actual:Q', text=alt.Text('Actual:Q', format='g'))
+    labels = alt.Chart(frame).mark_text(dy=-9, color='#e5edf4', fontSize=13, fontWeight=600).encode(
+        x=alt.X('Game:N', sort=None), y='Actual:Q', text=alt.Text('Actual:Q', format='.0f'))
     chart = bars + threshold + labels
     if sportsbook_line is not None and sportsbook_line != line:
         chart += alt.Chart(pd.DataFrame({'Sportsbook': [sportsbook_line]})).mark_rule(
@@ -161,9 +196,11 @@ def render_prop_scanner(rows, opponents, market_label):
                             for r in reversed(trend.last_10.game_results))
             line = 'Yes' if quote.line is None else f'{quote.line:g}'
             with evidence:
+                logo = _identity_image(team_logo_path(trend.team_abbreviation, 'nfl'),
+                                       'nfl-team-image', trend.team_abbreviation)
                 st.markdown('<div class="nfl-scan">'
                     f'<span class="prop"><strong>{escape(market_label(trend.market))} {line}</strong>'
-                    f'<small>{escape(trend.position or "N/A")} | {escape(trend.team_abbreviation)} '
+                    f'<small>{logo} {escape(trend.position or "N/A")} | {escape(trend.team_abbreviation)} '
                     f'vs {escape(opponents.get(trend.team_abbreviation, "N/A"))}</small></span>'
                     f'<span><small>{escape(quote.sportsbook)}</small>O {price(quote.over_price)} '
                     f' / U {price(quote.under_price)}</span>{signals}'

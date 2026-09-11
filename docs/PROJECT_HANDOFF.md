@@ -7,6 +7,19 @@
 
 # 1. Project Status
 
+NFL identity imagery: local GSIS-keyed headshots and manifest under
+`assets/players/nfl/`, resolved through `app.player_assets.get_player_headshot`.
+The modal uses compact headshots; scanner rows reuse existing NFL team logos.
+`python3 tools_build_nfl_player_assets.py --season 2026` refreshes the pack from
+cached nflverse Players/weekly rosters; downloads never run in the UI. Week 1
+pack: 781 retained GSIS entries, 768 images, 13 fallbacks (11 no-source,
+2 download failures). Latest roster build: 780 candidates, 767 images reused.
+16.4 MiB total. Visually approved and FROZEN as the NHL Props UX baseline;
+no further layout changes. No commit; NHL acquisition not added. Earlier visual
+review notes below are superseded by this acceptance.
+Market audit: same-day post-kickoff refresh remains possible; no kickoff/status
+lockout or live-quote rejection exists. Address pregame lockout separately.
+
 NFL player selection now opens the existing research canvas in a large native
 dialog. Alternate Thresholds has synchronized slider/numeric input and a reset
 to the sportsbook line; the main chart retains a separate sportsbook reference

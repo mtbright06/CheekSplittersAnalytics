@@ -302,6 +302,8 @@ def nfl_player_game_log_from_provider(
         opponent_abbreviation=opponent,
         home_away=home_away,
         position=_upper(row.get("position")),
+        completions=_optional_int(row.get("completions")),
+        passing_attempts=_optional_int(row.get("attempts")),
         passing_yards=_optional_int(row.get("passing_yards")),
         passing_touchdowns=_optional_int(row.get("passing_tds")),
         carries=_optional_int(row.get("carries")),

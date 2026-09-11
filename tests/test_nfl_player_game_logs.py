@@ -27,6 +27,8 @@ def test_schedule_join_sets_date_home_away_and_canonical_opponent():
     assert log.home_away == "AWAY"
     assert log.opponent_abbreviation == "BUF"
     assert log.team_abbreviation == "KC"
+    assert log.passing_attempts == 36
+    assert log.completions == 24
 
 
 def test_home_join_and_traded_player_row_team_context_are_factual():
@@ -171,6 +173,8 @@ def _row():
         "team": "KC",
         "opponent_team": "BUF",
         "passing_yards": "250",
+        "attempts": "36",
+        "completions": "24",
         "passing_tds": "2",
         "carries": "4",
         "rushing_yards": "20",

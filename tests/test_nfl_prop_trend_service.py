@@ -245,6 +245,31 @@ def test_meaningful_sample_with_no_hits_remains_true_zero_percent():
     assert result.rows[0].last_10.hit_rate == 0.0
 
 
+def test_read_model_exposes_factual_distribution_and_passing_volume():
+    provider = _Provider({2026: [
+        _log(
+            "qb", "Quarterback", week=1, passing_yards=200,
+            passing_attempts=30, completions=18,
+        ),
+        _log(
+            "qb", "Quarterback", week=2, passing_yards=300,
+            passing_attempts=40, completions=28,
+        ),
+    ]})
+    row = NFLPropTrendReadService(game_log_provider=provider).build_rows(
+        roster_entries=[_roster("qb", "Quarterback", "QB")],
+        markets=[PASSING_YARDS],
+        selected_lines=249.5,
+        selected_season=2026,
+    ).rows[0]
+
+    assert row.last_10_stats.average == 250.0
+    assert row.last_10_stats.median == 250.0
+    assert row.last_10_stats.pass_attempts_per_game == 35.0
+    assert row.last_10_stats.completions_per_game == 23.0
+    assert row.last_10_stats.completion_rate == 46 / 70
+
+
 def _roster(player_id, name, position):
     player = NFLPlayer(gsis_id=player_id, name=name, position=position)
     return NFLRosterEntry(
@@ -265,6 +290,8 @@ def _log(
     season=2026,
     week=1,
     passing_yards=0,
+    passing_attempts=None,
+    completions=None,
     passing_touchdowns=0,
     carries=0,
     rushing_yards=0,
@@ -287,6 +314,8 @@ def _log(
         team_abbreviation="KC",
         opponent_abbreviation="BUF",
         home_away="AWAY",
+        passing_attempts=passing_attempts,
+        completions=completions,
         passing_yards=passing_yards,
         passing_touchdowns=passing_touchdowns,
         carries=carries,

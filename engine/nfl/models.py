@@ -170,6 +170,8 @@ class NFLPlayerGameLog:
     opponent_abbreviation: str | None
     home_away: str | None
     position: str | None = None
+    completions: int | None = None
+    passing_attempts: int | None = None
     passing_yards: int | None = None
     passing_touchdowns: int | None = None
     carries: int | None = None

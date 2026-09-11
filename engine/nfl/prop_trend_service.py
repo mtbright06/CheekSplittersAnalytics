@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
+from statistics import mean, median
 from threading import RLock
 from time import monotonic
 from typing import Iterable
@@ -48,6 +49,9 @@ class NFLPropTrendRow:
     game_type: str = REGULAR_SEASON
     source: str = "nfl_prop_trend_read_service"
     concerns: tuple[str, ...] = ()
+    last_5_stats: "NFLPropPerformanceStats | None" = None
+    last_10_stats: "NFLPropPerformanceStats | None" = None
+    season_stats: "NFLPropPerformanceStats | None" = None
 
     @property
     def sort_hit_rate(self) -> float:
@@ -63,6 +67,19 @@ class NFLPropTrendReadResult:
     rows: tuple[NFLPropTrendRow, ...] = ()
     concerns: tuple[str, ...] = ()
     source: str = "nfl_prop_trend_read_service"
+
+
+@dataclass(frozen=True)
+class NFLPropPerformanceStats:
+    games: int
+    average: float | None = None
+    median: float | None = None
+    pass_attempts_per_game: float | None = None
+    completions_per_game: float | None = None
+    completion_rate: float | None = None
+    carries_per_game: float | None = None
+    targets_per_game: float | None = None
+    receptions_per_game: float | None = None
 
 
 @dataclass(frozen=True)
@@ -294,6 +311,10 @@ def _row_from_logs(
             )
         )
     )
+    stats = {
+        window: _performance_stats(logs, windows[window])
+        for window in (LAST_5, LAST_10, SEASON)
+    }
     return NFLPropTrendRow(
         player_id=entry.player_id or "",
         player_name=entry.player.name if entry.player else "",
@@ -310,6 +331,44 @@ def _row_from_logs(
         selected_season=selected_season,
         game_type=game_type,
         concerns=row_concerns,
+        last_5_stats=stats[LAST_5],
+        last_10_stats=stats[LAST_10],
+        season_stats=stats[SEASON],
+    )
+
+
+def _performance_stats(
+    logs: tuple[NFLPlayerGameLog, ...], summary: NFLPropTrendSummary
+) -> NFLPropPerformanceStats:
+    values = [float(result.actual_value) for result in summary.game_results]
+    game_ids = {result.game_id for result in summary.game_results}
+    selected_logs = [log for log in logs if log.game_id in game_ids]
+
+    def per_game(attribute: str) -> float | None:
+        observed = [
+            getattr(log, attribute)
+            for log in selected_logs
+            if getattr(log, attribute) is not None
+        ]
+        return mean(observed) if observed else None
+
+    attempts = sum(
+        log.passing_attempts for log in selected_logs
+        if log.passing_attempts is not None
+    )
+    completions = sum(
+        log.completions for log in selected_logs if log.completions is not None
+    )
+    return NFLPropPerformanceStats(
+        games=len(values),
+        average=mean(values) if values else None,
+        median=median(values) if values else None,
+        pass_attempts_per_game=per_game("passing_attempts"),
+        completions_per_game=per_game("completions"),
+        completion_rate=(completions / attempts) if attempts else None,
+        carries_per_game=per_game("carries"),
+        targets_per_game=per_game("targets"),
+        receptions_per_game=per_game("receptions"),
     )
 
 

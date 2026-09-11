@@ -7,6 +7,37 @@
 
 # 1. Project Status
 
+NFL player selection now opens the existing research canvas in a large native
+dialog. Alternate Thresholds has synchronized slider/numeric input and a reset
+to the sportsbook line; the main chart retains a separate sportsbook reference
+when researching another threshold. No provider changes. Awaiting visual review.
+
+NFL canvas cleanup: scanner unchanged; chart-window controls now live above
+the center chart. Alternate Thresholds and Game Log are collapsed below the
+canvas; threshold selections reuse the main chart and retain the sportsbook
+quote. Matchup/More and permanent diagnostics controls removed. Player photos
+await the canonical asset location; no local headshots/resolver were found.
+
+NFL market scanner/research canvas presentation awaits visual inspection:
+native player selection buttons accompany custom quote/signal rows; primary
+player tabs are replaced by history-window controls and secondary popovers.
+Charts label actuals/opponents and retain factual outcomes. Alternate research
+thresholds redraw a cached-history chart. No additional market fetching or
+backend changes; player market switching awaits a multi-market data contract.
+
+NFL Props visual correction awaits visual review: Overview now groups quote,
+window statistics and usage beside a compact last-10 chart and five-game recent
+form preview. The full results table remains in Game Log; definitions and
+concerns are collapsed. Accepted backend contracts are unchanged. No commit.
+
+NFL Props UI v2 is implemented and awaiting review. The market scanner is now
+the selectable discovery surface, with a compact tabbed player-intelligence
+workspace for factual hit rates, averages, medians, market-specific volume,
+last-10 visualization, game logs, alternate research thresholds, and matchup
+context. Current sportsbook quotes remain informational; historical lines are
+explicitly unavailable and are never fabricated. No model, recommendation,
+provider, cache, or Odds API request behavior changed. No commit.
+
 NFL Props compact-control sprint: date, Games subset picker, market, search and
 refresh/threshold share a desktop control row. Games supports All/Clear and
 resets to the new slate on date changes; empty selection performs no roster or

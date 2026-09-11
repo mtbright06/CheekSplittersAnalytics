@@ -148,19 +148,38 @@ def test_streamlit_market_board_detail_search_and_research_mode(monkeypatch):
     assert at.radio(key='nfl_props_mode').value == 'Market Lines'
     at.selectbox(key='nfl_prop_trends_market').select('Rushing Yards').run()
     assert not at.exception
-    frame = at.dataframe[0].value
-    assert list(frame['Actual Line']) == ['27.5', '68.5']
-    assert list(frame['L10']) == ['100%', '0%']
-    assert list(frame['Season']) == ['N/A', 'N/A']
+    selectors = [button for button in at.button if button.key.startswith('nfl_select_')]
+    assert [button.label for button in selectors] == ['Alpha Runner Jr.', 'Beta Runner']
+    assert not at.tabs
+    assert any('Rushing Yards 27.5' in item.value for item in at.markdown)
+    assert any('Rushing Yards 68.5' in item.value for item in at.markdown)
     calls = history.calls
     http_calls = len(requests)
+    selectors[1].click().run()
+    assert not at.exception
+    assert any('68.5</strong>' in item.value for item in at.markdown)
     at.text_input(key='nfl_prop_trends_player_search').set_value('Beta').run()
     assert not at.exception
-    assert list(at.dataframe[0].value['Player']) == ['Beta Runner']
-    assert at.metric[0].value == '68.5'
+    assert [button.label for button in at.button if button.key.startswith('nfl_select_')] == ['Beta Runner']
+    assert not at.metric
+    assert any('68.5</strong>' in item.value for item in at.markdown)
+    assert len(at.get('vega_lite_chart')) == 1
+    assert not any(item.label in ('Data definitions', 'Data concerns', 'Player and market diagnostics')
+                   for item in at.expander)
+    assert any(item.label.startswith('Game Log |') for item in at.expander)
     at.number_input(key='nfl_explore_2026_01_NE_SEA_02_RUSHING_YARDS').set_value(40.5).run()
     assert not at.exception
-    assert at.metric[0].value == '68.5'
+    assert not at.metric
+    assert any('68.5</strong>' in item.value for item in at.markdown)
+    assert any('Research 40.5' in item.value for item in at.caption)
+    assert len(at.get('vega_lite_chart')) == 1
+    assert at.slider(key='nfl_explore_2026_01_NE_SEA_02_RUSHING_YARDS_slider').value == 40.5
+    at.slider(key='nfl_explore_2026_01_NE_SEA_02_RUSHING_YARDS_slider').set_value(45.5).run()
+    assert not at.exception
+    assert at.number_input(key='nfl_explore_2026_01_NE_SEA_02_RUSHING_YARDS').value == 45.5
+    at.button(key='nfl_explore_2026_01_NE_SEA_02_RUSHING_YARDS_reset').click().run()
+    assert not at.exception
+    assert not any('Research 40.5' in item.value for item in at.caption)
     assert history.calls == calls
     assert len(requests) == http_calls
     at.radio(key='nfl_props_mode').set_value('Research Threshold').run()
@@ -253,6 +272,26 @@ def test_game_detail_uses_engine_result_fields():
     frame = page._game_results_to_dataframe((result,))
     assert list(frame.columns) == ["Date", "Opponent", "Home/Away", "Actual", "Result"]
     assert frame.iloc[0].to_dict()["Result"] == "HIT"
+
+
+def test_market_board_selection_defaults_first_and_honors_selected_row():
+    rows = (object(), object())
+
+    assert page._selected_market_row(None, rows) is rows[0]
+
+    selection = type("Selection", (), {
+        "selection": type("Rows", (), {"rows": [1]})()
+    })()
+    assert page._selected_market_row(selection, rows) is rows[1]
+
+
+def test_market_detail_has_research_controls_and_no_primary_tabs():
+    source = (ROOT / "dashboard" / "pages" / "nfl_prop_trends_page.py").read_text()
+
+    assert 'st.tabs(' not in source
+    assert "st.segmented_control('History window'" in source
+    assert "Historical sportsbook lines are not stored" in source
+    assert "recent_performance_chart" in source
 
 
 def test_page_delegates_trend_math_and_has_no_cross_sport_imports():

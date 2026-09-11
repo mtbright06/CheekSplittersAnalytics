@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from datetime import date
 from typing import Iterable
 from zoneinfo import ZoneInfo
@@ -9,7 +10,15 @@ import pandas as pd
 import streamlit as st
 
 from components.data_table import render_data_table
-from components.page_header import render_compact_header
+from components.nfl_props import (
+    inject_nfl_props_styles,
+    recent_performance_chart,
+    render_nfl_props_title,
+    render_player_identity,
+    render_compact_table,
+    render_quote_strip,
+    render_prop_scanner,
+)
 from engine.nfl.models import NFLGame, NFLRosterEntry
 from engine.nfl.nflverse_cache import NFLVerseBulkCache
 from engine.nfl.player_game_logs import NFLPlayerGameLogProvider
@@ -75,11 +84,8 @@ def render_nfl_prop_trends(
     games: Iterable[NFLGame] | None = None,
     roster_entries: Iterable[NFLRosterEntry] | None = None,
 ) -> None:
-    render_compact_header(
-        "🏈",
-        "NFL Prop Trends",
-        None,
-    )
+    inject_nfl_props_styles()
+    render_nfl_props_title()
 
     mode = st.radio("Mode", PROP_MODES, horizontal=True, key="nfl_props_mode")
 
@@ -547,24 +553,27 @@ def _render_market_board(games, entries, market, search, service, *, refresh=Fal
         st.info("No matched player markets match the current filters.")
         return
     opponents = _opponents_by_team(games)
-    frame = _market_dataframe(market_rows, opponents)
-    render_data_table(_style_trend_frame(frame), height=540, key="nfl_market_board")
-    if all(r.trend.season.games_considered == 0 for r in market_rows):
-        st.caption(f"{games[0].season} season sample unavailable. Recent windows may include "
-                   f"{games[0].season - 1}; Previous Season is shown in player detail.")
-    st.caption("Hit rates measure historical Over / Yes results. Prices are separate market context.")
+    selected_row = render_prop_scanner(market_rows, opponents, _market_label)
     updates = [q.retrieved_at for q in quotes]
-    st.caption(f"Retrieved {max(updates).strftime('%Y-%m-%d %H:%M UTC')} | Five-minute market cache")
+    season_note = (f" | {games[0].season} sample unavailable; recent history includes prior seasons"
+                   if all(r.trend.season.games_considered == 0 for r in market_rows) else '')
+    st.caption(f"Updated {max(updates).strftime('%H:%M UTC')} | Historical Over / Yes{season_note}")
     all_concerns = _concern_details([r.trend for r in market_rows], ())
     if all_concerns:
-        with st.expander("Data concerns"):
-            for concern in all_concerns:
-                st.caption(concern)
-    options = {(r.quote.game_id, r.trend.player_id): r for r in market_rows}
-    selected = st.selectbox("Player Detail", list(options),
-                           format_func=lambda key: _player_label(options[key].trend),
-                           key="nfl_market_player_detail")
-    _render_market_detail(options[selected], service, opponents, games[0].game_date)
+        logging.getLogger(__name__).debug('NFL prop data concerns: %s', all_concerns)
+    games_by_id = {game.source_game_id: game for game in games}
+    if st.session_state.get('nfl_research_open', False):
+        _research_dialog(selected_row, service, opponents, games[0].game_date,
+                         game=games_by_id.get(selected_row.quote.game_id))
+
+
+def _close_research():
+    st.session_state['nfl_research_open'] = False
+
+
+@st.dialog('Player research', width='large', on_dismiss=_close_research)
+def _research_dialog(row, service, opponents, before_date, *, game=None):
+    _render_market_detail(row, service, opponents, before_date, game=game)
 
 
 def _market_dataframe(rows, opponents):
@@ -582,44 +591,211 @@ def _market_dataframe(rows, opponents):
     } for r in rows])
 
 
-def _render_market_detail(row, service, opponents, before_date):
+def _selected_market_row(selection, rows):
+    rows = tuple(rows)
+    try:
+        selected = selection.selection.rows
+    except (AttributeError, TypeError):
+        selected = ()
+    if selected and 0 <= selected[0] < len(rows):
+        return rows[selected[0]]
+    return rows[0]
+
+
+def _render_market_detail(row, service, opponents, before_date, *, game=None):
     trend, quote = row.trend, row.quote
-    st.subheader(trend.player_name)
-    st.caption(f"{trend.team_abbreviation} vs {opponents.get(trend.team_abbreviation, 'N/A')} | "
-               f"{trend.position or 'N/A'} | {_market_label(trend.market)} | {quote.sportsbook}")
-    st.caption('Source updated: ' + (quote.updated_at.strftime('%Y-%m-%d %H:%M UTC')
-                                    if quote.updated_at else 'Unknown'))
+    opponent = opponents.get(trend.team_abbreviation, 'N/A')
+    source_updated = quote.updated_at.strftime('%Y-%m-%d %H:%M UTC') if quote.updated_at else 'Unknown'
+    game_context = _game_context(game)
+    with st.container(key='nfl_intelligence'):
+        render_player_identity(
+            player=trend.player_name,
+            team=trend.team_abbreviation,
+            position=trend.position or 'N/A',
+            opponent=opponent,
+            market=_market_label(trend.market),
+            game_context=game_context,
+            source_context=f'{quote.sportsbook} quote updated {source_updated}',
+        )
     if 'market_stale' in quote.concerns:
         st.warning('STALE market quote. Refresh before relying on this line or price.')
-    cols = st.columns(3)
-    cols[0].metric('Actual market', _line(quote))
-    cols[1].metric('Over / Yes', _price(quote.over_price))
-    cols[2].metric('Under / No', _price(quote.under_price))
-    if quote.line is None:
-        st.caption("Anytime scorer Yes/No market; equivalent research threshold: 0.5 TD.")
+    canvas = st.container()
+    with st.expander('Alternate Thresholds', expanded=False):
+        research_line, research_windows = _render_alternate_lines(trend, quote, service, before_date)
+    with canvas:
+        _render_market_overview(trend, quote, research_line=research_line,
+                                research_windows=research_windows)
+    results = tuple(sorted({r.game_id: r for summary in research_windows.values()
+                            for r in summary.game_results}.values(),
+                           key=lambda r: (r.game_date, r.game_id), reverse=True))
+    with st.expander(f'Game Log | {len(results)} games', expanded=False):
+        st.caption(f'Results against research threshold {research_line:g}' if research_line != quote.research_line
+                   else f'Results against current line {quote.research_line:g}')
+        render_compact_table(('Date', 'Opponent', 'Home/Away', 'Actual', 'Result'), [
+            (r.game_date.isoformat(), r.opponent_abbreviation or 'N/A', r.home_away or 'N/A',
+             f'{r.actual_value:g}', r.result) for r in results
+        ])
+
+
+def _render_market_overview(trend, quote, *, research_line, research_windows):
+    summary_column, chart_column, recent_column = st.columns([1.15, 1.4, 1], gap='small')
+    with summary_column:
+        render_quote_strip(_line(quote), _price(quote.over_price), _price(quote.under_price), quote.sportsbook)
+        records = []
+        for label, summary, stats in (
+            ('L5', trend.last_5, trend.last_5_stats),
+            ('L10', trend.last_10, trend.last_10_stats),
+            (str(trend.selected_season), trend.season, trend.season_stats),
+        ):
+            records.append((
+                label, _format_hit_rate(summary.hit_rate),
+                f'{summary.hits}/{summary.games_considered}',
+                'N/A' if stats is None or stats.average is None else f'{stats.average:.1f}',
+                'N/A' if stats is None or stats.median is None else f'{stats.median:.1f}',
+            ))
+        render_compact_table(('Window', 'Hit %', 'Hits/GP', 'Avg', 'Median'), records)
+        _render_volume_metrics(trend)
+    with chart_column:
+        window = st.segmented_control('History window', ['L5', 'L10', 'L20', 'Season'],
+                                      default='L10', key='nfl_history_window', selection_mode='single',
+                                      label_visibility='collapsed') or 'L10'
+        summary = research_windows[{'L5': 'LAST_5', 'L10': 'LAST_10',
+                                    'L20': 'LAST_20', 'Season': 'SEASON'}[window]]
+        stats = {'L5': trend.last_5_stats, 'L10': trend.last_10_stats,
+                 'Season': trend.season_stats}.get(window)
+        average = stats.average if stats is not None else None
+        st.caption(f'{window} | Sportsbook {quote.research_line:g}' +
+                   (f' | Research {research_line:g}' if research_line != quote.research_line else '') +
+                   (f' | Avg {average:.1f}' if average is not None else ''))
+        chart = recent_performance_chart(summary.game_results, research_line, average,
+                                         sportsbook_line=quote.research_line)
+        if chart is None:
+            st.info('No qualifying historical game results for this player.')
+        else:
+            st.altair_chart(chart, width='stretch')
+    with recent_column:
+        st.caption('Recent form')
+        results = trend.last_10.game_results[:5]
+        render_compact_table(('Date', 'Opp', 'Actual', 'Result'), [(
+            result.game_date.strftime('%m/%d/%y'),
+            ('@ ' if result.home_away == 'AWAY' else 'vs ' if result.home_away == 'HOME' else '')
+            + (result.opponent_abbreviation or 'N/A'),
+            f'{result.actual_value:g}', result.result,
+        ) for result in results])
+        if not results:
+            st.caption('No recent sample')
+
+
+def _render_volume_metrics(trend):
+    stats = trend.season_stats if trend.season_stats and trend.season_stats.games else trend.last_10_stats
+    if stats is None:
+        return
+    metrics = []
+    if trend.market == PASSING_YARDS:
+        metrics = [
+            ('Attempts / game', stats.pass_attempts_per_game, '.1f'),
+            ('Completions / game', stats.completions_per_game, '.1f'),
+            ('Completion rate', stats.completion_rate, '.0%'),
+        ]
+    elif trend.market == RUSHING_YARDS:
+        metrics = [('Carries / game', stats.carries_per_game, '.1f')]
+    elif trend.market in {RECEIVING_YARDS, RECEPTIONS}:
+        metrics = [('Targets / game', stats.targets_per_game, '.1f')]
+        if trend.market == RECEIVING_YARDS:
+            metrics.append(('Receptions / game', stats.receptions_per_game, '.1f'))
+    if not metrics:
+        return
+    period = str(trend.selected_season) if stats is trend.season_stats else 'L10'
+    st.caption(f'Volume | {period} | {stats.games} games')
+    render_compact_table(('Usage', 'Value'), [
+        (label, 'N/A' if value is None else format(value, format_spec))
+        for label, value, format_spec in metrics
+    ])
+
+
+def _render_game_log(trend, line, *, limit):
+    results = tuple(trend.last_20.game_results)
+    if limit is not None:
+        results = results[:limit]
+    frame = _game_results_to_dataframe(results)
+    if frame.empty:
+        st.info('No qualifying historical game results for this player.')
+        return
+    frame.insert(4, 'Current Line', f'{line:g}')
+    render_data_table(frame, height=min(420, 38 + 35 * len(frame)))
+
+
+def _render_alternate_lines(trend, quote, service, before_date):
+    st.caption('Historical research thresholds. Sportsbook quote remains unchanged.')
+    prefix = f'nfl_explore_{quote.game_id}_{trend.player_id}_{trend.market}'
+    step = 5.0 if trend.market in {PASSING_YARDS, RUSHING_YARDS, RECEIVING_YARDS} else 1.0
+    thresholds = sorted({max(0.0, quote.research_line + offset * step) for offset in (-2, -1, 0, 1, 2)})
+    slider_key = prefix + '_slider'
+    for key in (prefix, slider_key):
+        if key not in st.session_state:
+            st.session_state[key] = float(quote.research_line)
+    controls = st.columns([3, 1], vertical_alignment='bottom')
+    maximum = max(quote.research_line * 2, st.session_state[prefix] + step,
+                  max((float(r.actual_value) for r in trend.last_20.game_results), default=0), step * 5)
+    with controls[0]:
+        st.slider('Research threshold', min_value=0.0, max_value=float(maximum), step=0.5,
+                  key=slider_key, on_change=_sync_threshold, args=(slider_key, prefix))
+    with controls[1]:
+        st.number_input(
+            'Explore threshold', min_value=0.0, value=quote.research_line,
+            step=0.5, format='%g',
+            key=prefix, on_change=_sync_threshold, args=(prefix, slider_key),
+            help='Historical sportsbook lines are not stored. Research thresholds apply to past factual results.',
+        )
+    st.button('Reset to sportsbook line', key=prefix + '_reset',
+              on_click=_reset_threshold, args=(prefix, slider_key, quote.research_line))
+    center = float(st.session_state[prefix])
+    thresholds = sorted(set(thresholds + [center]))
+    nearby = service.nearby_thresholds(trend, thresholds, before_date=before_date)
+    render_compact_table(('Research threshold', 'L5', 'L10', 'L20', 'Season'), [
+        (f'{threshold:g}', *(_format_hit_rate(windows[window].hit_rate)
+                            for window in ('LAST_5', 'LAST_10', 'LAST_20', 'SEASON')))
+        for threshold, windows in nearby.items()
+    ])
+    return float(center), nearby[float(center)]
+
+
+def _sync_threshold(source, target):
+    st.session_state[target] = float(st.session_state[source])
+
+
+def _reset_threshold(number_key, slider_key, line):
+    st.session_state[number_key] = float(line)
+    st.session_state[slider_key] = float(line)
+
+
+def _render_summary_table(trend):
     summaries = [('L5', trend.last_5), ('L10', trend.last_10), ('L20', trend.last_20),
                  (f'Season {trend.selected_season}', trend.season),
                  (f'Previous Season {trend.selected_season - 1}', trend.previous_season)]
-    render_data_table(pd.DataFrame([{'Window': label, 'Hit rate': _format_hit_rate(s.hit_rate),
-                                    'GP': s.games_considered, 'Pushes': s.pushes} for label, s in summaries]))
-    results = _game_results_to_dataframe(trend.last_20.game_results)
-    if not results.empty:
-        results.insert(4, 'Line / Threshold', f'{quote.research_line:g}')
-        render_data_table(results)
-        st.bar_chart(pd.DataFrame({'Date': [r.game_date for r in trend.last_20.game_results],
-                                  'Actual': [r.actual_value for r in trend.last_20.game_results]}).set_index('Date'),
-                     height=180)
-    else:
-        st.info('No qualifying historical game results for this player.')
-    st.subheader('Research alternate thresholds')
-    center = st.number_input('Explore threshold', min_value=0.0, value=quote.research_line,
-                             step=0.5, format='%g',
-                             key=f'nfl_explore_{quote.game_id}_{trend.player_id}_{trend.market}')
-    step = 5.0 if trend.market in {PASSING_YARDS, RUSHING_YARDS, RECEIVING_YARDS} else 1.0
-    thresholds = sorted({max(0.0, center + offset * step) for offset in (-2, -1, 0, 1, 2)})
-    nearby = service.nearby_thresholds(trend, thresholds, before_date=before_date)
     render_data_table(pd.DataFrame([{
-        'Research Threshold': f'{threshold:g}',
-        **{label: _format_hit_rate(windows[window].hit_rate) for label, window in
-           [('L5', 'LAST_5'), ('L10', 'LAST_10'), ('L20', 'LAST_20'), ('Season', 'SEASON')]},
-    } for threshold, windows in nearby.items()]))
+        'Window': label,
+        'Hit rate': _format_hit_rate(summary.hit_rate),
+        'Hits': summary.hits,
+        'Misses': summary.misses,
+        'Pushes': summary.pushes,
+        'GP': summary.games_considered,
+    } for label, summary in summaries]))
+
+
+def _game_context(game):
+    if game is None:
+        return 'Game context unavailable'
+    kickoff = game.start_time.astimezone(ZoneInfo('America/New_York')).strftime('%a, %b %d | %I:%M %p %Z') \
+        if game.start_time else game.game_date.isoformat()
+    return f'{kickoff}' + (f' | {game.location}' if game.location else '')
+
+
+def _render_matchup_context(game, player_team):
+    if game is None:
+        st.info('Matchup context is unavailable for this market row.')
+        return
+    opponent = game.home_team if player_team == game.away_team.abbreviation else game.away_team
+    st.markdown(f'**Opponent:** {opponent.full_name} ({opponent.abbreviation})')
+    st.caption(f'{_game_context(game)} | Status: {game.game_status}')
+    st.info('Opponent prop intelligence is reserved for a later factual matchup sprint.')
